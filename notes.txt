@@ -85,6 +85,9 @@ after that, ifconfig on odroid has new inet addr which is also 169.254.xxx.xxx. 
 now ssh also finally works.  as well as web browser.  but can't get ssh or even hdmi on reboot... hdmi cable seemed to be supplying some power.  seems related to:
 https://forum.odroid.com/viewtopic.php?f=80&t=3605
 
+poppy's host key fingerprint is:
+SHA256:v0bA58B79WBbZEcFM4gaAihrAjzHFetR3U634I38O6Y
+
 next day first boot worked with dvi -> hdmi converter.  takes some time to boot up (after blue flash?), wait longer on ether?
 
 when I first plug in ether, doesn't seem to autosetup wired connection on odroid, although interface showing up on lightop with same ip as yesterday.  seems to at least remember linklocal on odroid.
