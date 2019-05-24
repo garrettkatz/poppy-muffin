@@ -1,0 +1,142 @@
+still need:
+    zip-ties before moving wildly ?
+    wire cutters?
+
+printed with polyamide (nylon plastic)?
+
+it comes with tools!! threadlock, allen wrenches
+**do** need electrical adapter for US electricity outlets
+
+tools/materials nice to have (didn't need):
+    tweezers + thin pliers
+    good screwdriver for pre-allen twists (torx?)
+    philips head screwdriver
+
+https://www.generationrobots.com/blog/en/easy-start-up-with-the-robots-poppy-humanoid-and-poppy-torso/
+    1.5,2,2.5mm allen wrenches, long thin Phillips screwdriver, mini flat screwdriver for electronics, presser?, tweezers
+    thread lock
+
+possible actuated gripper (small):
+    https://www.trossenrobotics.com/p/phantomx-parallel-ax12-gripper.aspx
+    https://github.com/poppy-project/poppy-6dof-right-arm
+
+install pypot and v-rep (pypot includes herborist)
+
+used screws S1 for hand<->forearm (called is M2x5 screw which didn't exist)
+
+right poppy basic arm: 2/4 upper arm
+r_arm_z (ID 53)
+r_elbow_y (ID 54)
+
+had to usermod -aG dialout lightop and then restart
+had to make sure usb green light to get /dev/ttyACM0
+then herborist scan gave error that serial port was busy until I un/replugged usb, and did udevadm trigger, and redid herborist
+sometimes need to redo udevadm trigger inbetween flashes
+
+should physically label each part right/left with tape after building
+
+don't have to tighten too far - warps the plastic
+
+watch out for caught wires between plastic and motors when screwing!
+
+put plier needle through motor holes first to wipe away plastic
+
+thigh calls for apparently missing 250mm wire.  although custom seems to be closer to 250 than 220.  right thigh video starts with left and switches  (unless 220 was included in one of the motors?)
+
+chest video doesn't specify bolt lengths.  used S1 in the BNS set for M2, and 2.5x6 for the M2.5 nuts.  after flashing ax-12a, difficult to remove wire, best to use throwaway (not custom).  chest shoulder bolting especially problematic for some reason, maybe screwed first couple too tight.  Later bolts didn't screw well and one broke off.  For second chest shoulder, I didn't screw the first two next to each other but instead spaced initial three as far apart as possible, worked much better.  used doublesided tape instead of glue, presses well into the little spikes on the 6-way splitter chip.
+
+trunk calls for apparently missing 4P 200mm wire (4 individual cables).  But then video cuts two of the 4.  it also brings in an additional 60mm 3P towards the end.  free horns can be difficult to line up: lay flat, turn the motor, don't screw first screw too tight until after some others are in.  Might also be better to screw free horns first before gold horns (can use the central bolt to turn the gold one), that's what he does when attaching the chest.  doubleside tape works less well on shrinkwrapped smps
+
+pelvis had trouble threading before I realized plastic hadn't been snuggly pressed against horn
+
+pliers helped get the two little adjacent M2s on the camera support
+
+camera support attach to face incorrectly calls for 2x4mm bolts (should be 2.5x4mm bolts)?  well, only 2 fits through camera support, but M2.5 nuts fit in the head face... solution: plastic pliable enough to create threads by "screwing" into plastic hole with alan wrench
+
+camera calls for 2x5mm screws, bioloid only has 2x6.  just used 2x6 and it seemed to work.  although (independently?) the camera lens became a bit misaligned with the hole.  samething with speakers.
+
+
+head instructions don't show flashing the neck eeprom. should be ID=37 according to image in "addressing dynamixel" section.
+also don't show attaching the neck piece.  docs suggest 2x5 screws but BOM only had 2x6 (they seem to work ok).  ALSO: don't have the 3 dots to align, but *DO* have notches to align with ax12s.  Lucked out on the first one!  Make sure the second lines up.
+head would be easier if attach 3p cables to motor *before* screwing in amp
+instructions didn't specify audio jack, just fed it around under odroid, hoping reaches last usb port on splitter
+3dsound only fits on isolated hub on splitter, which ends up closer to head's right ear.  should feed audio jack through that side.
+handle amp connections gently, they can come out
+odroid didn't seem to line up with holes, but once I started screwing them and pliabling the plastic a bit they all worked
+slightest tweak to head shape could make neck screws much easier (shorten vestigial prongs, or small hole where screwdriver would go through back head edge.  also, make hole for cables bigger!  and make hdmi accessible!
+
+should really setup and troubleshoot board first connection *BEFORE* assembling in head
+always remember to unplug power jack on back of head before removing board
+manual says that hardware power-off (unplug) is bad for the board.  should do software initiated shutdown.  blue light keeps blinking until all peripherals including hdmi are unplugged.
+
+after head, ready for software:
+https://docs.poppy-project.org/en/
+
+connecting: needed avahi (already installed), and select "local link only" for IPv4 config in network manager
+
+Then identity populated with IP 169.254.239.64, could ping with 0% packet loss, but couldn't get there through firefox, even with wifi off
+
+disassembled and then powered on with hdmi to monitor and keyboard/mouse plugged in.  it worked.
+
+had to also do link local network setting ON ODROID!!!!!!!!!! now wired connection 1 connects.
+
+after that, ifconfig on odroid has new inet addr which is also 169.254.xxx.xxx.  That one I can ping from lightop, and tcpdump on odroid sees the pings.  So the inet on lightop is ***lightop***'s address on the little local network, and I had been pinging myself on lightop.
+
+now ssh also finally works.  as well as web browser.  but can't get ssh or even hdmi on reboot... hdmi cable seemed to be supplying some power.  seems related to:
+https://forum.odroid.com/viewtopic.php?f=80&t=3605
+
+next day first boot worked with dvi -> hdmi converter.  takes some time to boot up (after blue flash?), wait longer on ether?
+
+when I first plug in ether, doesn't seem to autosetup wired connection on odroid, although interface showing up on lightop with same ip as yesterday.  seems to at least remember linklocal on odroid.
+  graphically restarted wired connection 1 on odroid desktop and then can ssh in again.  then again, did I uncheck auto connect?  rechecking now, and letting any odroid user do it.
+  
+even X forwarding works at least on chromium test.
+ 
+odroid ip (today?) is: 169.254.217.32
+
+shutdown, waited some seconds, plugged in again, waited a few seconds after flashing, connected ether only, was able to ssh.
+
+without restarting plugged dvi-hdmi back in, but monitor just black.  plug in keyboard, keystrokes don't wake monitor.  at least can software shutdown now through ssh, with sudo poweroff in ssh session.
+
+powered off and unplugged everything, waited a bit.  then put in hdmi-dvi ***first*** before powering on.  it woke up the monitor again.
+
+now tried again with vanilla hdmi plugged in ***first*** on totally powered down system; it worked.
+
+might not be able to use web and ssh python term simultaneously?
+
+getting lots of python errors now like OSError: Could not initalize robot: No suitable port found for ids [31, 32, 33, 34, 35, 36, 37, 41, 42, 43, 44, 51, 52, 53, 54]. These ids are missing [32, 33, 34, 35, 36, 37, 41, 42, 43, 44, 51, 52, 53, 54, 31], docs suggest that connections are bad, but for all of them?
+
+Actually, those are precisely the ones in the smps2dynamixel that is not supplied power.  Poweredoff, connected other smps2dynamixel (on upper back), can now access all motors with some serial io warnings but not the OSError.
+
+Trying to find camera.  Ergo Jr had an entry in the json, let's try that.
+
+on odroid: editing ~/.pyenv/versions/2.7.11/lib/python2.7/site-packages/poppy_humanoid/configuration/poppy_humanoid.json
+
+to include text from ergo jr for "sensors" field:
+https://github.com/poppy-project/poppy-ergo-jr/blob/master/software/poppy_ergo_jr/configuration/poppy_ergo_jr.json
+
+then I get repeated Dxl serial errors and no >>> prompt.  Back to original and it works again.  Can workaround this with an opencvcamera object outside of the poppyhumanoid object as in test.py in odroid ~, but can't seem to show image.  chromium window opens, so it's a problem with python/matplotlib.  the default backend was agg (non-interactive for pngs etc).  changed backend in matplotlibrc (under site-packages/matplotlib/mpl-data).  Agg means raster graphics, and Tk etc is toolkit which should match environment (gnome is around GTK, and KDE around Qt)
+
+Just about every interactive backend needed uninstalled python.  trying to install tkinter, but networking can't reach external internet through lightop.  Trying to add default route.
+
+sudo ip route add default via 169.254.239.64 dev eth0 proto static
+
+updated routing table, but ping 8.8.8.8 still 100% packet loss.  trying to add route for the wired interface to the wireless...
+
+slightest tweak to pelvis/hips would let it sit nicely (supported by mx-64ats)
+
+serious issues with shoulder_y; the angle range is discontinuous and goal_speed behaves unexpectedly
+
+    seems that setting goal speed under the hood just sets a speed magnitude and a goal position at max_pos = 180.  Code could be forked and this could be changed short of a more fundamental fix.  For example, assign each joint its own min/max range based on plastic skeleton contraints.
+
+usb hub doesn't fit into the outside back of head slot (rubber casing too thick) had to buy new one
+
+connecting once everything works:
+
+plug in everything, do
+$ ssh poppy@poppy.local
+pw: poppy
+
+wrapping up: sudo shutdown -h now
+
+motor docs: http://emanual.robotis.com/docs/en/dxl/mx/mx-28/#goal-acceleration
