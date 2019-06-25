@@ -143,3 +143,27 @@ pw: poppy
 wrapping up: sudo shutdown -h now
 
 motor docs: http://emanual.robotis.com/docs/en/dxl/mx/mx-28/#goal-acceleration
+
+setting up docker:
+should use --init option with docker run to avoid pid1 zombie
+had to use releasever=29, looks like it might upgrade automatically when 30 comes out
+had to restart (not just logout) for groupadd to take effect
+
+nvidia-docker again: from
+https://medium.com/@aaronpolhamus/nvidia-powered-ml-station-with-fedora-29-docker-a8e4bd6a80ae
+
+after installing docker:
+sudo curl -s -L https://nvidia.github.io/nvidia-docker/centos7/nvidia-docker.repo | \
+    sudo tee /etc/yum.repos.d/nvidia-docker.repo
+sudo dnf install nvidia-docker2
+sudo pkill -SIGHUP dockerd
+sudo docker run --runtime=nvidia --rm nvidia/cuda nvidia-smi
+
+for checking fingerprint of downloaded public gpgkey:
+gpg --with-fingerprint --import-options show-only --import < public-key-file.asc
+
+building docker image:
+$ docker build --tag=poppymuffin .
+from poppy-muffin repo directory (".").  will need to rebuild with pypot, and test networking to poppy.local
+
+
