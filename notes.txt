@@ -167,3 +167,43 @@ $ docker build --tag=poppymuffin .
 from poppy-muffin repo directory (".").  will need to rebuild with pypot, and test networking to poppy.local
 
 
+docker<->poppy networking, trying:
+docker network create --driver bridge poppy-net
+output: ec0c40bf59ec6d0244f0726760e3ebf61cdb2fbe4cae1ab5bd076804d958172b
+
+poppy has ip something like 169.254.217.32 and has this ip route entry:
+169.254.0.0/16 dev enp0s20f0u2 proto kernel scope link src 169.254.239.64 metric 100
+same netdevice also has this: 224.0.0.0/4 dev enp0s20f0u2 proto static scope link metric 100
+
+user defined docker bridge has ip 172.18.0.2/16 and this ip route entry:
+172.18.0.0/16 dev br-ec0c40bf59ec proto kernel scope link src 172.18.0.1
+
+inside docker container, ip route has this:
+default via 172.18.0.1 dev eth0 
+172.18.0.0/16 dev eth0 proto kernel scope link src 172.18.0.2
+
+wifi has these ip route entries:
+default via 10.1.64.1 dev wlp1s0 proto dhcp metric 600
+10.1.64.0/18 dev wlp1s0 proto kernel scope link src 10.1.99.2 metric 600
+
+somehow docker is getting to the wifi to ping google.
+
+got lightop's ip (I think?) on wired network from ifconfig, and used it as gateway for new docker network:
+docker network create --driver bridge poppy-net2  --subnet 169.254.0.0/16 --gateway 169.254.239.64
+16 in subnet specifies first (second?) two bytes of IP.  Now we get:
+$ netstat -rn
+Kernel IP routing table
+Destination     Gateway         Genmask         Flags   MSS Window  irtt Iface
+0.0.0.0         10.1.64.1       0.0.0.0         UG        0 0          0 wlp1s0
+10.1.64.0       0.0.0.0         255.255.192.0   U         0 0          0 wlp1s0
+169.254.0.0     0.0.0.0         255.255.0.0     U         0 0          0 br-909bec39970b
+169.254.0.0     0.0.0.0         255.255.0.0     U         0 0          0 enp0s20f0u2
+172.17.0.0      0.0.0.0         255.255.0.0     U         0 0          0 docker0
+172.18.0.0      0.0.0.0         255.255.0.0     U         0 0          0 br-ec0c40bf59ec
+192.168.124.0   0.0.0.0         255.255.255.0   U         0 0          0 virbr0
+224.0.0.0       0.0.0.0         240.0.0.0       U         0 0          0 enp0s20f0u2
+
+but now poppy.local is inaccessible outside of docker container!  Removed poppy-net2 and I can ping poppy again.
+
+okay, can ping poppy by ip (not name) when using docker's --network host
+
