@@ -43,7 +43,4 @@ if __name__ == "__main__":
     p = PH()
     angles = record_angles(p, period, dump)
 
-    # with open(dump,"r") as f: angles = pk.load(f)
-    # show_angles(angles)
-
 

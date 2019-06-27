@@ -213,3 +213,44 @@ from normal docker, no special network, can ping host's ip on the wired interfac
 
 ip route add 169.254.217.32 via 169.254.239.64 dev eth0 
 ip route add 169.254.0.0/16 via 169.254.239.64 dev eth0 
+
+bad joint ranges via record_angles.py and joint_ranges.py:
+r_shoulder_y: -270 -> +90
+    [-90.2 to 90]~[-270 to -148.8]
+r_hip_z: +180 -> -180
+    [-24.2 to 180]~[-180 to -144]
+l_hip_z: -180 -> +180
+    [148.1 to 180]~[-180 to 22.9]
+l_shoulder_y: -270 -> +90
+    [-92.4 to 90]~[-270 to -150]
+    from 75, told it -260, but it tried to go backwards past -92.4, and succeeded, nearly breaking its wires
+
+trying to modify on odroid, /home/poppy/.pyenv/versions/2.7.11/lib/python2.7/site-packages/pypot/dynamixel/motor.py: in DxlMotor base class, changed upper_limit register to rw=True.  Still can't set limits in python
+
+now try to modify json to see what happens:
+/home/poppy/.pyenv/versions/2.7.11/lib/python2.7/site-packages/poppy_humanoid/configuration/poppy_humanoid.json
+original:
+    "l_shoulder_y": {
+      "offset": 90,
+      "type": "MX-28",
+      "id": 41,
+      "angle_limit": [
+        -120,
+        155
+      ],
+      "orientation": "direct"
+    }
+
+changing just angle limit: now: [-150..-270]~[90..-90] (same thing).
+also changing **offset** to zero: now limits are listed as -180..180.  Actual range: [-60..-180]~[180..0]
+offset 0, (0,360): listed limits (0.04-180.), actual: [0..180]~[-180..-60] (same).
+offset -180: listed limits (180..360), actual range [180..360]~[0..120]
+
+trying indirect orientation, no idea what it will do. actual range: [180..0]~[360..240]
+
+reverted everything.  This is a huge pain.  As last resort, after demo, could disassemble some joints and reattach at rotated versions to get continuous ranges.  Probably only need that for shoulders, not hips.  For now with crawl, just limit motion to sub-ranges that are contiguous:
+l_shoulder_y:  [-90..90]
+r_shoulder_y: [-90..90]
+l_hip_z: [-180 to 22.9]
+r_hip_z: [-24.2 to 180]
+
