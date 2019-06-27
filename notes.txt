@@ -207,3 +207,9 @@ but now poppy.local is inaccessible outside of docker container!  Removed poppy-
 
 okay, can ping poppy by ip (not name) when using docker's --network host
 
+$ docker run --init --rm -it --net=host poppymuffin bash
+
+from normal docker, no special network, can ping host's ip on the wired interface, but not poppy's.
+
+ip route add 169.254.217.32 via 169.254.239.64 dev eth0 
+ip route add 169.254.0.0/16 via 169.254.239.64 dev eth0 
