@@ -26,7 +26,22 @@ def record_angles(poppy, period=1., dump=None):
         print(position.values())
         angles.append(position)
         time.sleep(period)
-    
+
+def hotkeys(p, motors, verbose=True):
+    angles = []
+    while True:
+        if verbose:
+            print("Present positions:")
+            print({m.name: m.present_position for m in motors})
+        prompt = "Options:\n[q]uit\n[s]tore\n[t]oggle\n...? "
+        key = raw_input(prompt)
+        if key == "q": break
+        if key == "s":
+            angles.append({m.name: m.present_position for m in p.motors})
+        if key == "t":
+            for m in motors: m.compliant = not m.compliant
+    return angles
+
 def show_angles(angles):
     names = list(angles[0].keys())
     angles = np.array([

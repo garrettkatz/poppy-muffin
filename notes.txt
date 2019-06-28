@@ -64,6 +64,7 @@ instructions didn't specify audio jack, just fed it around under odroid, hoping 
 handle amp connections gently, they can come out
 odroid didn't seem to line up with holes, but once I started screwing them and pliabling the plastic a bit they all worked
 slightest tweak to head shape could make neck screws much easier (shorten vestigial prongs, or small hole where screwdriver would go through back head edge.  also, make hole for cables bigger!  and make hdmi accessible!
+slightest tweak to feet (remove heel, front top) would improve flexibility
 
 should really setup and troubleshoot board first connection *BEFORE* assembling in head
 always remember to unplug power jack on back of head before removing board
@@ -254,3 +255,4 @@ r_shoulder_y: [-90..90]
 l_hip_z: [-180 to 22.9]
 r_hip_z: [-24.2 to 180]
 
+motor controllers seem inaccurate when near the discontinuity.  changing crawl angles to be farther (~10deg)
