@@ -256,3 +256,8 @@ l_hip_z: [-180 to 22.9]
 r_hip_z: [-24.2 to 180]
 
 motor controllers seem inaccurate when near the discontinuity.  changing crawl angles to be farther (~10deg)
+
+
+crawl:
+moving forward just based on left knee/hip, without rotating right hip out to avoid friction.
+{u'l_hip_y': -61.03, u'l_knee_y': 80.84, u'r_elbow_y': -111.34, u'l_elbow_y': -116.53}

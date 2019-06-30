@@ -3,12 +3,10 @@ import pickle as pk
 
 with open("crawl2.pkl","r") as f:
     crawl_angles = pk.load(f)
-with open("crawlers.pkl","r") as f:
-    crawlers = pk.load(f)
 
 p = PH()
 
-key = raw_input("reset arms? [y/n]")
+key = raw_input("reposition arms? [y/n]")
 
 if key == "y":
     for arm in ["left","right"]:
@@ -24,7 +22,7 @@ if key == "y":
                 for m in motors: m.compliant = False
                 break
 
-key = raw_input("reset legs? [y/n]")
+key = raw_input("reposition legs? [y/n]")
 
 if key == "y":
     for leg in ["left","right"]:
@@ -43,8 +41,24 @@ if key == "y":
                 break
 
 key = raw_input('Reset for crawl pose? [y/n]')
+
+# overwrite with optimized angles
+crawl_angles.update({
+    'l_hip_y': -80., 'l_knee_y': 105., 'r_hip_y': -80., 'r_knee_y': 105.,
+    'bust_x': 0., 'abs_z': 0., 'abs_y': 45., 'abs_x':0.,
+    'r_elbow_y':-90., 'l_elbow_y':-90.,
+    'r_ankle_y':45., 'l_ankle_y':45.,
+    'r_hip_z':0., 'l_hip_z':0.,
+    'r_hip_x':0., 'l_hip_x':0.,})
+
 if key == "y":
-    for m in p.motors: m.compliant = False
+    for m in p.motors:
+        if m in [p.r_shoulder_y, p.l_shoulder_y]: # misbehaving shoulder
+            crawl_angles.pop(m.name)
+            m.compliant = True
+        else:
+            m.compliant = False
+    
     p.goto_position(crawl_angles, 5, wait=True)
 
 while True:
