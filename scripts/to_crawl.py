@@ -40,13 +40,14 @@ if key == "y":
                 for m in motors: m.compliant = False
                 break
 
-key = raw_input('Reset for crawl pose? [y/n]')
+key = raw_input('Reset crawl pose and compliance? [y/n]')
 
 # overwrite with optimized angles
 crawl_angles.update({
     'l_hip_y': -80., 'l_knee_y': 105., 'r_hip_y': -80., 'r_knee_y': 105.,
     'bust_x': 0., 'abs_z': 0., 'abs_y': 45., 'abs_x':0.,
     'r_elbow_y':-90., 'l_elbow_y':-90.,
+    'r_shoulder_x':0., 'l_shoulder_x':0.,
     'r_ankle_y':45., 'l_ankle_y':45.,
     'r_hip_z':-10., 'l_hip_z':10.,
     'r_hip_x':0., 'l_hip_x':0.,})
@@ -59,20 +60,42 @@ if key == "y":
         else:
             m.compliant = False
     
-    p.goto_position(crawl_angles, 5, wait=True)
+    p.goto_position(crawl_angles, 3, wait=True)
 
 while True:
     key = raw_input('Ready for one step? (q to quit)')
+    if key == 'q': break
 
-    # key = raw_input('Ready for one half step? (q to quit)')
-    if key == "q": break
-    p.goto_position({'r_hip_y': -50.,'l_hip_y':-75.,'r_knee_y':70.,'l_knee_y':90.,'r_hip_z':-25.,'l_hip_z':0.}, 2, wait=True)
-    p.goto_position({'r_hip_y': -100.,'l_hip_y':-75.,'r_knee_y':130.,'l_knee_y':90.,'r_hip_z':-24.,'l_hip_z':0.}, 2, wait=True)
-    # p.goto_position({'r_hip_y': -100.,'l_hip_y':-24.,'r_knee_y':130.,'l_knee_y':53.,'r_hip_z':0.,'l_hip_z':0.}, 2, wait=True)
+    # move right leg with hip lift
+    p.goto_position( # left thigh vertical with right hip raise
+        {'l_hip_y': -70., 'l_knee_y': 90., 'r_elbow_y': -100., 'l_elbow_y': -100.,
+        'abs_x': -6., 'abs_y': 45., 'abs_z': 12., 'r_hip_z': -5., 'l_hip_z': 5.},
+        3, wait=True)
+    p.goto_position( # left thigh back, right thigh forward
+        {'l_hip_y': -62., 'l_knee_y': 82., 'r_elbow_y': -115., 'l_elbow_y': -115.,
+        'abs_x': 0., 'abs_y': 45., 'abs_z': 0., 'r_hip_z': -10., 'l_hip_z': 10.},
+        3, wait=True)
 
-    # key = raw_input('Ready for other half step? (q to quit)')
-    if key == "q": break
-    p.goto_position({'r_hip_y': -75.,'l_hip_y':-50.,'r_knee_y':90.,'l_knee_y':70.,'r_hip_z':0.,'l_hip_z':25.}, 2, wait=True)
-    p.goto_position({'r_hip_y': -75.,'l_hip_y':-100.,'r_knee_y':90.,'l_knee_y':130.,'r_hip_z':0.,'l_hip_z':25.}, 2, wait=True)
-    # p.goto_position({'r_hip_y': -24.,'l_hip_y':-100.,'r_knee_y':53.,'l_knee_y':130.,'r_hip_z':0.,'l_hip_z':0.}, 2, wait=True)
+    # lift torso to swing right arm:
+    # initial:
+    # {u'abs_y': 47.78, u'abs_z': -2.77, u'r_elbow_y': -117.85, u'l_shoulder_x': -0.5100000000000051}
+    p.goto_position( # lift torso
+        {'abs_y': 38., 'abs_z': -20., 'r_elbow_y': -125., 'l_shoulder_x': 15.},
+        3, wait=True)
+    p.goto_position( # lower torso
+        {'abs_y': 45., 'abs_z': 0., 'r_elbow_y': -90., 'l_shoulder_x': 0.},
+        3, wait=True)
+
+    # # key = raw_input('Ready for one half step? (q to quit)')
+    # if key == "q": break
+    # p.goto_position({'r_hip_y': -50.,'l_hip_y':-75.,'r_knee_y':70.,'l_knee_y':90.,'r_hip_z':-25.,'l_hip_z':0.}, 2, wait=True)
+    # p.goto_position({'r_hip_y': -100.,'l_hip_y':-75.,'r_knee_y':130.,'l_knee_y':90.,'r_hip_z':-24.,'l_hip_z':0.}, 2, wait=True)
+    # # p.goto_position({'r_hip_y': -100.,'l_hip_y':-24.,'r_knee_y':130.,'l_knee_y':53.,'r_hip_z':0.,'l_hip_z':0.}, 2, wait=True)
+
+    # # key = raw_input('Ready for other half step? (q to quit)')
+    # if key == "q": break
+    # p.goto_position({'r_hip_y': -75.,'l_hip_y':-50.,'r_knee_y':90.,'l_knee_y':70.,'r_hip_z':0.,'l_hip_z':25.}, 2, wait=True)
+    # p.goto_position({'r_hip_y': -75.,'l_hip_y':-100.,'r_knee_y':90.,'l_knee_y':130.,'r_hip_z':0.,'l_hip_z':25.}, 2, wait=True)
+    # # p.goto_position({'r_hip_y': -24.,'l_hip_y':-100.,'r_knee_y':53.,'l_knee_y':130.,'r_hip_z':0.,'l_hip_z':0.}, 2, wait=True)
     
+p.close()

@@ -33,13 +33,18 @@ def hotkeys(p, motors, verbose=True):
         if verbose:
             print("Present positions:")
             print({m.name: m.present_position for m in motors})
-        prompt = "Options:\n[q]uit\n[s]tore\n[t]oggle\n...? "
+        prompt = "Options:\n[q]uit\n[c]lose p and quit\n[s]tore\n[t]oggle\n...? "
         key = raw_input(prompt)
         if key == "q": break
+        if key == "c":
+            p.close()
+            print("Did p.close().")
+            break
         if key == "s":
             angles.append({m.name: m.present_position for m in p.motors})
         if key == "t":
             for m in motors: m.compliant = not m.compliant
+
     return angles
 
 def show_angles(angles):

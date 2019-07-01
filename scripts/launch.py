@@ -8,5 +8,5 @@ from record_angles import hotkeys
 p = PH()
 c = OpenCVCamera("poppy-cam",0,10)
 
-print("Created poppy humanoid p and opencvcamera c with 10 fps")
+print("Created poppy humanoid p and opencvcamera c with 10 fps.  Don't forget to p.close() before quit() when you are finished to clean up the motor state.")
 
