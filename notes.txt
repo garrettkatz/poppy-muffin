@@ -300,3 +300,34 @@ right hip lifted:
 {u'abs_x': -6.29, u'abs_y': 46.2, u'abs_z': 12.35, u'r_hip_z': -26.86, u'l_hip_z': 20.18}
 
 
+easier initial angles where plastic supports leg joints:
+{u'r_elbow_y': -79.69, u'l_hip_y': -101.91, u'l_elbow_y': -91.91, u'l_knee_y': 132.62, u'r_hip_y': -98.95, u'r_knee_y': 133.85}
+more extreme right leg forward:
+{u'r_elbow_y': -121.36, u'l_hip_y': -44.24, u'l_elbow_y': -113.36, u'l_knee_y': 66.86, u'r_hip_y': -99.65, u'r_knee_y': 126.99}
+
+
+initial with knees and elbows close:
+{u'r_elbow_y': -118.64, u'l_elbow_y': -117.23, u'abs_x': -1.54, u'abs_y': 51.74, u'abs_z': 0.04, u'r_shoulder_x': 5.599999999999994, u'bust_y': -23.6, u'bust_x': -0.22, u'l_shoulder_x': -4.019999999999996}
+torso up for right arm swing:
+{u'r_elbow_y': -96.4, u'l_elbow_y': -122.86, u'abs_x': -1.71, u'abs_y': 39.08, u'abs_z': -27.12, u'r_shoulder_x': 12.200000000000003, u'bust_y': -23.78, u'bust_x': -4.79, u'l_shoulder_x': 10.480000000000004}
+right arm down:
+{u'r_elbow_y': -97.01, u'l_elbow_y': -118.99, u'abs_x': -1.54, u'abs_y': 49.1, u'abs_z': -6.46, u'r_shoulder_x': 12.019999999999996, u'bust_y': -23.96, u'bust_x': -3.12, u'l_shoulder_x': -5.8700000000000045}
+torso up for left arm swing:
+{u'r_elbow_y': -92.53, u'l_elbow_y': -54.81, u'abs_x': -1.54, u'abs_y': 32.13, u'abs_z': 25.19, u'r_shoulder_x': -5.3799999999999955, u'bust_y': -18.59, u'bust_x': 2.95, u'l_shoulder_x': -10.969999999999999}
+left arm down:
+{u'r_elbow_y': -86.46, u'l_elbow_y': -89.98, u'abs_x': -1.1, u'abs_y': 45.23, u'abs_z': -0.04, u'r_shoulder_x': 13.159999999999997, u'bust_y': -24.04, u'bust_x': 2.07, u'l_shoulder_x': -7.450000000000003}
+
+
+all the way forward, thighs vertical
+{u'r_elbow_y': -118.64, u'l_elbow_y': -117.23, u'abs_x': -1.54, u'abs_y': 51.74, u'abs_z': 0.04, u'r_shoulder_x': 5.599999999999994, u'bust_y': -23.6, u'bust_x': -0.22, u'l_shoulder_x': -4.019999999999996}
+right hip raised
+{u'r_hip_z': 8.75, u'r_hip_y': -94.37, u'l_hip_y': -95.58, u'l_hip_z': 18.68, u'abs_z': 17.89, u'l_knee_y': 81.1, u'r_knee_y': 76.7}
+right leg forward
+{u'r_hip_z': -2.68, u'r_hip_y': -101.14, u'l_hip_y': -67.89, u'l_hip_z': 2.07, u'abs_z': -7.87, u'l_knee_y': 77.93, u'r_knee_y': 115.91}
+
+left hip raised
+{u'r_hip_z': -26.15, u'r_hip_y': -97.27, u'l_hip_y': -68.24, u'l_hip_z': -3.91, u'abs_z': -34.95, u'l_knee_y': 57.89, u'r_knee_y': 102.9}
+left leg forward
+{u'r_hip_z': -0.13, u'r_hip_y': -97.54, u'l_hip_y': -96.9, u'l_hip_z': -0.4, u'abs_z': -6.81, u'l_knee_y': 106.77, u'r_knee_y': 111.25}
+
+

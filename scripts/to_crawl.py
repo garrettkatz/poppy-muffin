@@ -1,5 +1,6 @@
 from pypot.creatures import PoppyHumanoid as PH
 import pickle as pk
+from record_angles import hotkeys
 
 with open("crawl2.pkl","r") as f:
     crawl_angles = pk.load(f)
@@ -44,13 +45,19 @@ key = raw_input('Reset crawl pose and compliance? [y/n]')
 
 # overwrite with optimized angles
 crawl_angles.update({
-    'l_hip_y': -80., 'l_knee_y': 105., 'r_hip_y': -80., 'r_knee_y': 105.,
+    'l_hip_y': -100., 'l_knee_y': 133., 'r_hip_y': -100., 'r_knee_y': 133.,
     'bust_x': 0., 'abs_z': 0., 'abs_y': 45., 'abs_x':0.,
-    'r_elbow_y':-90., 'l_elbow_y':-90.,
+    'r_elbow_y':-115., 'l_elbow_y':-115.,
     'r_shoulder_x':0., 'l_shoulder_x':0.,
     'r_ankle_y':45., 'l_ankle_y':45.,
     'r_hip_z':-10., 'l_hip_z':10.,
     'r_hip_x':0., 'l_hip_x':0.,})
+
+# # Initial position with knees and elbows close:
+# crawl_angles.update(
+#     {'r_elbow_y': -115., 'l_elbow_y': -115.,
+#     'r_hip_y':-100., 'l_hip_y': -100.,
+#     'r_knee_y':133., 'l_knee_y':133.})
 
 if key == "y":
     for m in p.motors:
@@ -63,28 +70,84 @@ if key == "y":
     p.goto_position(crawl_angles, 3, wait=True)
 
 while True:
-    key = raw_input('Ready for one step? (q to quit)')
-    if key == 'q': break
-
-    # move right leg with hip lift
-    p.goto_position( # left thigh vertical with right hip raise
-        {'l_hip_y': -70., 'l_knee_y': 90., 'r_elbow_y': -100., 'l_elbow_y': -100.,
-        'abs_x': -6., 'abs_y': 45., 'abs_z': 12., 'r_hip_z': -5., 'l_hip_z': 5.},
-        3, wait=True)
-    p.goto_position( # left thigh back, right thigh forward
-        {'l_hip_y': -62., 'l_knee_y': 82., 'r_elbow_y': -115., 'l_elbow_y': -115.,
-        'abs_x': 0., 'abs_y': 45., 'abs_z': 0., 'r_hip_z': -10., 'l_hip_z': 10.},
-        3, wait=True)
+    # key = raw_input('Ready for one move? (q to quit)')
+    # if key == 'q': break
 
     # lift torso to swing right arm:
-    # initial:
-    # {u'abs_y': 47.78, u'abs_z': -2.77, u'r_elbow_y': -117.85, u'l_shoulder_x': -0.5100000000000051}
-    p.goto_position( # lift torso
-        {'abs_y': 38., 'abs_z': -20., 'r_elbow_y': -125., 'l_shoulder_x': 15.},
-        3, wait=True)
-    p.goto_position( # lower torso
-        {'abs_y': 45., 'abs_z': 0., 'r_elbow_y': -90., 'l_shoulder_x': 0.},
-        3, wait=True)
+    key = raw_input('Ready for left arm in? (q to quit)')
+    if key == 'q': break
+    p.goto_position( # left arm in, hips out, bust turn for center of gravity
+        {'l_shoulder_x': -13., 'l_hip_z': 20., 'r_hip_z':-20., 'bust_x':-10.}, 2, wait=True)
+    key = raw_input('Ready for torso rotate, right elbow perp? (q to quit)')
+    if key == 'q': break
+    p.goto_position( # torso rotate
+        {'r_shoulder_x':12., 'abs_x': -3., 'abs_y': 37., 'abs_z': -22., 'r_elbow_y':-90.}, 2, wait=True)
+    # key = raw_input('Ready for torso level, lift, bust? (q to quit)')
+    # if key == 'q': break
+    # p.goto_position( # torso level
+    #     {'abs_x': 0., 'abs_y': 30., 'abs_z': 0., 'bust_x':10.}, 2, wait=True)
+    key = raw_input('Ready for torso rotate other, lift, bust? (q to quit)')
+    if key == 'q': break
+    p.goto_position( # torso level
+        {'abs_x': 0., 'abs_y': 30., 'abs_z': 5., 'bust_x':5.}, 2, wait=True)
+    key = raw_input('Ready for left elbow perp? (q to quit)')
+    if key == 'q': break
+    p.goto_position( # left elbow perp
+        {'l_elbow_y':-90.}, 2, wait=True)
+    # key = raw_input('Ready for torso level, lift, left elbow perp? (q to quit)')
+    # if key == 'q': break
+    # p.goto_position( # torso level
+    #     {'abs_x': 0., 'abs_y': 30., 'abs_z': 0., 'l_elbow_y':-90.}, 2, wait=True)
+
+    key = raw_input('Ready for shoulders out? (q to quit)')
+    if key == 'q': break
+    p.goto_position( # left elbow perp
+        {'l_shoulder_x':0., 'r_shoulder_x':0.}, 2, wait=True)
+
+
+    ### get knees fully bent
+
+    key = raw_input('Ready for all the way forward, thighs vertical? (q to quit)')
+    if key == 'q': break
+    p.goto_position(
+        {'r_elbow_y': -115., 'l_elbow_y': -115.,
+        'l_hip_y': -70., 'l_knee_y': 100.,
+        'r_hip_y': -70., 'r_knee_y': 100.}, 2, wait=True)
+    key = raw_input('Ready for right hip raised? (q to quit)')
+    if key == 'q': break
+    p.goto_position(
+        {'r_hip_z': 5., 'r_hip_y': -95., 'l_hip_y': -95., 'l_hip_z': 18.,
+        'abs_z': 18., 'l_knee_y': 100., 'r_knee_y': 100.}, 2, wait=True)
+    key = raw_input('Ready for right leg forward? (q to quit)')
+    if key == 'q': break
+    p.goto_position(
+        {'r_hip_z': -2., 'r_hip_y': -100., 'l_hip_y': -70., 'l_hip_z': 2.,
+        'abs_z': -8., 'l_knee_y': 100., 'r_knee_y': 125.}, 2, wait=True)
+
+    key = raw_input('Ready for left hip raised? (q to quit)')
+    if key == 'q': break
+    p.goto_position(
+        {'r_hip_z': -18., 'r_hip_y': -100., 'l_hip_y': -70., 'l_hip_z': 5.,
+        'abs_z': -18., 'l_knee_y': 100., 'r_knee_y': 125.}, 2, wait=True)
+    key = raw_input('Ready for left leg forward? (q to quit)')
+    if key == 'q': break
+    p.goto_position(
+        {'r_hip_z': 0., 'r_hip_y': -100., 'l_hip_y': -100., 'l_hip_z': 0.,
+        'abs_z': 0., 'l_knee_y': 125., 'r_knee_y': 125.}, 2, wait=True)
+
+    key = raw_input('Ready for reset to initial? (q to quit)')
+    if key == 'q': break
+    p.goto_position(crawl_angles,2, wait=True)
+
+
+    print("finished loop.")
+
+    # p.goto_position( # lift torso
+    #     {'abs_y': 38., 'abs_z': -20., 'r_elbow_y': -125., 'l_shoulder_x': -12.},
+    #     3, wait=True)
+    # p.goto_position( # lower torso
+    #     {'abs_y': 45., 'abs_z': 0., 'r_elbow_y': -90., 'l_shoulder_x': 0.},
+    #     3, wait=True)
 
     # # key = raw_input('Ready for one half step? (q to quit)')
     # if key == "q": break
@@ -98,4 +161,11 @@ while True:
     # p.goto_position({'r_hip_y': -75.,'l_hip_y':-100.,'r_knee_y':90.,'l_knee_y':130.,'r_hip_z':0.,'l_hip_z':25.}, 2, wait=True)
     # # p.goto_position({'r_hip_y': -24.,'l_hip_y':-100.,'r_knee_y':53.,'l_knee_y':130.,'r_hip_z':0.,'l_hip_z':0.}, 2, wait=True)
     
+key = raw_input('Revert to initial crawl? [y/n]')
+if key == "y":
+    p.goto_position(crawl_angles, 3, wait=True)
+
+
 p.close()
+
+
