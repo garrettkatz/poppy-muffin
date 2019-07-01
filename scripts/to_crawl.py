@@ -48,7 +48,7 @@ crawl_angles.update({
     'bust_x': 0., 'abs_z': 0., 'abs_y': 45., 'abs_x':0.,
     'r_elbow_y':-90., 'l_elbow_y':-90.,
     'r_ankle_y':45., 'l_ankle_y':45.,
-    'r_hip_z':0., 'l_hip_z':0.,
+    'r_hip_z':-10., 'l_hip_z':10.,
     'r_hip_x':0., 'l_hip_x':0.,})
 
 if key == "y":
