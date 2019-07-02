@@ -1,6 +1,7 @@
 from pypot.creatures import PoppyHumanoid as PH
 import pickle as pk
 from record_angles import hotkeys
+import time
 
 with open("crawl2.pkl","r") as f:
     crawl_angles = pk.load(f)
@@ -69,97 +70,79 @@ if key == "y":
     
     p.goto_position(crawl_angles, 3, wait=True)
 
+wait_each = True
+movement_time = 1.
+
 while True:
-    # key = raw_input('Ready for one move? (q to quit)')
-    # if key == 'q': break
+    key = raw_input('Ready for one move? (q to quit)')
+    if key == 'q': break
 
     # lift torso to swing right arm:
-    key = raw_input('Ready for left arm in? (q to quit)')
-    if key == 'q': break
+    if wait_each:
+        key = raw_input('Ready for left arm in? (q to quit)')
+        if key == 'q': break
     p.goto_position( # left arm in, hips out, bust turn for center of gravity
-        {'l_shoulder_x': -13., 'l_hip_z': 20., 'r_hip_z':-20., 'bust_x':-10.}, 2, wait=True)
-    key = raw_input('Ready for torso rotate, right elbow perp? (q to quit)')
-    if key == 'q': break
+        {'l_shoulder_x': -13., 'l_hip_z': 20., 'r_hip_z':-20., 'bust_x':-10.}, movement_time, wait=True)
+    if wait_each:
+        key = raw_input('Ready for torso rotate, right elbow perp? (q to quit)')
+        if key == 'q': break
     p.goto_position( # torso rotate
-        {'r_shoulder_x':12., 'abs_x': -3., 'abs_y': 37., 'abs_z': -22., 'r_elbow_y':-90.}, 2, wait=True)
-    # key = raw_input('Ready for torso level, lift, bust? (q to quit)')
-    # if key == 'q': break
-    # p.goto_position( # torso level
-    #     {'abs_x': 0., 'abs_y': 30., 'abs_z': 0., 'bust_x':10.}, 2, wait=True)
-    key = raw_input('Ready for torso rotate other, lift, bust? (q to quit)')
-    if key == 'q': break
-    p.goto_position( # torso level
-        {'abs_x': 0., 'abs_y': 30., 'abs_z': 5., 'bust_x':5.}, 2, wait=True)
-    key = raw_input('Ready for left elbow perp? (q to quit)')
-    if key == 'q': break
+        {'r_shoulder_x':12., 'abs_x': -3., 'abs_y': 37., 'abs_z': -15., 'r_elbow_y':-90.}, movement_time, wait=True)
+    if wait_each:
+        key = raw_input('Ready for left elbow perp? (q to quit)')
+        if key == 'q': break
     p.goto_position( # left elbow perp
-        {'l_elbow_y':-90.}, 2, wait=True)
-    # key = raw_input('Ready for torso level, lift, left elbow perp? (q to quit)')
-    # if key == 'q': break
-    # p.goto_position( # torso level
-    #     {'abs_x': 0., 'abs_y': 30., 'abs_z': 0., 'l_elbow_y':-90.}, 2, wait=True)
-
-    key = raw_input('Ready for shoulders out? (q to quit)')
-    if key == 'q': break
+        {'l_elbow_y':-90., 'abs_z': 0.}, movement_time, wait=True)
+    if wait_each:
+        key = raw_input('Ready for shoulders out? (q to quit)')
+        if key == 'q': break
     p.goto_position( # left elbow perp
-        {'l_shoulder_x':0., 'r_shoulder_x':0.}, 2, wait=True)
+        {'l_shoulder_x':0., 'r_shoulder_x':0.}, movement_time, wait=True)
 
 
     ### get knees fully bent
 
-    key = raw_input('Ready for all the way forward, thighs vertical? (q to quit)')
-    if key == 'q': break
+    if wait_each:
+        key = raw_input('Ready for all the way forward, thighs vertical? (q to quit)')
+        if key == 'q': break
     p.goto_position(
         {'r_elbow_y': -115., 'l_elbow_y': -115.,
         'l_hip_y': -70., 'l_knee_y': 100.,
-        'r_hip_y': -70., 'r_knee_y': 100.}, 2, wait=True)
-    key = raw_input('Ready for right hip raised? (q to quit)')
-    if key == 'q': break
+        'r_hip_y': -70., 'r_knee_y': 100.}, movement_time, wait=True)
+    if wait_each:
+        key = raw_input('Ready for right hip raised? (q to quit)')
+        if key == 'q': break
     p.goto_position(
         {'r_hip_z': 5., 'r_hip_y': -95., 'l_hip_y': -95., 'l_hip_z': 18.,
-        'abs_z': 18., 'l_knee_y': 100., 'r_knee_y': 100.}, 2, wait=True)
-    key = raw_input('Ready for right leg forward? (q to quit)')
-    if key == 'q': break
+        'abs_z': 18., 'l_knee_y': 100., 'r_knee_y': 100.}, movement_time, wait=True)
+    if wait_each:
+        key = raw_input('Ready for right leg forward? (q to quit)')
+        if key == 'q': break
     p.goto_position(
         {'r_hip_z': -2., 'r_hip_y': -100., 'l_hip_y': -70., 'l_hip_z': 2.,
-        'abs_z': -8., 'l_knee_y': 100., 'r_knee_y': 125.}, 2, wait=True)
+        'abs_z': -8., 'l_knee_y': 100., 'r_knee_y': 125.}, movement_time, wait=True)
 
-    key = raw_input('Ready for left hip raised? (q to quit)')
-    if key == 'q': break
+    if wait_each:
+        key = raw_input('Ready for left hip raised? (q to quit)')
+        if key == 'q': break
     p.goto_position(
         {'r_hip_z': -18., 'r_hip_y': -100., 'l_hip_y': -70., 'l_hip_z': 5.,
-        'abs_z': -18., 'l_knee_y': 100., 'r_knee_y': 125.}, 2, wait=True)
-    key = raw_input('Ready for left leg forward? (q to quit)')
-    if key == 'q': break
+        'abs_z': -18., 'l_knee_y': 100., 'r_knee_y': 125.}, movement_time, wait=True)
+    if wait_each:
+        key = raw_input('Ready for left leg forward? (q to quit)')
+        if key == 'q': break
     p.goto_position(
         {'r_hip_z': 0., 'r_hip_y': -100., 'l_hip_y': -100., 'l_hip_z': 0.,
-        'abs_z': 0., 'l_knee_y': 125., 'r_knee_y': 125.}, 2, wait=True)
+        'abs_z': 0., 'l_knee_y': 125., 'r_knee_y': 125.}, movement_time, wait=True)
 
-    key = raw_input('Ready for reset to initial? (q to quit)')
-    if key == 'q': break
+    if wait_each:
+        key = raw_input('Ready for reset to initial? (q to quit)')
+        if key == 'q': break
     p.goto_position(crawl_angles,2, wait=True)
 
 
     print("finished loop.")
 
-    # p.goto_position( # lift torso
-    #     {'abs_y': 38., 'abs_z': -20., 'r_elbow_y': -125., 'l_shoulder_x': -12.},
-    #     3, wait=True)
-    # p.goto_position( # lower torso
-    #     {'abs_y': 45., 'abs_z': 0., 'r_elbow_y': -90., 'l_shoulder_x': 0.},
-    #     3, wait=True)
-
-    # # key = raw_input('Ready for one half step? (q to quit)')
-    # if key == "q": break
-    # p.goto_position({'r_hip_y': -50.,'l_hip_y':-75.,'r_knee_y':70.,'l_knee_y':90.,'r_hip_z':-25.,'l_hip_z':0.}, 2, wait=True)
-    # p.goto_position({'r_hip_y': -100.,'l_hip_y':-75.,'r_knee_y':130.,'l_knee_y':90.,'r_hip_z':-24.,'l_hip_z':0.}, 2, wait=True)
-    # # p.goto_position({'r_hip_y': -100.,'l_hip_y':-24.,'r_knee_y':130.,'l_knee_y':53.,'r_hip_z':0.,'l_hip_z':0.}, 2, wait=True)
-
-    # # key = raw_input('Ready for other half step? (q to quit)')
-    # if key == "q": break
-    # p.goto_position({'r_hip_y': -75.,'l_hip_y':-50.,'r_knee_y':90.,'l_knee_y':70.,'r_hip_z':0.,'l_hip_z':25.}, 2, wait=True)
-    # p.goto_position({'r_hip_y': -75.,'l_hip_y':-100.,'r_knee_y':90.,'l_knee_y':130.,'r_hip_z':0.,'l_hip_z':25.}, 2, wait=True)
-    # # p.goto_position({'r_hip_y': -24.,'l_hip_y':-100.,'r_knee_y':53.,'l_knee_y':130.,'r_hip_z':0.,'l_hip_z':0.}, 2, wait=True)
     
 key = raw_input('Revert to initial crawl? [y/n]')
 if key == "y":
