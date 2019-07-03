@@ -172,5 +172,5 @@ if key == "y":
 
 
 p.close()
-
+c.close()
 

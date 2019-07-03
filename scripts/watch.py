@@ -25,24 +25,14 @@ c = OpenCVCamera("poppy-cam",0,fps)
 
 def handle_close(event):
     c.close()
+    p.close()
     sys.exit(0)
 
 plt.ion()
 fig = plt.figure()
 fig.canvas.mpl_connect("close_event", handle_close)
 
-num_iters = 10
-itera = num_iters-1
-
 while True:
-
-    itera += 1
-    if itera == num_iters:
-        key = raw_input("Repeat? [y/n]")
-        if key == "y":
-            itera = 0
-        else:
-            break
 
     if p.r_ankle_y.present_position > +35 or p.l_ankle_y.present_position < -35:
         p.r_ankle_y.goto_position(-40, .8, wait=False)
