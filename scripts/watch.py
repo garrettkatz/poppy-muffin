@@ -3,6 +3,7 @@ from pypot.sensor import OpenCVCamera
 import matplotlib.pyplot as plt
 import time
 import numpy as np
+import sys
 
 jlims = {
     "head_y": [-22., 20.], # backward/forward
@@ -30,7 +31,18 @@ plt.ion()
 fig = plt.figure()
 fig.canvas.mpl_connect("close_event", handle_close)
 
+num_iters = 10
+itera = num_iters-1
+
 while True:
+
+    itera += 1
+    if itera == num_iters:
+        key = raw_input("Repeat? [y/n]")
+        if key == "y":
+            itera = 0
+        else:
+            break
 
     if p.r_ankle_y.present_position > +35 or p.l_ankle_y.present_position < -35:
         p.r_ankle_y.goto_position(-40, .8, wait=False)
@@ -92,3 +104,5 @@ while True:
     p.goto_position(targets, 2, wait=True)
 
 c.close()
+p.close()
+
