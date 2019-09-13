@@ -19,6 +19,12 @@ https://www.generationrobots.com/blog/en/easy-start-up-with-the-robots-poppy-hum
 possible actuated gripper (small):
     https://www.trossenrobotics.com/p/phantomx-parallel-ax12-gripper.aspx
     https://github.com/poppy-project/poppy-6dof-right-arm
+        after bom still need to deal with:
+            printing the circuit board
+            threaded shaft + 4 hex nuts
+            M5 Nuts, M5x20mm screws?  Can't find?  Maybe have spares?
+
+            
 
 install pypot and v-rep (pypot includes herborist)
 
