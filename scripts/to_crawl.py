@@ -4,6 +4,7 @@ import pickle as pk
 from record_angles import hotkeys
 import time
 import matplotlib.pyplot as pt
+import numpy as np
 
 with open("crawl2.pkl","r") as f:
     crawl_angles = pk.load(f)
@@ -86,6 +87,10 @@ ax2.set_title("New vision")
 pt.draw()
 pt.pause(0.1)
 
+temperature = []
+def update_temp():
+    temperature.append({m.name: m.present_temperature for m in p.motors})
+
 while True:
     key = raw_input('Ready for %d move%s? (q to quit)' % (
         repetitions, "" if repetitions == 1 else "s"))
@@ -97,21 +102,25 @@ while True:
         if wait_each:
             key = raw_input('Ready for left arm in? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position( # left arm in, hips out, bust turn for center of gravity
             {'l_shoulder_x': -13., 'l_hip_z': 20., 'r_hip_z':-20., 'bust_x':-10.}, movement_time, wait=True)
         if wait_each:
             key = raw_input('Ready for torso rotate, right elbow perp? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position( # torso rotate
             {'r_shoulder_x':12., 'abs_x': -3., 'abs_y': 37., 'abs_z': -15., 'r_elbow_y':-90.}, movement_time, wait=True)
         if wait_each:
             key = raw_input('Ready for left elbow perp? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position( # left elbow perp
             {'l_elbow_y':-90., 'abs_z': 0.}, movement_time, wait=True)
         if wait_each:
             key = raw_input('Ready for shoulders out? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position( # left elbow perp
             {'l_shoulder_x':0., 'r_shoulder_x':0.}, movement_time, wait=True)
     
@@ -121,6 +130,7 @@ while True:
         if wait_each:
             key = raw_input('Ready for all the way forward, thighs vertical? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position(
             {'r_elbow_y': -115., 'l_elbow_y': -115.,
             'l_hip_y': -70., 'l_knee_y': 100.,
@@ -128,12 +138,14 @@ while True:
         if wait_each:
             key = raw_input('Ready for right hip raised? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position(
             {'r_hip_z': 5., 'r_hip_y': -95., 'l_hip_y': -95., 'l_hip_z': 18.,
             'abs_z': 18., 'l_knee_y': 100., 'r_knee_y': 100.}, movement_time, wait=True)
         if wait_each:
             key = raw_input('Ready for right leg forward? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position(
             {'r_hip_z': -2., 'r_hip_y': -100., 'l_hip_y': -70., 'l_hip_z': 2.,
             'abs_z': -15., 'l_knee_y': 100., 'r_knee_y': 125.}, movement_time, wait=True)
@@ -141,6 +153,7 @@ while True:
         if wait_each:
             key = raw_input('Ready for left leg forward? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position(
             {'r_hip_z': 0., 'r_hip_y': -100., 'l_hip_y': -100., 'l_hip_z': 0.,
             'abs_z': 0., 'l_knee_y': 125., 'r_knee_y': 125.}, movement_time, wait=True)
@@ -148,6 +161,7 @@ while True:
         if wait_each:
             key = raw_input('Ready for reset to initial? (q to quit)')
             if key == 'q': break
+        update_temp()
         p.goto_position(crawl_angles, movement_time, wait=True)
     
     
@@ -165,6 +179,19 @@ while True:
         pt.draw()
         pt.pause(0.1)
 
+
+# show temperatures
+T = np.array([[t[m.name] for m in p.motors] for t in temperature])
+pt.clf()
+pt.plot(T)
+pt.ylabel("Temperature")
+pt.xlabel("Time")
+pt.draw()
+pt.pause(0.1)
+
+print("T shape, len motors:")
+print(T.shape)
+print(len(p.motors))
     
 key = raw_input('Revert to initial crawl? [y/n]')
 if key == "y":
@@ -173,4 +200,6 @@ if key == "y":
 
 p.close()
 c.close()
+
+
 
