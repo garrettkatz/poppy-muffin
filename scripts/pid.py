@@ -40,14 +40,14 @@ dt = 0.005
 t = time.clock()
 
 Kp, Ki, Kd, dur = .75, 0, 0, 12
-# Kp, Ki, Kd, dur = 1, 0, .5, 20
+Kp, Ki, Kd, dur = 1, 0, .5, 20
 # Kp, Ki, Kd, dur = 1, 0, 1, 15
-# Kp, Ki, Kd, dur = 1, .1, .5, 20
+Kp, Ki, Kd, dur = 1, .1, .5, 20
 # Kp, Ki, Kd, dur = .5, 0, 1, 10
 # Kp, Ki, Kd, dur = .5, .1, 1, 20
 
-# wear_n_tear = True
-wear_n_tear = False
+wear_n_tear = True
+# wear_n_tear = False
 
 for n in range(int(dur / dt)):
 

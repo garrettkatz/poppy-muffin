@@ -221,6 +221,11 @@ from normal docker, no special network, can ping host's ip on the wired interfac
 ip route add 169.254.217.32 via 169.254.239.64 dev eth0 
 ip route add 169.254.0.0/16 via 169.254.239.64 dev eth0 
 
+repeated from earlier:
+    serious issues with shoulder_y; the angle range is discontinuous and goal_speed behaves unexpectedly.
+    seems that setting goal speed under the hood just sets a speed magnitude and a goal position at max_pos = 180.  Code could be forked and this could be changed short of a more fundamental fix.  For example, assign each joint its own min/max range based on plastic skeleton contraints.
+
+
 bad joint ranges via record_angles.py and joint_ranges.py:
 r_shoulder_y: -270 -> +90
     [-90.2 to 90]~[-270 to -148.8]
@@ -264,3 +269,5 @@ r_hip_z: [-24.2 to 180]
 motor controllers seem inaccurate when near the discontinuity.  changing crawl angles to be farther (~10deg)
 
 
+l_shoulder_y: -270 -> +90
+    [-92.4 to 90]~[-270 to -150]
