@@ -150,6 +150,8 @@ pw: poppy
 wrapping up: sudo shutdown -h now
 
 motor docs: http://emanual.robotis.com/docs/en/dxl/mx/mx-28/#goal-acceleration
+discussion on goal acceleration torque control:
+https://poppy.discourse.group/t/adding-acceleration-control-to-dynamixel-mx-series-motors/2216/2
 
 setting up docker:
 should use --init option with docker run to avoid pid1 zombie
@@ -271,3 +273,8 @@ motor controllers seem inaccurate when near the discontinuity.  changing crawl a
 
 l_shoulder_y: -270 -> +90
     [-92.4 to 90]~[-270 to -150]
+    after fix:
+    -240 -> 60
+r_shoulder_y: -270 -> +90
+    [-90.2 to 90]~[-270 to -148.8]
+    after fix: -240-62
