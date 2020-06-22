@@ -3,8 +3,8 @@ import numpy as np
 import time
 import matplotlib.pyplot as plt
 
-# joint_names = ["l_shoulder_y","l_shoulder_x","l_arm_z","l_elbow_y"]
-joint_names = ["l_shoulder_x","l_arm_z","l_elbow_y"]
+joint_names = ["l_shoulder_y","l_shoulder_x","l_arm_z","l_elbow_y"]
+# joint_names = ["l_shoulder_x","l_arm_z","l_elbow_y"]
 speed_limit = 30 # degrees per second
 
 p = PH()
@@ -103,3 +103,15 @@ plt.ylabel("outputs")
 plt.xlabel("time")
 plt.tight_layout()
 plt.show()
+
+raw_input("Ready to make left arm compliant and hang?")
+for jn in joint_names:
+    getattr(p, jn).compliant = True
+
+raw_input("Ready to close poppy object?")
+for jn in joint_names:
+    getattr(p, jn).compliant = False
+p.close()
+print("Done.")
+
+
