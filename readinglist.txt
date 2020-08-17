@@ -1,0 +1,28 @@
+reading list for RL + forward model:
+    https://bair.berkeley.edu/blog/2019/12/12/mbpo/
+    mopo: https://arxiv.org/pdf/2005.13239.pdf
+    DQN replay dataset: https://proceedings.icml.cc/static/paper_files/icml/2020/5394-Paper.pdf
+    https://arxiv.org/pdf/1906.08253.pdf
+    https://www.sciencedirect.com/science/article/pii/B9780444538598000035
+    https://arxiv.org/pdf/1907.09620.pdf
+    https://arxiv.org/pdf/1602.02867.pdf
+    http://rail.eecs.berkeley.edu/deeprlcourse-fa17/f17docs/lecture_9_model_based_rl.pdf
+    https://arxiv.org/pdf/2006.16712.pdf
+    https://arxiv.org/pdf/2007.07170.pdf
+    A0G -> https://arxiv.org/pdf/1805.09613.pdf
+    read schmitt 19 discrete mode planning
+    read jung 19 robot goal visual attention
+    robonet: https://arxiv.org/pdf/1910.11215.pdf
+    rlbench: https://arxiv.org/pdf/1909.12271.pdf
+    visual foresight model-based <-> causal reasoning
+    offline RL survey: https://arxiv.org/pdf/2005.01643.pdf
+        5.3 last paragraph: empirically investigate this
+    stochastic variational video prediction: https://arxiv.org/pdf/1710.11252.pdf
+    predictive model from human: https://arxiv.org/pdf/1912.12773.pdf
+    data-efficient (EM), visuomotor policy, generative model: https://arxiv.org/pdf/2007.13134.pdf
+    adversarial curiosity: https://arxiv.org/pdf/2003.06082.pdf
+    survey on deep video prediction: https://arxiv.org/pdf/2004.05214.pdf
+    fwd/inv object-centric deep dynamics model: https://arxiv.org/pdf/2008.00456.pdf
+    
+    
+    

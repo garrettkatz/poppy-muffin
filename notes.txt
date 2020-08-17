@@ -1,3 +1,13 @@
+Extending PyPot for non-dynamixel motors (e.g. ergo):
+https://poppy-project.github.io/pypot/extending.html#extending
+
+Bipedal tutorial paper:
+https://www.sciencedirect.com/science/article/pii/S1474667015370178
+
+IRA bipedal paper method:
+http://groups.csail.mit.edu/drl/journal_club/papers/Huang01.pdf
+No dynamics/mass, just kinematics (position/velocity/acceleration) contraints and spline interpolation
+
 still need:
     zip-ties before moving wildly ?
     wire cutters?
@@ -23,8 +33,6 @@ possible actuated gripper (small):
             printing the circuit board
             threaded shaft + 4 hex nuts
             M5 Nuts, M5x20mm screws?  Can't find?  Maybe have spares?
-
-            
 
 install pypot and v-rep (pypot includes herborist)
 
