@@ -10,9 +10,13 @@ planeId = p.loadURDF("plane.urdf")
 cubeStartPos = [0,0,1]
 cubeStartOrientation = p.getQuaternionFromEuler([0,0,0])
 boxId = p.loadURDF("poppy_ergo_jr.urdf",cubeStartPos, cubeStartOrientation, globalScaling=0.01)
-for i in range (10000):
-    p.setJointMotorControlArray(boxId, np.arange(6), p.POSITION_CONTROL,
-        targetPositions=np.ones(6))
+num_steps = 4000
+num_joints = p.getNumJoints(boxId)
+for i in range (num_steps):
+    # p.setJointMotorControlArray(boxId, np.arange(6), p.POSITION_CONTROL,
+    #     targetPositions=np.ones(6))
+    p.setJointMotorControlArray(boxId, np.arange(num_joints), p.POSITION_CONTROL,
+        targetPositions=np.ones(num_joints) * i / num_steps) # partial
     p.stepSimulation()
     time.sleep(1./240.)
 cubePos, cubeOrn = p.getBasePositionAndOrientation(boxId)

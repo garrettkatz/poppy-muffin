@@ -286,6 +286,8 @@ true stl files available from recent release:
 stl filenames do not match urdf ("section_1" etc).  cross-referenced urdf links and assembly intructions here:
     https://docs.poppy-project.org/en/assembly-guides/ergo-jr/mechanical-construction.html
 
+    that urdf didn't seem correct in pybullet, trying pip'ing the poppy-ergo-jr package and getting its urdf.  actually it is identical.
+
 Extending PyPot for non-dynamixel motors (e.g. ergo):
 https://poppy-project.github.io/pypot/extending.html#extending
 
