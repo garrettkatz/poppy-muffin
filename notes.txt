@@ -301,3 +301,14 @@ IRA bipedal paper method:
 http://groups.csail.mit.edu/drl/journal_club/papers/Huang01.pdf
 No dynamics/mass, just kinematics (position/velocity/acceleration) contraints and spline interpolation
 
+------------- poppy ergo jr assembly
+
+needed separate screw and nut (leftover from humanoid) to fasten "standoff" between rasberry pi and pixl chip
+very difficult to remove some wires from motors after plugged in
+eventually succeeded using one of the red pliers but be very careful about misshaping the plastic
+probably best to use same cable connected to raspi for all motors, only remove from motors.  Then keep that cable to eventually attach m1, and chain the others one and only time.
+also, seems like it doesn't have to plugged in totally snuggly as long as all pins make contact
+
+should insert nuts in camera holder before mounting to base or camera
+need to use metal tool to expand plastic holes a bit, pick out plastic threads, and clamp nuts into plastic hole
+
