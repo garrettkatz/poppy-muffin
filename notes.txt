@@ -312,3 +312,9 @@ also, seems like it doesn't have to plugged in totally snuggly as long as all pi
 should insert nuts in camera holder before mounting to base or camera
 need to use metal tool to expand plastic holes a bit, pick out plastic threads, and clamp nuts into plastic hole
 needed spare screws (s1) for camera fix
+
+probably easier to attach the other cables before m1, and chip+arm to the wood base, before the first cable to m1 and the camera feed to the chip.
+
+!!!!!! be careful inserting/removing! pins can get bent out of shape
+
+2.5x6 bolts included with ergo are good for fixing chip to wood, but one left over is too long for arm base, use spare 2.5x4 bolts instead
