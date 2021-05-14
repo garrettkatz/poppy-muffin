@@ -1,0 +1,166 @@
+<?xml version="1.0" encoding="utf-8"?>
+<robot
+  name="PoppyErgoJr">
+  <link
+    name="base_link">
+    <inertial>
+      <origin
+        xyz="-0.00273845833301537 0.00821639745723966 -0.0338977122062889"
+        rpy="0 0 0" />
+      <mass
+        value="0.0802410895423366" />
+      <inertia
+        ixx="0.00011430194806305"
+        ixy="-1.74777682977282E-06"
+        ixz="7.8063859003738E-06"
+        iyy="0.000177560979735167"
+        iyz="6.80763560469771E-06"
+        izz="7.51325469990478E-05" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="meshes/base.stl" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="meshes/base.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <link
+    name="long_U">
+    <inertial>
+      <origin
+        xyz="-0.00243058056226709 1.14505937431452E-07 0.0129312523306501"
+        rpy="0 0 0" />
+      <mass
+        value="0.0042118228619085" />
+      <inertia
+        ixx="5.78707668456099E-07"
+        ixy="9.44283869977724E-12"
+        ixz="-1.13587476220175E-07"
+        iyy="1.25420346852677E-06"
+        iyz="4.64830147251523E-12"
+        izz="9.27174545760678E-07" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="meshes/long_U.stl" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="1 1 1 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <mesh
+          filename="meshes/long_U.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="m1"
+    type="continuous">
+    <!-- <origin
+      xyz="0 0 0.0327993216120967"
+      rpy="-6.12303176911189E-17 0 0" /> -->
+    <origin
+      xyz="0 0 25"
+      rpy="0 0 0" />
+    <parent
+      link="base_link" />
+    <child
+      link="long_U" />
+    <axis
+      xyz="0 0 -1" />
+  </joint>
+  <link
+    name="section_1">
+    <inertial>
+      <origin
+        xyz="-0.000168296047337745 0.013441283142678 -3.36410230095056E-09"
+        rpy="0 0 0" />
+      <mass
+        value="0.0201321844066136" />
+      <inertia
+        ixx="6.51960684491032E-06"
+        ixy="-5.35361387413197E-07"
+        ixz="-5.67167110473808E-13"
+        iyy="2.37206686086462E-06"
+        iyz="-1.07202400036876E-12"
+        izz="7.46616268702629E-06" />
+    </inertial>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <!-- <mesh filename="meshes/section_1.stl" /> -->
+        <mesh filename="meshes/horn2horn.stl" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <visual>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 3.1415" />
+      <geometry>
+        <mesh filename="meshes/horn2horn.stl" />
+      </geometry>
+      <material
+        name="">
+        <color
+          rgba="0.752941176470588 0.752941176470588 0.752941176470588 1" />
+      </material>
+    </visual>
+    <collision>
+      <origin
+        xyz="0 0 0"
+        rpy="0 0 0" />
+      <geometry>
+        <!-- <mesh filename="meshes/section_1.stl" /> -->
+        <mesh filename="meshes/horn2horn.stl" />
+      </geometry>
+    </collision>
+  </link>
+  <joint
+    name="m2"
+    type="continuous">
+    <origin
+      xyz="0 0 25"
+      rpy="0 0 0" />
+    <parent
+      link="long_U" />
+    <child
+      link="section_1" />
+    <axis
+      xyz="-1 0 0" />
+  </joint>
+</robot>
