@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
+<!-- had to change some (but not all) l_ joint upper/lower for pybullet-->
 <robot name="Poppy_Humanoid">
 	<link name="pelvis">
 		<inertial>
@@ -638,14 +639,14 @@
 		<parent link="pelvis"></parent>
 		<child link="l_hip"></child>
 		<axis xyz="0 0 -1"></axis>
-		<limit effort="3.1" lower="-0.523598775598" upper="0.497418836818" velocity="7.0"></limit>
+		<limit effort="3.1" upper="0.523598775598" lower="-0.497418836818" velocity="7.0"></limit>
 	</joint>
 	<joint name="l_hip_z" type="revolute">
 		<origin xyz="0.0439986111539757 0 0.005" rpy="0 0 0"></origin>
 		<parent link="l_hip"></parent>
 		<child link="l_hip_motor"></child>
 		<axis xyz="0 -1 0"></axis>
-		<limit effort="3.1" lower="-0.436332312999" upper="1.57079632679" velocity="7.0"></limit>
+		<limit effort="3.1" upper="0.436332312999" lower="-1.57079632679" velocity="7.0"></limit>
 	</joint>
 	<joint name="l_hip_y" type="revolute">
 		<origin xyz="0 -0.024 0" rpy="0 0 0"></origin>
@@ -659,8 +660,7 @@
 		<parent link="l_thigh"></parent>
 		<child link="l_shin"></child>
 		<axis xyz="0 0 -1"></axis>
-		<limit effort="3.1" lower="-0.0610865238198" upper="2.33874119767" velocity="7.0"></limit>
-		<!-- <limit effort="3.1" lower="-2.33" upper="2.33874119767" velocity="7.0"></limit> -->
+		<limit effort="3.1" upper="0.0610865238198" lower="-2.33874119767" velocity="7.0"></limit>
 	</joint>
 	<joint name="l_ankle_y" type="revolute">
 		<origin xyz="0 -0.18 0" rpy="0 -1.5708 0"></origin>
@@ -730,14 +730,14 @@
 		<parent link="l_shoulder"></parent>
 		<child link="l_shoulder_motor"></child>
 		<axis xyz="0 0 1"></axis>
-		<limit effort="3.1" lower="-1.83259571459" upper="1.91986217719" velocity="7.0"></limit>
+		<limit effort="3.1" upper="1.83259571459" lower="-1.91986217719" velocity="7.0"></limit>
 	</joint>
 	<joint name="l_arm_z" type="revolute">
 		<origin xyz="0 0.03625 0.0185000000000001" rpy="0 0 0"></origin>
 		<parent link="l_shoulder_motor"></parent>
 		<child link="l_upper_arm"></child>
 		<axis xyz="0 1 0"></axis>
-		<limit effort="3.1" lower="-1.83259571459" upper="1.83259571459" velocity="7.0"></limit>
+		<limit effort="3.1" upper="1.83259571459" lower="-1.83259571459" velocity="7.0"></limit>
 	</joint>
 	<joint name="l_elbow_y" type="revolute">
 		<origin xyz="0 0.11175 -0.00999999999999998" rpy="0 0 0"></origin>
