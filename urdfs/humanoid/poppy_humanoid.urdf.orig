@@ -660,6 +660,7 @@
 		<child link="l_shin"></child>
 		<axis xyz="0 0 -1"></axis>
 		<limit effort="3.1" lower="-0.0610865238198" upper="2.33874119767" velocity="7.0"></limit>
+		<!-- <limit effort="3.1" lower="-2.33" upper="2.33874119767" velocity="7.0"></limit> -->
 	</joint>
 	<joint name="l_ankle_y" type="revolute">
 		<origin xyz="0 -0.18 0" rpy="0 -1.5708 0"></origin>
