@@ -714,7 +714,7 @@
 		<origin xyz="0 0.0199999999999999 0" rpy="-0.349065850398866 0 0"></origin>
 		<parent link="neck"></parent>
 		<child link="head"></child>
-		<axis xyz="-1 0 0"></axis>
+		<axis xyz="1 0 0"></axis>
 		<limit effort="1.8" lower="-0.785398163397" upper="0.10471975512" velocity="10.0"></limit>
 	</joint>
 	<joint name="l_shoulder_y" type="revolute">
@@ -735,7 +735,7 @@
 		<origin xyz="0 0.03625 0.0185000000000001" rpy="0 0 0"></origin>
 		<parent link="l_shoulder_motor"></parent>
 		<child link="l_upper_arm"></child>
-		<axis xyz="0 1 0"></axis>
+		<axis xyz="0 -1 0"></axis>
 		<limit effort="3.1" lower="-1.83259571459" upper="1.83259571459" velocity="7.0"></limit>
 	</joint>
 	<joint name="l_elbow_y" type="revolute">
@@ -763,14 +763,14 @@
 		<origin xyz="0 0.03625 0.0185000000000002" rpy="0 0 0"></origin>
 		<parent link="r_shoulder_motor"></parent>
 		<child link="r_upper_arm"></child>
-		<axis xyz="0 1 0"></axis>
+		<axis xyz="0 -1 0"></axis>
 		<limit effort="3.1" lower="-1.83259571459" upper="1.83259571459" velocity="7.0"></limit>
 	</joint>
 	<joint name="r_elbow_y" type="revolute">
 		<origin xyz="0 0.11175 -0.01" rpy="0 0 0"></origin>
 		<parent link="r_upper_arm"></parent>
 		<child link="r_forearm"></child>
-		<axis xyz="-1 0 0"></axis>
+		<axis xyz="1 0 0"></axis>
 		<limit effort="3.1" lower="-0.0174532925199" upper="2.58308729295" velocity="7.0"></limit>
 	</joint>
 </robot>
