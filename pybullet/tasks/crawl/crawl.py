@@ -30,7 +30,9 @@ crawl_angles.update({
     'r_hip_x':0., 'l_hip_x':0.,})
 
 # pybullet specific (not compliant):
-crawl_angles.update({'r_shoulder_y': 45, 'l_shoulder_y': 45,})
+crawl_angles.update({
+    # 'r_shoulder_x': -90, 'l_shoulder_x': -90, # somehow wrong in scripts?
+    'r_shoulder_y': 45, 'l_shoulder_y': 45,})
 
 angles = [crawl_angles]
 
@@ -56,7 +58,7 @@ for a,angle in enumerate(angles):
         waypoints[a, env.joint_index[m]] = p
 
 # initial angles/position
-for p, position in enumerate(waypoints[-1]):
+for p, position in enumerate(waypoints[0]):
     pb.resetJointState(env.robot_id, p, position)
 pb.resetBasePositionAndOrientation(env.robot_id,
     (0, 0, .3),

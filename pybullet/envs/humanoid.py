@@ -66,6 +66,7 @@ def clean_angles(angles):
     # all angles also converted to radians
 
     preserved = ["l_hip_y", "l_ankle_y", "l_shoulder_y", "l_elbow_y"]
+    preserved.extend(['abs_x', 'bust_x'])
     cleaned = {}
     for m,p in angles.items():
         if m[2:] == 'shoulder_x': p -= 90
