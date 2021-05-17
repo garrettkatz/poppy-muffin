@@ -1,3 +1,5 @@
+import pickle as pk
+import numpy as np
 import sys
 sys.path.append('../../envs')
 
@@ -6,7 +8,7 @@ from humanoid import PoppyHumanoidEnv, clean_angles
 
 # angles = []
 # for fn in ["preleft", "leftup", "leftswing", "leftstep"]:
-#     with open("../scripts/%s.pkl" % fn,"rb") as f:
+#     with open("../../../scripts/%s.pkl" % fn,"rb") as f:
 #         angles.append(pk.load(f))
 
 angles = [{}]
@@ -14,7 +16,7 @@ angles = [{}]
 env = PoppyHumanoidEnv(pb.POSITION_CONTROL)
 N = len(env.joint_index)
 
-with open("../scripts/crawl2.pkl","rb") as f:
+with open("../../../scripts/crawl2.pkl","rb") as f:
     crawl_angles = pk.load(f)
 
 # from scripts:
