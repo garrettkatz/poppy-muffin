@@ -13,7 +13,7 @@ def angs():
     return {m.name: m.present_position for m in p.motors}
 
 def go(angs):
-    p.goto_position(angs, 3, wait=True)
+    p.goto_position(angs, 1, wait=True)
 
 def save(angs, name):
     with open(name, "wb") as f: pk.dump(angs, f)
