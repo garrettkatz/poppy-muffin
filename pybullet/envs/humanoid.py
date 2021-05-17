@@ -25,7 +25,8 @@ class PoppyHumanoidEnv(object):
         # pb.setAdditionalSearchPath('../urdfs/humanoid')
         pb.setAdditionalSearchPath(fpath)
         self.robot_id = pb.loadURDF(
-            'poppy_humanoid.pybullet.urdf',
+            # 'poppy_humanoid.pybullet.urdf',
+            'poppy_humanoid.ori.urdf',
             basePosition = (0, 0, .41),
             baseOrientation = pb.getQuaternionFromEuler((0,0,0)))
         
