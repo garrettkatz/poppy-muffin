@@ -32,7 +32,7 @@ pb.resetBasePositionAndOrientation(env.robot_id,
 input("ready...")
 
 target = waypoints[0]
-target[env.joint_index['l_shoulder_x']] = 70 * np.pi / 180
+target[env.joint_index['l_shoulder_y']] = -250 * np.pi / 180
 # target[env.joint_index['l_shoulder_y']] = -4.5
 duration = .25
 env.goto_position(target, duration, hang=False)
