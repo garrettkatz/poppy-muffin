@@ -12,6 +12,11 @@ N = len(env.joint_index)
 with open("../../../scripts/pb_check.pkl","rb") as f:
     angles = [pk.load(f)]
 
+with open("../../../scripts/pb_check_legs.pkl","rb") as f:
+    legs = pk.load(f)
+
+angles[0].update(legs)
+
 waypoints = np.zeros((len(angles), N))
 for a,angle in enumerate(angles):
     # cleaned = clean_angles(angle)
