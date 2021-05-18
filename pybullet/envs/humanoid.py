@@ -47,29 +47,27 @@ class PoppyHumanoidEnv(object):
     def current_position(self):
         states = pb.getJointStates(self.robot_id, range(len(self.joint_index)))
         return np.array([state[0] for state in states])
+    
+    def set_position(self, position):
+        # position: np.array
+        for p, angle in enumerate(position):
+            pb.resetJointState(self.robot_id, p, angle)
 
-    def goto_position(self, target, duration):
+    def goto_position(self, target, duration, hang=False):
         current = self.current_position()
         num_steps = int(duration / self.timestep + 1)
         weights = np.linspace(0, 1, num_steps).reshape(-1,1)
         trajectory = weights * target + (1 - weights) * current
-        for action in trajectory: self.step(action)
+        for action in trajectory:
+            self.step(action)
+            if hang: input('..')
             
-def clean_angles(angles):
-    # transforms angles measured on real poppy for pybullet
-    # angles should be {name: degrees} dictionary
-    # shoulder_x off by 90 degrees
-    # also, required lower/uppers switched and negated in urdf,
-    # except for preserved joints below
-    # all other joint angles need to be negated
-    # all angles also converted to radians
-
-    preserved = ["l_hip_y", "l_ankle_y", "l_shoulder_y", "l_elbow_y"]
-    preserved.extend(['abs_x', 'bust_x'])
+# convert from physical robot angles to pybullet angles
+# degrees are converted to radians
+# other conversions are automatic from poppy_humanoid.pybullet.urdf
+def convert_angles(angles):
     cleaned = {}
     for m,p in angles.items():
-        if m[2:] == 'shoulder_x': p -= 90
-        if m not in preserved: p = -p
         cleaned[m] = p * np.pi / 180
     return cleaned
 
