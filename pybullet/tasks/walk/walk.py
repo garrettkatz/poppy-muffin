@@ -13,6 +13,8 @@ angles = [{m:0 for m in env.joint_name.values()}]
 for fn in ["preleft", "leftup", "leftswing", "leftstep"]:
     with open("../../../scripts/%s.pkl" % fn,"rb") as f:
         angles.append(pk.load(f))
+
+durations = [.1, .6, 1, 1, 1]
     
 waypoints = np.zeros((len(angles), N))
 for a,angle in enumerate(angles):
@@ -27,13 +29,14 @@ pb.resetBasePositionAndOrientation(env.robot_id,
     pb.getQuaternionFromEuler((0,0,0)))
 
 input("ready...")
+waypoints = waypoints[:5]
 w = 0
 while True:
 
     target = waypoints[w]
-    duration = 1
+    duration = durations[w]
     env.goto_position(target, duration)
     # w = (w + 1) % len(waypoints)
     w = min(w + 1, len(waypoints)-1)
-    input('...')
+    # input('...')
 
