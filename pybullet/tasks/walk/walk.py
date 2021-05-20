@@ -33,7 +33,7 @@ with open("../../../scripts/rightshift.pkl", "rb") as f: rightshift = pk.load(f)
 
 # angles = [leftswing, rightswing]
 
-angles = [szero, preleft, leftup, leftswing, leftstep, rightshift, stand, stand, szero]
+angles = [szero, preleft, leftup, leftswing, leftstep, rightshift, stand, stand, szero, szero]
 durations = [
     .1, # to zeros
     .6, # to preleft
@@ -42,8 +42,9 @@ durations = [
     1, # to left step
     .25, # to right shift
     .5, # to stand
-    2, # to stand
-    2, # to zero
+    .5, # stay stand
+    .5, # to zero
+    5, # stay zero
 ]
     
 waypoints = np.zeros((len(angles), N))
@@ -69,10 +70,15 @@ while True:
 
     # env.set_position(target)
     
+    if w == len(waypoints)-1: durations[1] = .475
+    if w == len(waypoints)-1: durations[2] = .8
+    if w == len(waypoints)-1: durations[3] = .8
+    
     # if w == len(waypoints) - 2: break    
     w = (w + 1) % len(waypoints)
     # w = min(w + 1, len(waypoints)-1)
 
     # input('...')
+    
 
 
