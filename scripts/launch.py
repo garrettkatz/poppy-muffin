@@ -18,6 +18,9 @@ def go(angs):
 def save(angs, name):
     with open(name, "wb") as f: pk.dump(angs, f)
 
+def load(name):
+    with open(name, "rb") as f: return pk.load(f)
+
 def toggle(motors):
     if type(motors) is not list: motors = [motors]
     for m in motors: m.compliant = not m.compliant
