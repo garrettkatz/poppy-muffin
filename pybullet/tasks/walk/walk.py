@@ -55,9 +55,6 @@ for a,angle in enumerate(angles):
 
 # initial angles/position
 env.set_position(waypoints[0])
-pb.resetBasePositionAndOrientation(env.robot_id,
-    (0, 0, .43),
-    pb.getQuaternionFromEuler((0,0,0)))
 
 input("ready...")
 # waypoints = waypoints[:-1]
