@@ -5,12 +5,12 @@ import time
 import numpy as np
 
 class PoppyHumanoidEnv(object):
-    def __init__(self, control_mode, timestep=1/240):
+    def __init__(self, control_mode, timestep=1/240, show=True):
 
         self.control_mode = control_mode
         self.timestep = timestep
 
-        pb.connect(pb.GUI)
+        self.client_id = pb.connect(pb.GUI if show else pb.DIRECT)
         pb.setTimeStep(timestep)
         pb.setGravity(0, 0, -9.81)
         pb.setAdditionalSearchPath(getDataPath())
@@ -18,14 +18,14 @@ class PoppyHumanoidEnv(object):
 
         import os
         os.system('pwd')
-        print(os.path.dirname(os.path.abspath(__file__)))
         fpath = os.path.dirname(os.path.abspath(__file__))
         fpath += '/../../urdfs/humanoid'
         print(fpath)
+
         pb.setAdditionalSearchPath(fpath)
         self.robot_id = pb.loadURDF(
             'poppy_humanoid.pybullet.urdf',
-            basePosition = (0, 0, .41),
+            basePosition = (0, 0, .43),
             baseOrientation = pb.getQuaternionFromEuler((0,0,0)))
         
         self.joint_name, self.joint_index = {}, {}
@@ -33,6 +33,11 @@ class PoppyHumanoidEnv(object):
             name = pb.getJointInfo(self.robot_id, i)[1].decode('UTF-8')
             self.joint_name[i] = name
             self.joint_index[name] = i
+        
+        self.initial_state_id = pb.saveState(self.client_id)
+    
+    def reset(self):
+        pb.restoreState(stateId = self.initial_state_id)
         
     def step(self, action, sleep=True):
         pb.setJointMotorControlArray(
@@ -61,6 +66,16 @@ class PoppyHumanoidEnv(object):
         for action in trajectory:
             self.step(action)
             if hang: input('..')
+    
+    def mirror_position(self, position):
+        mirrored = np.empty(len(position))
+        for i, name in self.joint_name.items():
+            sign = 1 if name[-2:] == "_y" else -1 # don't negate y-axis rotations
+            mirror_name = name # swap right and left
+            if name[:2] == "l_": mirror_name = "r_" + name[2:]
+            if name[:2] == "r_": mirror_name = "l_" + name[2:]
+            mirrored[self.joint_index[mirror_name]] = position[i] * sign        
+        return mirrored
             
 # convert from physical robot angles to pybullet angles
 # degrees are converted to radians
