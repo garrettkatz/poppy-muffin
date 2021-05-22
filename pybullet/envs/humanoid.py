@@ -9,6 +9,7 @@ class PoppyHumanoidEnv(object):
 
         self.control_mode = control_mode
         self.timestep = timestep
+        self.show = show
 
         self.client_id = pb.connect(pb.GUI if show else pb.DIRECT)
         pb.setTimeStep(timestep)
@@ -27,9 +28,10 @@ class PoppyHumanoidEnv(object):
             'poppy_humanoid.pybullet.urdf',
             basePosition = (0, 0, .43),
             baseOrientation = pb.getQuaternionFromEuler((0,0,0)))
+        self.num_joints = pb.getNumJoints(self.robot_id)
         
         self.joint_name, self.joint_index = {}, {}
-        for i in range(pb.getNumJoints(self.robot_id)):
+        for i in range(self.num_joints):
             name = pb.getJointInfo(self.robot_id, i)[1].decode('UTF-8')
             self.joint_name[i] = name
             self.joint_index[name] = i
@@ -39,7 +41,8 @@ class PoppyHumanoidEnv(object):
     def reset(self):
         pb.restoreState(stateId = self.initial_state_id)
         
-    def step(self, action, sleep=True):
+    def step(self, action, sleep=None):
+        if sleep is None: sleep = self.show
         pb.setJointMotorControlArray(
             self.robot_id,
             jointIndices = range(len(self.joint_index)),
@@ -63,9 +66,14 @@ class PoppyHumanoidEnv(object):
         num_steps = int(duration / self.timestep + 1)
         weights = np.linspace(0, 1, num_steps).reshape(-1,1)
         trajectory = weights * target + (1 - weights) * current
-        for action in trajectory:
+
+        positions = np.empty((num_steps, self.num_joints))
+        for a, action in enumerate(trajectory):
             self.step(action)
+            positions[a] = self.current_position()
             if hang: input('..')
+
+        return positions
     
     def mirror_position(self, position):
         mirrored = np.empty(len(position))
@@ -76,6 +84,14 @@ class PoppyHumanoidEnv(object):
             if name[:2] == "r_": mirror_name = "l_" + name[2:]
             mirrored[self.joint_index[mirror_name]] = position[i] * sign        
         return mirrored
+    
+    def angle_array(self, angle_dict, convert=True):
+        arr = np.zeros(self.num_joints)
+        for name, pos in angle_dict.items():
+            arr[self.joint_index[name]] = pos
+        if convert: arr *= np.pi / 180
+        return arr
+        
             
 # convert from physical robot angles to pybullet angles
 # degrees are converted to radians
