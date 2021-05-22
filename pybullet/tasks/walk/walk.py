@@ -9,73 +9,64 @@ from humanoid import PoppyHumanoidEnv, convert_angles
 env = PoppyHumanoidEnv(pb.POSITION_CONTROL)
 N = len(env.joint_index)
 
-szero = {env.joint_name[i]: 0 for i in range(N)}
-with open("../../../scripts/stand.pkl", "rb") as f: stand = pk.load(f)
-with open("../../../scripts/preleft.pkl", "rb") as f: preleft = pk.load(f)
-with open("../../../scripts/leftup.pkl", "rb") as f: leftup = pk.load(f)
-with open("../../../scripts/leftswing.pkl", "rb") as f: leftswing = pk.load(f)
-with open("../../../scripts/leftstep.pkl", "rb") as f: leftstep = pk.load(f)
-with open("../../../scripts/rightshift.pkl", "rb") as f: rightshift = pk.load(f)
+# got from running camera.py
+cam = (1.200002670288086,
+    15.999960899353027,
+    -31.799997329711914,
+    (-0.010284600779414177, -0.012256712652742863, 0.14000000059604645))
+pb.resetDebugVisualizerCamera(*cam)
 
-# rightshift = dict(leftstep)
-# # rightshift['bust_x'] = -leftswing['bust_x']
-# rightshift['bust_x'] = 0
-# rightshift['abs_x'] = -leftswing['abs_x']
-# rightshift['abs_y'] = leftswing['abs_y'] + 30
+with open("../../../scripts/stand.pkl", "rb") as f: stand_dict = pk.load(f)
+stand_dict.update({'r_shoulder_x': -20, 'l_shoulder_x': 20})
+stand = env.angle_array(stand_dict)
 
-# rightswing = dict(leftswing)
-# rightswing['bust_x'] *= -1
-# rightswing['abs_x'] *= -1
-# for name in ['hip_x', 'hip_z', 'ankle_y']:
-#     rightswing['l_'+name], rightswing['r_'+name] = -leftswing['r_'+name], -leftswing['l_'+name]
-# for name in ['hip_y','knee_y']:
-#     rightswing['l_'+name], rightswing['r_'+name] = leftswing['r_'+name], leftswing['l_'+name]
+# started with ../check/strides.py
+lift_dict = dict(stand_dict)
+lift_dict.update({ # works
+    'l_ankle_y': 10, 'l_knee_y': 75, 'l_hip_y': -60,
+    'abs_y': 20, 'abs_x': 20, 'r_shoulder_y': -20
+    })
+# lift_dict.update({
+#     'l_ankle_y': -20, 'l_knee_y': 75, 'l_hip_y': -60,
+#     })
+lift = env.angle_array(lift_dict)
+step_dict = dict(stand_dict)
+step_dict.update({
+    'l_ankle_y': 20, 'l_knee_y': 0, 'l_hip_y': -20,
+    'r_ankle_y': -20, 'r_knee_y': 0, 'r_hip_y': 20})
+step = env.angle_array(step_dict)
+push_dict = dict(stand_dict)
+push_dict.update({
+    'l_ankle_y': 0, 'l_knee_y': 0, 'l_hip_y': 0,
+    'r_ankle_y': 50, 'r_knee_y': 90, 'r_hip_y': -40})
+push = env.angle_array(push_dict)
+settle_dict = dict(stand_dict)
+settle_dict.update({
+    'l_ankle_y': 10, 'l_knee_y': 0, 'l_hip_y': -10,
+    'r_ankle_y': -10, 'r_knee_y': 80, 'r_hip_y': -30})
+settle = env.angle_array(settle_dict)
 
-# angles = [leftswing, rightswing]
-
-angles = [szero, preleft, leftup, leftswing, leftstep, rightshift, stand, stand, szero, szero]
-durations = [
-    .1, # to zeros
-    .6, # to preleft
-    1, # to left up
-    1, # to left swing
-    1, # to left step
-    .25, # to right shift
-    .5, # to stand
-    .5, # stay stand
-    .5, # to zero
-    5, # stay zero
+trajectory = [ # (angles, duration)
+    (stand, 1),
+    (lift, .5), # works
+    (step, .3), # works
+    # (lift, .2),
 ]
-    
-waypoints = np.zeros((len(angles), N))
-for a,angle in enumerate(angles):
-    cleaned = convert_angles(angle)
-    for m,p in cleaned.items():
-        waypoints[a, env.joint_index[m]] = p
 
 # initial angles/position
-env.set_position(waypoints[0])
+env.set_position(trajectory[0][0])
 
 input("ready...")
-# waypoints = waypoints[:-1]
-w = 0
+t = 0
 while True:
 
-    target = waypoints[w]
-    duration = durations[w]
+    target, duration = trajectory[t]
     env.goto_position(target, duration)
-
-    # env.set_position(target)
     
-    if w == len(waypoints)-1: durations[1] = .475
-    if w == len(waypoints)-1: durations[2] = .8
-    if w == len(waypoints)-1: durations[3] = .8
-    
-    # if w == len(waypoints) - 2: break    
-    w = (w + 1) % len(waypoints)
-    # w = min(w + 1, len(waypoints)-1)
+    t += 1
+    if t == len(trajectory): t -= 1
 
-    # input('...')
+    input('...')
     
 
 
