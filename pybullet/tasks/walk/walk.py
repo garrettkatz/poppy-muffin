@@ -6,7 +6,7 @@ sys.path.append('../../envs')
 import pybullet as pb
 from humanoid import PoppyHumanoidEnv, convert_angles
 
-env = PoppyHumanoidEnv(pb.POSITION_CONTROL)
+env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=True)
 N = len(env.joint_index)
 
 # got from running camera.py
@@ -22,17 +22,11 @@ stand = env.angle_array(stand_dict)
 
 # started with ../check/strides.py
 lift_dict = dict(stand_dict)
-# lift_dict.update({ # works
-#     'l_ankle_y': 10, 'l_knee_y': 75, 'l_hip_y': -60,
-#     'abs_y': 20, 'abs_x': 20, 'r_shoulder_y': -20
-#     })
 lift_dict.update({
     'l_ankle_y': -25, 'l_knee_y': 60, 'l_hip_y': -30,
     'r_ankle_y': -10, 'r_hip_y': 10,
     'r_shoulder_y': -45, 'r_shoulder_x': -45,
     'abs_x': 10,
-    # 'abs_x': 30, 'l_shoulder_x': 0, 'r_shoulder_x': -40,
-    # 'r_hip_x': -20, 'l_hip_x': -20,
     })
 lift = env.angle_array(lift_dict)
 step_dict = dict(stand_dict)
@@ -49,41 +43,82 @@ push = env.angle_array(push_dict)
 settle_dict = dict(stand_dict)
 settle_dict.update({
     'l_ankle_y': 10, 'l_knee_y': 0, 'l_hip_y': -10,
-    'r_ankle_y': -10, 'r_knee_y': 80, 'r_hip_y': -30})
+    'r_ankle_y': -20, 'r_knee_y': 40, 'r_hip_y': -20})
 settle = env.angle_array(settle_dict)
 
-trajectory = [ # (angles, duration)
-    (stand, 1),
-    # (lift, .5), # works
-    # (step, .3), # works
-    (lift, .1),
-    (step, .05),
-    (push, .2),
-    (env.mirror_position(step), .15),
-    (env.mirror_position(push), .2),
-    (step, .15),
-    (push, .2),
-] + [
-    (env.mirror_position(step), .15),
-    (env.mirror_position(push), .2),
-    (step, .15),
-    (push, .2),
-]*10
+def make_delta_policy(angle_delta, duration_delta):
+    d_lift = lift + 0.01 * angle_delta[0]
+    d_step = step + 0.01 * angle_delta[1]
+    d_push = push + 0.01 * angle_delta[2]
+    d_sett = settle + 0.01 * angle_delta[3]        
+    d_durs = np.array([.1, .05, .2, .15, .05, .1]) + 0.01 * duration_delta
 
-# initial angles/position
-env.set_position(trajectory[0][0])
-
-input("ready...")
-t = 0
-while True:
-
-    target, duration = trajectory[t]
-    env.goto_position(target, duration)
+    def policy(num_steps):
     
-    t += 1
-    if t == len(trajectory): t -= 1
-
-    # input('...')
+        # [..., (angles, duration), ...]    
+        # start walking
+        trajectory = [
+            (d_lift, d_durs[0]),
+            (d_step, d_durs[1]),
+        ]
+        # continue walking
+        for t in range(num_steps-1):
+            if t % 2 == 0:
+                trajectory += [
+                    (d_push, d_durs[2]),
+                    (env.mirror_position(d_step), d_durs[3])]
+            else:
+                trajectory += [
+                    (env.mirror_position(d_push), d_durs[2]),
+                    (d_step, d_durs[3])]
+        
+        # stop walking
+        if (num_steps-1) % 2 == 0:
+            trajectory += [(d_sett, d_durs[4])]
+        else:
+            trajectory += [(env.mirror_position(d_sett), d_durs[4])]
+        trajectory += [(stand, d_durs[5])]
+        
+        return trajectory
     
+    return policy
+
+hand_coded_policy = make_delta_policy([0]*4, 0)
+
+def run_hand_coded():
+
+    trajectory = hand_coded_policy(num_steps=5)
+    
+    # initial angles/position
+    env.set_position(stand)
+    env.goto_position(stand, 1)
+    
+    input("ready...")
+    t = 0
+    while True:
+    
+        target, duration = trajectory[t]
+        env.goto_position(target, duration)
+        
+        t += 1
+        if t == len(trajectory): t -= 1
+    
+        # input('...')
 
 
+if __name__ == "__main__":
+
+    # run_hand_coded()
+    
+    from fitness import fitness
+    # result = fitness(env, hand_coded_policy)
+
+    angle_delta = np.random.randint(-5, 5, size=(4,env.num_joints))
+    duration_delta = np.random.randint(-5, 5, size=(6,))
+    result = fitness(env, make_delta_policy(angle_delta, duration_delta))
+    
+    for num_steps in sorted(result.keys()):
+        print("num steps", num_steps)
+        print("distance: ", result[num_steps]["distance"])
+        print("periodic: ", result[num_steps]["periodic"])
+    

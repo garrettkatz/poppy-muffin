@@ -40,7 +40,7 @@ push = env.angle_array(push_dict)
 settle_dict = dict(stand_dict)
 settle_dict.update({
     'l_ankle_y': 10, 'l_knee_y': 0, 'l_hip_y': -10,
-    'r_ankle_y': -10, 'r_knee_y': 80, 'r_hip_y': -30})
+    'r_ankle_y': -20, 'r_knee_y': 40, 'r_hip_y': -20})
 settle = env.angle_array(settle_dict)
 
 # env.set_position(stand)

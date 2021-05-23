@@ -4,43 +4,40 @@ import sys
 sys.path.append('../../envs')
 
 import pybullet as pb
-from humanoid import PoppyHumanoidEnv
 
 with open("../../../scripts/stand.pkl", "rb") as f: stand_dict = pk.load(f)
+stand_dict.update({'r_shoulder_x': -20, 'l_shoulder_x': 20})
 
 def fitness(env, policy):
 
     stand = env.angle_array(stand_dict)
 
     result = {}
-    for num_steps in range(2,3):
-
-        # durations should add up to fixed time
-        waypoints, durations = policy(num_steps)
-        # should be stable and near stand position at end
-        waypoints = np.concatenate((waypoints, np.tile(stand, (2,1))), axis=0)
-        durations += [.1, 1]
+    for num_steps in range(1,8):
+        print("num_steps = %d..." % num_steps)
 
         env.reset()
         env.set_position(stand)
+        env.goto_position(stand, 1)
         init_base, init_quat = pb.getBasePositionAndOrientation(env.robot_id)
 
         logs = []
-        # input('.')
-        for w in range(len(waypoints)):
-            target = waypoints[w]
-            duration = durations[w]
+        trajectory = policy(num_steps)
+        for target, duration in trajectory:
             log = env.goto_position(target, duration)
-            # input('.')
             logs.append(log)
+        # should be stable and near stand position at end
+        log = env.goto_position(stand, 4)
+        logs.append(log)
+
         log = np.concatenate(logs, axis=0)
         base, quat = pb.getBasePositionAndOrientation(env.robot_id)
 
         result[num_steps] = {}
         
         # target forward distance
-        target_step_distance = .1
-        target_distance = (num_steps - 1) * target_step_distance # -1 because first/last steps are half
+        target_step_distance = -.1
+        target_distance = num_steps * target_step_distance
         actual_distance = base[1] - init_base[1]
         result[num_steps]["distance"] = abs(actual_distance - target_distance)
         
@@ -60,6 +57,8 @@ def fitness(env, policy):
 
 if __name__ == "__main__":
 
+    from humanoid import PoppyHumanoidEnv
+    
     env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=False)
     stand = env.angle_array(stand_dict)
     
