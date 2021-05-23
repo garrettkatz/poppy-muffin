@@ -6,7 +6,7 @@ sys.path.append('../../envs')
 import pybullet as pb
 from humanoid import PoppyHumanoidEnv, convert_angles
 
-env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=True)
+env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=False)
 N = len(env.joint_index)
 
 # got from running camera.py
@@ -47,11 +47,11 @@ settle_dict.update({
 settle = env.angle_array(settle_dict)
 
 def make_delta_policy(angle_delta, duration_delta):
-    d_lift = lift + 0.01 * angle_delta[0]
-    d_step = step + 0.01 * angle_delta[1]
-    d_push = push + 0.01 * angle_delta[2]
-    d_sett = settle + 0.01 * angle_delta[3]        
-    d_durs = np.array([.1, .05, .2, .15, .05, .1]) + 0.01 * duration_delta
+    d_lift = lift + 0.02 * angle_delta[0]
+    d_step = step + 0.02 * angle_delta[1]
+    d_push = push + 0.02 * angle_delta[2]
+    d_sett = settle + 0.02 * angle_delta[3]        
+    d_durs = np.array([.1, .05, .2, .15, .05, .1]) + 0.005 * duration_delta
 
     def policy(num_steps):
     
@@ -111,14 +111,54 @@ if __name__ == "__main__":
     # run_hand_coded()
     
     from fitness import fitness
-    # result = fitness(env, hand_coded_policy)
 
-    angle_delta = np.random.randint(-5, 5, size=(4,env.num_joints))
-    duration_delta = np.random.randint(-5, 5, size=(6,))
-    result = fitness(env, make_delta_policy(angle_delta, duration_delta))
+    # # result = fitness(env, hand_coded_policy)
+
+    # angle_delta = np.random.randint(-5, 5, size=(4,env.num_joints))
+    # duration_delta = np.random.randint(-5, 5, size=(6,))
+    # result = fitness(env, make_delta_policy(angle_delta, duration_delta))
     
-    for num_steps in sorted(result.keys()):
-        print("num steps", num_steps)
-        print("distance: ", result[num_steps]["distance"])
-        print("periodic: ", result[num_steps]["periodic"])
+    # for num_steps in sorted(result.keys()):
+    #     print("num steps", num_steps)
+    #     print("distance: ", result[num_steps]["distance"])
+    #     print("periodic: ", result[num_steps]["periodic"])
+
+
+    # performance is  average distance + average periodic (over all steps)
+    def measure_cost(angle_delta, duration_delta):
+        result = fitness(env, make_delta_policy(angle_delta, duration_delta))
+        distance = np.mean([res["distance"] for res in result.values()])
+        periodic = np.mean([res["periodic"] for res in result.values()])
+        return distance + periodic
+
+    do_opt = True
     
+    if do_opt:
+    
+        deltas = [(np.zeros((4, env.num_joints)), np.zeros(6))]
+        costs = [measure_cost(*deltas[0])]
+        # while optimizing:
+        while True:
+            print("*** %d" % len(deltas))
+            print("costs[0] = %f" % costs[0])
+            print("best cost =  %f" % np.min(costs))
+            # get best deltas so far
+            angle_deltas, duration_deltas = deltas[np.argmin(costs)]
+            # add small random delta
+            angle_deltas = angle_deltas + np.random.randint(-1, 2, size=(4,env.num_joints))
+            duration_deltas = duration_deltas + np.random.randint(-1, 2, size=(6,))
+            # measure fitness
+            cost = measure_cost(angle_deltas, duration_deltas)
+            # save deltas, fitness, performance
+            deltas.append((angle_deltas, duration_deltas))
+            costs.append(cost)
+            
+            with open("optim.pkl", "wb") as f: pk.dump((deltas, costs), f)
+            
+            if len(deltas) == 1000000: break
+
+    print("**** best ****")
+    with open("optim.pkl", "rb") as f: deltas, costs = pk.load(f)
+    angle_deltas, duration_deltas = deltas[np.argmin(costs)]
+    cost = measure_cost(angle_deltas, duration_deltas)
+        

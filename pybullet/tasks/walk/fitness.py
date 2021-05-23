@@ -14,7 +14,8 @@ def fitness(env, policy):
 
     result = {}
     for num_steps in range(1,8):
-        print("num_steps = %d..." % num_steps)
+    # for num_steps in range(3,6):
+        print("  num_steps = %d..." % num_steps)
 
         env.reset()
         env.set_position(stand)
