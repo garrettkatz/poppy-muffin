@@ -1,12 +1,12 @@
 import pickle as pk
 import numpy as np
-import sys
+import sys, time
 sys.path.append('../../envs')
 
 import pybullet as pb
 from humanoid import PoppyHumanoidEnv, convert_angles
 
-env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=False)
+env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=True)
 N = len(env.joint_index)
 
 # got from running camera.py
@@ -85,15 +85,16 @@ def make_delta_policy(angle_delta, duration_delta):
 
 hand_coded_policy = make_delta_policy([0]*4, 0)
 
-def run_hand_coded():
+def run_policy(policy, num_steps):
 
-    trajectory = hand_coded_policy(num_steps=5)
+    trajectory = policy(num_steps)
     
     # initial angles/position
     env.set_position(stand)
     env.goto_position(stand, 1)
     
     input("ready...")
+    time.sleep(1)
     t = 0
     while True:
     
@@ -108,7 +109,7 @@ def run_hand_coded():
 
 if __name__ == "__main__":
 
-    # run_hand_coded()
+    # run_policy(policy, num_steps=5)
     
     from fitness import fitness
 
@@ -131,54 +132,21 @@ if __name__ == "__main__":
         periodic = np.mean([res["periodic"] for res in result.values()])
         return distance + periodic
 
-    do_opt = False
-    
-    if do_opt:
-    
-        deltas = [(np.zeros((4, env.num_joints)), np.zeros(6))]
-        costs = [measure_cost(*deltas[0])]
-        # while optimizing:
-        while True:
-            print("*** %d" % len(deltas))
-            print("costs[0] = %f" % costs[0])
-            print("best cost =  %f" % np.min(costs))
-            # get best deltas so far
-            angle_deltas, duration_deltas = deltas[np.argmin(costs)]
-            # add small random delta
-            angle_deltas = angle_deltas + np.random.randint(-1, 2, size=(4,env.num_joints))
-            duration_deltas = duration_deltas + np.random.randint(-1, 2, size=(6,))
-            # measure fitness
-            cost = measure_cost(angle_deltas, duration_deltas)
-            # save deltas, fitness, performance
-            deltas.append((angle_deltas, duration_deltas))
-            costs.append(cost)
-            
-            with open("optim.pkl", "wb") as f: pk.dump((deltas, costs), f)
-            
-            if len(deltas) == 1000000: break
+    with open("optim.pkl", "rb") as f: deltas, costs = pk.load(f)    
+    print("**** best ****")
 
-    with open("optim.pkl", "rb") as f: deltas, costs = pk.load(f)
     idx = np.argsort(costs)
+    # angle_deltas, duration_deltas = deltas[idx[0]] # global best
+    # angle_deltas, duration_deltas = deltas[idx[2]] # pareto optimal 
+    angle_deltas, duration_deltas = deltas[idx[6]] # pareto optimal 
 
-    import matplotlib.pyplot as pt
-    # pt.plot(np.array(costs)[idx])
-    # pt.show()
-
-    distances = []
-    periodics = []
-    for i in range(10):
-        angle_delta, duration_delta = deltas[idx[i]]
-        result = fitness(env, make_delta_policy(angle_delta, duration_delta))
-        distances.append(np.mean([res["distance"] for res in result.values()]))
-        periodics.append(np.mean([res["periodic"] for res in result.values()]))
-    pt.plot(periodics, distances, 'ko')
-    for i, (per, dis) in enumerate(zip(periodics, distances)):
-        pt.text(per, dis, str(i))
-    pt.show()
-
-
-
-    # print("**** best ****")
-    # angle_deltas, duration_deltas = deltas[np.argmin(costs)]
     # cost = measure_cost(angle_deltas, duration_deltas)
+    # print(cost)
+
+    policy = make_delta_policy(angle_deltas, duration_deltas)
+    run_policy(policy, num_steps=9)
+    
+    
         
+
+

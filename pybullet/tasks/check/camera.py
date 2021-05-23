@@ -27,6 +27,10 @@ while True:
     print(len(cam))
     width, height, view, proj, camup, camfwd, horz, vert, yaw, pitch, dist, targ = cam
     print(dist, yaw, pitch, targ)
+
+    _, _, rgb, depth, segment = pb.getCameraImage(width, height, view, proj)
+    
+    with open("getcam.pkl","wb") as f: pk.dump((rgb, depth, segment), f)
     
     input("ready...")
 
