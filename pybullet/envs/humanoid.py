@@ -1,7 +1,7 @@
 import pybullet as pb
 from pybullet_data import getDataPath
 import pickle as pk
-import time
+import os, time
 import numpy as np
 
 class PoppyHumanoidEnv(object):
@@ -17,12 +17,8 @@ class PoppyHumanoidEnv(object):
         pb.setAdditionalSearchPath(getDataPath())
         pb.loadURDF("plane.urdf")
 
-        import os
-        os.system('pwd')
         fpath = os.path.dirname(os.path.abspath(__file__))
         fpath += '/../../urdfs/humanoid'
-        print(fpath)
-
         pb.setAdditionalSearchPath(fpath)
         self.robot_id = pb.loadURDF(
             'poppy_humanoid.pybullet.urdf',
