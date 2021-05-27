@@ -1,5 +1,5 @@
 import pybullet as pb
-import os
+import os, time
 import numpy as np
 from poppy_env import PoppyEnv
 
@@ -18,10 +18,14 @@ class PoppyErgoJrEnv(PoppyEnv):
 if __name__ == '__main__':
 
     env = PoppyErgoJrEnv(pb.POSITION_CONTROL)
+
+    # from check/camera.py
+    pb.resetDebugVisualizerCamera(
+        1.2000000476837158, 56.799964904785156, -22.20000648498535,
+        (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
+
     action = [0.]*env.num_joints
-    input('...')
     while True:
         env.step(action)
-        time.sleep(0.01)
 
 

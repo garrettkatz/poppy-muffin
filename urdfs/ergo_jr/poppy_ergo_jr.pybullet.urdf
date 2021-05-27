@@ -133,6 +133,7 @@
     <visual>
       <origin rpy="0 -1.5707963267949 0" xyz="0 -0.058 0"/>
       <geometry>
+        <!-- This link mesh includes both the wrist and fixed finger-->
         <mesh filename="meshes/section_4.stl"/>
       </geometry>
       <material name="">
@@ -158,22 +159,10 @@
     <axis xyz="0 0 1"/>
   </joint>
   <link name="fixed_tip">
-
-    <!-- shows collision shape if no visual one given -->
-
-    <!-- <visual> -->
-    <!--   <origin rpy="-1.5707963267949 0 0" xyz="-0.00 -0.015 0"/> -->
-    <!--   <geometry> -->
-    <!--     <box size="0.040 0.030 0.0005"/> -->
-    <!--   </geometry> -->
-    <!--   <material name=""> -->
-    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
-    <!--   </material> -->
-    <!-- </visual> -->
     <collision>
       <origin rpy="-1.5707963267949 0 0" xyz="-0.00 -0.015 0"/>
       <geometry>
-        <box size="0.020 0.030 0.05"/>
+        <box size="0.020 0.025 0.0005"/>
       </geometry>
     </collision>
   </link>
@@ -183,22 +172,16 @@
     <child link="fixed_tip"/>
   </joint>
   <link name="section_5">
-    <!-- <visual> -->
-    <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-    <!--   <geometry> -->
-    <!--     <mesh filename="meshes/gripper.stl"/> -->
-    <!--   </geometry> -->
-    <!--   <material name=""> -->
-    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
-    <!--   </material> -->
-    <!-- </visual> -->
-    <collision>
-       <origin rpy="-1.5707963267949 0 0" xyz="-0.015 -0.05 0"/>
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>
-		<box size="0.0005 0.060 0.04"/>
+        <!-- This mesh is the movable finger -->
+        <mesh filename="meshes/gripper.stl"/>
       </geometry>
-    </collision>
-	
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+      </material>
+    </visual>
     <inertial>
       <mass value="0.1"/>
       <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
@@ -211,13 +194,20 @@
     <child link="section_5"/>
   </joint>
   
-  <link name="moving_tip"/>
-  
+  <link name="moving_tip">
+    <collision>
+      <origin rpy="0 0 0" xyz="-0.015 -0.05 0"/>
+      <geometry>
+        <box size="0.0005 0.025 0.02"/>
+      </geometry>
+    </collision>
+  </link>  
   <joint name="t7m" type="fixed">
-    <origin rpy="-1.5707963267949 0 0" xyz="0 -0.052 0"/>
+    <origin rpy="0 0 0" xyz="0 0 0"/>
     <parent link="section_5"/>
     <child link="moving_tip"/>
   </joint>
+
   <transmission name="trans_m1">
     <type>transmission_interface/SimpleTransmission</type>
     <joint name="m1">
