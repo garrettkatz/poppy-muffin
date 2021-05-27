@@ -158,10 +158,22 @@
     <axis xyz="0 0 1"/>
   </joint>
   <link name="fixed_tip">
-	<collision>
+
+    <!-- shows collision shape if no visual one given -->
+
+    <!-- <visual> -->
+    <!--   <origin rpy="-1.5707963267949 0 0" xyz="-0.00 -0.015 0"/> -->
+    <!--   <geometry> -->
+    <!--     <box size="0.040 0.030 0.0005"/> -->
+    <!--   </geometry> -->
+    <!--   <material name=""> -->
+    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
+    <!--   </material> -->
+    <!-- </visual> -->
+    <collision>
       <origin rpy="-1.5707963267949 0 0" xyz="-0.00 -0.015 0"/>
       <geometry>
-        <box size="0.020 0.040 0.0005"/>
+        <box size="0.020 0.030 0.05"/>
       </geometry>
     </collision>
   </link>
@@ -171,19 +183,19 @@
     <child link="fixed_tip"/>
   </joint>
   <link name="section_5">
-    <visual>
-      <origin rpy="0 0 0" xyz="0 0 0"/>
-      <geometry>
-        <mesh filename="meshes/gripper.stl"/>
-      </geometry>
-      <material name="">
-        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
-      </material>
-    </visual>
+    <!-- <visual> -->
+    <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
+    <!--   <geometry> -->
+    <!--     <mesh filename="meshes/gripper.stl"/> -->
+    <!--   </geometry> -->
+    <!--   <material name=""> -->
+    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
+    <!--   </material> -->
+    <!-- </visual> -->
     <collision>
        <origin rpy="-1.5707963267949 0 0" xyz="-0.015 -0.05 0"/>
       <geometry>
-		<box size="0.0005 0.020 0.04"/>
+		<box size="0.0005 0.060 0.04"/>
       </geometry>
     </collision>
 	
