@@ -25,6 +25,7 @@ if __name__ == '__main__':
         (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
 
     action = [0.]*env.num_joints
+    action[env.joint_index['m6']] = .5
     while True:
         env.step(action)
 

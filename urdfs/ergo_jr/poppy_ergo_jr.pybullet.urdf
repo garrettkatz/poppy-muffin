@@ -159,10 +159,15 @@
     <axis xyz="0 0 1"/>
   </joint>
   <link name="fixed_tip">
+    <!-- comment visual placeholder to see collision shape -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><box size="0 0 0"/></geometry>
+    </visual>
     <collision>
-      <origin rpy="-1.5707963267949 0 0" xyz="-0.00 -0.015 0"/>
+      <origin rpy="-1.5707963267949 0 0" xyz="0 -0.0155 -0.0025"/>
       <geometry>
-        <box size="0.020 0.025 0.0005"/>
+        <box size="0.020 0.025 0.003"/>
       </geometry>
     </collision>
   </link>
@@ -195,10 +200,15 @@
   </joint>
   
   <link name="moving_tip">
+    <!-- comment visual placeholder to see collision shape -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><box size="0 0 0"/></geometry>
+    </visual>
     <collision>
-      <origin rpy="0 0 0" xyz="-0.015 -0.05 0"/>
+      <origin rpy="0 0 0" xyz="-0.0155 -0.055 0"/>
       <geometry>
-        <box size="0.0005 0.025 0.02"/>
+        <box size="0.003 0.025 0.02"/>
       </geometry>
     </collision>
   </link>  
