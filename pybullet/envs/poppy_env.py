@@ -19,32 +19,38 @@ class PoppyEnv(object):
         pb.setTimeStep(timestep)
         pb.setGravity(0, 0, -9.81)
         pb.setAdditionalSearchPath(getDataPath())
-        pb.loadURDF("plane.urdf")
+        # pb.loadURDF("plane.urdf")
         
         # use overridden loading logic
         self.robot_id = self.load_urdf()
 
-        self.num_joints = pb.getNumJoints(self.robot_id)        
-        self.joint_name, self.joint_index = {}, {}
+        self.num_joints = pb.getNumJoints(self.robot_id)
+        self.joint_name, self.joint_index, self.joint_fixed = {}, {}, {}
         for i in range(self.num_joints):
-            name = pb.getJointInfo(self.robot_id, i)[1].decode('UTF-8')
+            info = pb.getJointInfo(self.robot_id, i)
+            name = info[1].decode('UTF-8')
             self.joint_name[i] = name
             self.joint_index[name] = i
+            self.joint_fixed[i] = (info[2] == pb.JOINT_FIXED)
         
         self.initial_state_id = pb.saveState(self.client_id)
     
     def reset(self):
         pb.restoreState(stateId = self.initial_state_id)
         
-    def step(self, action, sleep=None):
-        if sleep is None: sleep = self.show
-        pb.setJointMotorControlArray(
-            self.robot_id,
-            jointIndices = range(len(self.joint_index)),
-            controlMode = self.control_mode,
-            targetPositions = action,
-        )
+    def step(self, action=None, sleep=None):
+    
+        if action is not None:
+            pb.setJointMotorControlArray(
+                self.robot_id,
+                jointIndices = range(len(self.joint_index)),
+                controlMode = self.control_mode,
+                targetPositions = action,
+            )
+
         pb.stepSimulation()
+
+        if sleep is None: sleep = self.show
         if sleep: time.sleep(self.timestep)
     
     # get/set joint angles as np.array
@@ -82,4 +88,29 @@ class PoppyEnv(object):
 
         return positions
     
+    # Run IK, accounting for fixed joints
+    def inverse_kinematics(self, link_indices, target_positions):
+        # angles = pb.calculateInverseKinematics(
+        #     self.robot_id,
+        #     link_indices[0],
+        #     target_positions[0],
+        #     maxNumIterations=1000, # default 20 usually not enough
+        # )
+
+        angles = pb.calculateInverseKinematics2(
+            self.robot_id,
+            link_indices,
+            target_positions,
+            maxNumIterations=1000, # default 20 usually not enough
+        )
+
+        a = 0
+        result = self.get_position()
+        for r in range(self.num_joints):
+            if not self.joint_fixed[r]:
+                result[r] = angles[a]
+                a += 1
+        
+        return result
+
 
