@@ -19,7 +19,7 @@ class PoppyEnv(object):
         pb.setTimeStep(timestep)
         pb.setGravity(0, 0, -9.81)
         pb.setAdditionalSearchPath(getDataPath())
-        # pb.loadURDF("plane.urdf")
+        pb.loadURDF("plane.urdf")
         
         # use overridden loading logic
         self.robot_id = self.load_urdf()
@@ -90,12 +90,6 @@ class PoppyEnv(object):
     
     # Run IK, accounting for fixed joints
     def inverse_kinematics(self, link_indices, target_positions):
-        # angles = pb.calculateInverseKinematics(
-        #     self.robot_id,
-        #     link_indices[0],
-        #     target_positions[0],
-        #     maxNumIterations=1000, # default 20 usually not enough
-        # )
 
         angles = pb.calculateInverseKinematics2(
             self.robot_id,

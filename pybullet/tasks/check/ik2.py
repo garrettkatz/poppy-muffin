@@ -12,11 +12,8 @@ pb.resetDebugVisualizerCamera(
     (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
 
 # fixed tip is joint 5, moving tip is joint 7
-# link_indices = [7] # moving tip
-# link_indices = [5] # fixed tip
-# target_positions = [(0, -.08, 0)]
 link_indices = [5, 7]
-target_positions = [(0, -.08, 0), (0, -.08, 0)]
+target_positions = [(.005, -.08, 0), (-.005, -.08, 0)]
 
 angles = env.inverse_kinematics(link_indices, target_positions)
 
