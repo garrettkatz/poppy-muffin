@@ -1,7 +1,7 @@
 <?xml version="1.0"?>
 <robot name="cube">
 
-  <link name="cube">
+  <link name="base_link">
     <visual>
       <origin rpy="0 0 0" xyz="0 0 0"/>
       <geometry>

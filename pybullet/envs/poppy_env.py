@@ -16,6 +16,7 @@ class PoppyEnv(object):
         self.show = show
 
         self.client_id = pb.connect(pb.GUI if show else pb.DIRECT)
+        if show: pb.configureDebugVisualizer(pb.COV_ENABLE_SHADOWS, 0)
         pb.setTimeStep(timestep)
         pb.setGravity(0, 0, -9.81)
         pb.setAdditionalSearchPath(getDataPath())
@@ -89,13 +90,14 @@ class PoppyEnv(object):
         return positions
     
     # Run IK, accounting for fixed joints
-    def inverse_kinematics(self, link_indices, target_positions):
+    def inverse_kinematics(self, link_indices, target_positions, num_iters=1000):
 
         angles = pb.calculateInverseKinematics2(
             self.robot_id,
             link_indices,
             target_positions,
-            maxNumIterations=1000, # default 20 usually not enough
+            # residualThreshold=1e-4, # default 1e-4 not enough for ergo jr
+            maxNumIterations=num_iters, # default 20 usually not enough
         )
 
         a = 0
