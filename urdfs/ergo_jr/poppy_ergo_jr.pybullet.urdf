@@ -5,15 +5,15 @@
 <!-- =================================================================================== -->
 <robot name="poppy_ergo_jr">
   <link name="base_link">
-    <!-- <visual> -->
-    <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-    <!--   <geometry> -->
-    <!--     <mesh filename="meshes/base.stl"/> -->
-    <!--   </geometry> -->
-    <!--   <material name=""> -->
-    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
-    <!--   </material> -->
-    <!-- </visual> -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/base.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+      </material>
+    </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0.038 0.015"/>
       <geometry>
@@ -22,15 +22,15 @@
     </collision>
   </link>
   <link name="long_U">
-    <!-- <visual> -->
-    <!--   <origin rpy="1.5707963267949 0 0" xyz="0 0 0"/> -->
-    <!--   <geometry> -->
-    <!--     <mesh filename="meshes/long_U.stl"/> -->
-    <!--   </geometry> -->
-    <!--   <material name=""> -->
-    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
-    <!--   </material> -->
-    <!-- </visual> -->
+    <visual>
+      <origin rpy="1.5707963267949 0 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/long_U.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+      </material>
+    </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0 0.01"/>
       <geometry>
@@ -49,15 +49,15 @@
     <axis xyz="0 0 1"/>
   </joint>
   <link name="section_1">
-    <!-- <visual> -->
-    <!--   <origin rpy="0 1.5707963267949 0" xyz="0 0 0"/> -->
-    <!--   <geometry> -->
-    <!--     <mesh filename="meshes/section_1.stl"/> -->
-    <!--   </geometry> -->
-    <!--   <material name=""> -->
-    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
-    <!--   </material> -->
-    <!-- </visual> -->
+    <visual>
+      <origin rpy="0 1.5707963267949 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/section_1.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+      </material>
+    </visual>
     <collision>
       <origin rpy="0 1.5707963267949 0" xyz="0.025 0 0"/>
       <geometry>
@@ -76,15 +76,15 @@
     <axis xyz="0 0 -1"/>
   </joint>
   <link name="section_2">
-    <!-- <visual> -->
-    <!--   <origin rpy="0 1.5707963267949 0" xyz="0 0 0"/> -->
-    <!--   <geometry> -->
-    <!--     <mesh filename="meshes/section_2.stl"/> -->
-    <!--   </geometry> -->
-    <!--   <material name=""> -->
-    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
-    <!--   </material> -->
-    <!-- </visual> -->
+    <visual>
+      <origin rpy="0 1.5707963267949 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/section_2.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+      </material>
+    </visual>
     <collision>
       <origin rpy="0 1.5707963267949 0" xyz="0.025 0 0"/>
       <geometry>
@@ -103,15 +103,15 @@
     <axis xyz="0 0 -1"/>
   </joint>
   <link name="section_3">
-    <!-- <visual> -->
-    <!--   <origin rpy="0 3.14159268 0" xyz="0 0 0"/> -->
-    <!--   <geometry> -->
-    <!--     <mesh filename="meshes/section_3.stl"/> -->
-    <!--   </geometry> -->
-    <!--   <material name=""> -->
-    <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
-    <!--   </material> -->
-    <!-- </visual> -->
+    <visual>
+      <origin rpy="0 3.14159268 0" xyz="0 0 0"/>
+      <geometry>
+        <mesh filename="meshes/section_3.stl"/>
+      </geometry>
+      <material name="">
+        <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+      </material>
+    </visual>
     <collision>
       <origin rpy="1.5707963267949 0 0" xyz="0 -0.025 0"/>
       <geometry>
@@ -161,10 +161,10 @@
   </joint>
   <link name="fixed_tip">
     <!-- comment visual placeholder to see collision shape -->
-    <!-- <visual> -->
-    <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-    <!--   <geometry><box size="0 0 0"/></geometry> -->
-    <!-- </visual> -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><box size="0 0 0"/></geometry>
+    </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0.0125 0"/>
       <geometry>
@@ -202,10 +202,10 @@
   </joint>  
   <link name="moving_tip">
     <!-- comment visual placeholder to see collision shape -->
-    <!-- <visual> -->
-    <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-    <!--   <geometry><box size="0 0 0"/></geometry> -->
-    <!-- </visual> -->
+    <visual>
+      <origin rpy="0 0 0" xyz="0 0 0"/>
+      <geometry><box size="0 0 0"/></geometry>
+    </visual>
     <collision>
       <origin rpy="0 0 0" xyz="0 0.0125 0"/>
       <geometry>
