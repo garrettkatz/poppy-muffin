@@ -14,6 +14,11 @@ class PoppyErgoJrEnv(PoppyEnv):
             baseOrientation = pb.getQuaternionFromEuler((0,0,0)),
             useFixedBase=True)
         return robot_id
+    
+    def get_tip_positions(self):
+        states = pb.getLinkStates(self.robot_id, [5, 7])
+        return (states[0][0], states[1][0])
+
 
 if __name__ == '__main__':
 

@@ -62,10 +62,6 @@ def get_tip_targets(p, q, d):
     t2 = p[0]+d*m[1], p[1]+d*m[4], p[2]+d*m[7]
     return (t1, t2)
 
-def get_tip_positions():
-    states = pb.getLinkStates(env.robot_id, [5, 7])
-    return (states[0][0], states[1][0])
-
 action = [0.]*env.num_joints
 # env.set_position(action)
 env.goto_position(action, 1)
@@ -82,7 +78,8 @@ def pick_up(block):
         # env.set_position(action)
         print(pos)
         print(targs)
-        print(get_tip_positions())
+        print(env.get_tip_positions())
+        print(action)
         input('.')
         
         # input('.')

@@ -47,6 +47,8 @@ class PoppyEnv(object):
                 jointIndices = range(len(self.joint_index)),
                 controlMode = self.control_mode,
                 targetPositions = action,
+                targetVelocities = [0]*len(action),
+                positionGains = [.5]*len(action)
             )
 
         pb.stepSimulation()
