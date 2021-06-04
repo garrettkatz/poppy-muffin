@@ -16,20 +16,32 @@ pb.setAdditionalSearchPath(fpath)
 # all 0/1 colors except for white/black
 colors = list(it.product([0,1], repeat=3))[:-1]
 
-block_config = [] # xyz position, rot angle, rgb color
-for c in range(len(colors)):
-    radius = -.16
-    theta = 3.14 * (c+1) / (len(colors)+1)
-    block_config.append( ((radius*cos(theta), radius*sin(theta), .01), theta, colors[c]) )
+num_blocks = len(colors)
+block_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
 
-block_id = []
-for pos, theta, rgb in block_config:
-    bid = pb.loadURDF('cube.urdf',
+def base_of(block, block_locations):
+    support = block_locations[block]
+    if support[0] == "t": return support, .01
+    base, support_height = base_of(support, block_locations)
+    return base, support_height + .01
+
+block_config = {} # xyz position, rot angle, rgb color
+for b in range(num_blocks):
+    block = "b%d" % b
+    base, height = base_of(block, block_locations)
+    base_num = int(base[1:])
+    radius = -.16
+    theta = 3.14 * (base_num+1) / (num_blocks+1)
+    block_config[block] = ((radius*cos(theta), radius*sin(theta), height), theta, colors[b])
+
+block_id = {}
+for blk, (pos, theta, rgb) in block_config.items():
+    b = pb.loadURDF('cube.urdf',
         basePosition = pos,
         baseOrientation = pb.getQuaternionFromEuler((0,0,theta)),
         useFixedBase=False)
-    pb.changeVisualShape(bid, linkIndex=-1, rgbaColor=rgb+(1,))
-    block_id.append(bid)
+    pb.changeVisualShape(b, linkIndex=-1, rgbaColor=rgb+(1,))
+    block_id[blk] = b
 
 # from check/camera.py
 pb.resetDebugVisualizerCamera(
@@ -66,8 +78,8 @@ def put_down_on(blk_id):
         env.goto_position(action, 1)
         # input('.')
 
-pick_up(block_id[6])
-put_down_on(block_id[3])
+pick_up(block_id["b6"])
+put_down_on(block_id["b3"])
 
 action = env.get_position()
 while True: env.goto_position(action, 1)
