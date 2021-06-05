@@ -20,6 +20,7 @@ num_blocks = len(colors)
 block_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
 
 block_locations["b3"] = "b4"
+block_locations["b4"] = "b5"
 
 def base_of(block, block_locations):
     support = block_locations[block]
@@ -70,19 +71,10 @@ def pick_up(block):
     blk_id = block_id[block]
     pos, quat = pb.getBasePositionAndOrientation(blk_id)
     stage = pos[:2] + (.1,)
-    for way, delta in [(stage, .02), (pos, .02), (pos, .005), (stage, .005)]: 
+    for way, delta in [(stage, .02), (pos, .02), (pos, .01), (stage, .01)]: 
         targs = get_tip_targets(way, quat, delta)
         action = env.inverse_kinematics([5, 7], targs)
-        env.goto_position(action, 2)
-        env.goto_position(action, 2)
-        # env.set_position(action)
-        print(pos)
-        print(targs)
-        print(env.get_tip_positions())
-        print(action)
-        input('.')
-        
-        # input('.')
+        env.goto_position(action, 1)
 
 def put_down_on(obj):
     if obj[0] == "t":
@@ -100,7 +92,7 @@ def put_down_on(obj):
         # input('.')
 
 pick_up("b3")
-put_down_on("t3")
+put_down_on("b6")
 
 action = env.get_position()
 env.goto_position(action, 1)

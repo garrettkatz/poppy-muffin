@@ -48,7 +48,7 @@ class PoppyEnv(object):
                 controlMode = self.control_mode,
                 targetPositions = action,
                 targetVelocities = [0]*len(action),
-                positionGains = [.5]*len(action)
+                positionGains = [.25]*len(action), # important for constant position accuracy
             )
 
         pb.stepSimulation()
@@ -79,29 +79,18 @@ class PoppyEnv(object):
     # if hang==True, wait for user enter at each timestep of motion
     def goto_position(self, target, duration, hang=False):
 
-        # current = self.get_position()
-        # num_steps = int(duration / self.timestep + 1)
-        # weights = np.linspace(0, 1, num_steps).reshape(-1,1)
-        # trajectory = weights * target + (1 - weights) * current
-
-        # positions = np.empty((num_steps, self.num_joints))
-        # for a, action in enumerate(trajectory):
-        #     self.step(action)
-        #     positions[a] = self.get_position()
-        #     if hang: input('..')
-
-        # return positions
-
+        current = self.get_position()
         num_steps = int(duration / self.timestep + 1)
+        weights = np.linspace(0, 1, num_steps).reshape(-1,1)
+        trajectory = weights * target + (1 - weights) * current
+
         positions = np.empty((num_steps, self.num_joints))
-        action = target
-        for a in range(num_steps):
+        for a, action in enumerate(trajectory):
             self.step(action)
             positions[a] = self.get_position()
             if hang: input('..')
 
         return positions
-
     
     # Run IK, accounting for fixed joints
     def inverse_kinematics(self, link_indices, target_positions, num_iters=1000):
