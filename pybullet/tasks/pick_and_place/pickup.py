@@ -17,10 +17,10 @@ pb.setAdditionalSearchPath(fpath)
 colors = list(it.product([0,1], repeat=3))[:-1]
 
 num_blocks = len(colors)
-block_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-
-block_locations["b3"] = "b4"
-block_locations["b4"] = "b5"
+initial_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+initial_locations["b3"] = "b4"
+initial_locations["b4"] = "b5"
+initial_locations["b2"] = "b1"
 
 def base_of(block, block_locations):
     support = block_locations[block]
@@ -38,7 +38,7 @@ def tower_position(t, num_positions):
 block_config = {} # xyz position, xyzw quat, rgb color
 for b in range(num_blocks):
     block = "b%d" % b
-    base, height = base_of(block, block_locations)
+    base, height = base_of(block, initial_locations)
     base_num = int(base[1:])
     pos, quat = tower_position(base_num, num_blocks)
     pos = pos[:2] + (height,)
@@ -91,8 +91,51 @@ def put_down_on(obj):
         env.goto_position(action, 1)
         # input('.')
 
-pick_up("b3")
-put_down_on("b6")
+goal_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+goal_locations["b3"] = "b2"
+goal_locations["b2"] = "b1"
+
+blocks = ["b%d" % b for b in range(num_blocks)]
+spots = ["t%d" % t for t in range(num_blocks)]
+
+# inverse of block_locations
+towers = {key: "none" for key in spots + blocks}
+for block, location in initial_locations.items():
+    towers[location] = block
+
+def free_spot(towers):
+    for spot in spots:
+        if towers[spot] == 'none': return spot
+    return False
+
+def unstack(location, towers):
+    above = towers[location]
+    if above == "none": return True
+    unstack(above, towers)
+    pick_up(above)
+    towers[location] = 'none'
+    spot = free_spot(towers)
+    if spot == False: return False
+    put_down_on(spot)
+    towers[spot] = above
+
+def unstack_all(towers):
+    for spot in spots:
+        base = towers[spot]
+        if base != "none": unstack(base, towers)
+
+# bw alg:
+# for each tower:
+#  for each block (top-to-bottom) except lowest:
+#    move it to a free spot on the table
+# for each goal tower:
+#  for each block (bottom-to-top) except lowest:
+#    move it to goal support
+
+# pick_up("b3")
+# put_down_on("b6")
+# unstack(towers["t5"], towers)
+unstack_all(towers)
 
 action = env.get_position()
 env.goto_position(action, 1)
