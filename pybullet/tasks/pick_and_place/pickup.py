@@ -83,7 +83,7 @@ def put_down_on(obj):
     else:
         blk_id = block_id[obj]
         pos, quat = pb.getBasePositionAndOrientation(blk_id)
-    pos = pos[:2] + (pos[2] + .03,)
+    pos = pos[:2] + (pos[2] + .0201,)
     stage = pos[:2] + (.1,)    
     for way, delta in [(stage, .005), (pos, .005), (pos, .02), (stage, .02)]: 
         targs = get_tip_targets(way, quat, delta)
@@ -102,6 +102,11 @@ spots = ["t%d" % t for t in range(num_blocks)]
 towers = {key: "none" for key in spots + blocks}
 for block, location in initial_locations.items():
     towers[location] = block
+
+# inverse of block_locations
+goal_towers = {key: "none" for key in spots + blocks}
+for block, location in goal_locations.items():
+    goal_towers[location] = block
 
 def free_spot(towers):
     for spot in spots:
@@ -124,6 +129,22 @@ def unstack_all(towers):
         base = towers[spot]
         if base != "none": unstack(base, towers)
 
+def stack(location, goal_towers):
+    above = goal_towers[location]
+    if above == "none": return True
+    pick_up(above)
+    put_down_on(location)
+    stack(above, goal_towers)
+
+def stack_all(goal_towers):
+    for spot in spots:
+        base = goal_towers[spot]
+        if base != 'none': stack(base, goal_towers)
+
+def restack(towers, goal_towers):
+    unstack_all(towers)
+    stack_all(goal_towers)
+
 # bw alg:
 # for each tower:
 #  for each block (top-to-bottom) except lowest:
@@ -135,7 +156,7 @@ def unstack_all(towers):
 # pick_up("b3")
 # put_down_on("b6")
 # unstack(towers["t5"], towers)
-unstack_all(towers)
+restack(towers, goal_towers)
 
 action = env.get_position()
 env.goto_position(action, 1)
