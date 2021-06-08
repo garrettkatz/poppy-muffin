@@ -30,7 +30,8 @@ def base_of(block, block_locations):
 
 def tower_position(t, num_positions):
     radius = -.16
-    theta = 3.14 * (t+1) / (num_positions+1)
+    alpha = 1.57
+    theta = (3.14 - alpha)/2 + alpha * t / (num_positions-1)
     pos = (radius*cos(theta), radius*sin(theta), 0)
     quat = pb.getQuaternionFromEuler((0,0,theta))
     return pos, quat
