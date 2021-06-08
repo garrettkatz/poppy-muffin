@@ -18,7 +18,30 @@ class PoppyErgoJrEnv(PoppyEnv):
     def get_tip_positions(self):
         states = pb.getLinkStates(self.robot_id, [5, 7])
         return (states[0][0], states[1][0])
-
+    
+    # def get_camera_image(self):
+    #     import pickle as pk
+    #     while True:
+    #         cam = pb.getDebugVisualizerCamera()
+    #         width, height, view, proj, camup, camfwd, horz, vert, yaw, pitch, dist, targ = cam
+    #         view = pb.computeViewMatrix(
+    #             cameraEyePosition=(0,0,.01),
+    #             cameraTargetPosition=(0,-.2,.01),
+    #             cameraUpVector=(0,0,1)
+    #         )
+    #         proj = pb.computeProjectionMatrixFOV(
+    #             fov=60,
+    #             aspect = 1024/768,
+    #             nearVal=-.01,
+    #             farVal=-.2,
+    #         )
+    #         width, height = 1024, 768
+    #         print(view)
+    #         print(proj)
+    #         print(width, height)
+    #         _, _, rgb, depth, segment = pb.getCameraImage(width, height, view, proj)
+    #         with open("ergo_jr_pov.pkl","wb") as f: pk.dump((width, height, view, proj), f)            
+    #         input("ready...")
 
 if __name__ == '__main__':
 

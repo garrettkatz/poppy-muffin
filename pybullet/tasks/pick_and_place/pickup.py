@@ -57,6 +57,8 @@ pb.resetDebugVisualizerCamera(
     1.2000000476837158, 56.799964904785156, -22.20000648498535,
     (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
 
+# env.get_camera_image()
+
 def get_tip_targets(p, q, d):
     m = pb.getMatrixFromQuaternion(q)
     t1 = p[0]-d*m[1], p[1]-d*m[4], p[2]-d*m[7]
@@ -93,7 +95,7 @@ def put_down_on(obj):
 
 goal_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
 goal_locations["b3"] = "b2"
-goal_locations["b2"] = "b1"
+goal_locations["b2"] = "b6"
 
 blocks = ["b%d" % b for b in range(num_blocks)]
 spots = ["t%d" % t for t in range(num_blocks)]
@@ -145,17 +147,6 @@ def restack(towers, goal_towers):
     unstack_all(towers)
     stack_all(goal_towers)
 
-# bw alg:
-# for each tower:
-#  for each block (top-to-bottom) except lowest:
-#    move it to a free spot on the table
-# for each goal tower:
-#  for each block (bottom-to-top) except lowest:
-#    move it to goal support
-
-# pick_up("b3")
-# put_down_on("b6")
-# unstack(towers["t5"], towers)
 restack(towers, goal_towers)
 
 action = env.get_position()
