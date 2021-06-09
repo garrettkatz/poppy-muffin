@@ -58,8 +58,6 @@ pb.resetDebugVisualizerCamera(
     1.2000000476837158, 56.799964904785156, -22.20000648498535,
     (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
 
-# env.get_camera_image()
-
 def get_tip_targets(p, q, d):
     m = pb.getMatrixFromQuaternion(q)
     t1 = p[0]-d*m[1], p[1]-d*m[4], p[2]-d*m[7]
@@ -78,6 +76,7 @@ def pick_up(block):
         targs = get_tip_targets(way, quat, delta)
         action = env.inverse_kinematics([5, 7], targs)
         env.goto_position(action, 1)
+    env.get_camera_image()
 
 def put_down_on(obj):
     if obj[0] == "t":
@@ -93,6 +92,7 @@ def put_down_on(obj):
         action = env.inverse_kinematics([5, 7], targs)
         env.goto_position(action, 1)
         # input('.')
+    env.get_camera_image()
 
 goal_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
 goal_locations["b3"] = "b2"

@@ -24,19 +24,26 @@ cam = (
     1.2000000476837158, 56.799964904785156, -22.20000648498535,
     (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
 
+# while True:
+    
+#     cam = pb.getDebugVisualizerCamera()
+#     print(cam)
+#     print(len(cam))
+#     width, height, view, proj, camup, camfwd, horz, vert, yaw, pitch, dist, targ = cam
+#     print(dist, yaw, pitch, targ)
+
+#     _, _, rgb, depth, segment = pb.getCameraImage(width, height, view, proj)
+    
+#     with open("getcam.pkl","wb") as f: pk.dump((rgb, depth, segment), f)
+    
+#     input("ready...")
+
+action = [0]*env.num_joints
+action[3] = -1
+env.set_position(action)
+
 while True:
-    
-    cam = pb.getDebugVisualizerCamera()
-    print(cam)
-    print(len(cam))
-    width, height, view, proj, camup, camfwd, horz, vert, yaw, pitch, dist, targ = cam
-    print(dist, yaw, pitch, targ)
-
-    _, _, rgb, depth, segment = pb.getCameraImage(width, height, view, proj)
-    
-    with open("getcam.pkl","wb") as f: pk.dump((rgb, depth, segment), f)
-    
-    input("ready...")
-
+    env.get_camera_image()
+    input('ready')
 
 
