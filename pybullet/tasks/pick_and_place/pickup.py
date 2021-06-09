@@ -20,7 +20,7 @@ num_blocks = len(colors)
 initial_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
 initial_locations["b3"] = "b4"
 initial_locations["b4"] = "b5"
-initial_locations["b2"] = "b1"
+# initial_locations["b2"] = "b1"
 
 def base_of(block, block_locations):
     support = block_locations[block]
@@ -95,16 +95,51 @@ def put_down_on(obj):
     env.get_camera_image()
 
 goal_locations = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-goal_locations["b3"] = "b2"
+# goal_locations["b3"] = "b2"
 goal_locations["b2"] = "b6"
 
 blocks = ["b%d" % b for b in range(num_blocks)]
 spots = ["t%d" % t for t in range(num_blocks)]
 
+# position of spot or block
+def get_position(name):
+    if name in blocks:
+        pos, quat = pb.getBasePositionAndOrientation(block_id[name])
+    if name in spots:
+        pos, quat = tower_position(int(name[1:]), num_blocks)
+    return pos
+
+# true if opos above bpos
+def is_above(opos, bpos):
+    if opos[2] < bpos[2]: return False
+    return all([-.01 < opos[c] - bpos[c] < .01 for c in [0,1]])
+
+def extract_towers():
+    towers = {name: "none" for name in spots + blocks}
+    for name in towers:
+        pos = get_position(name)
+        height = 100
+        for block in blocks:
+            if block == name: continue
+            bpos = get_position(block)
+            if is_above(bpos, pos) and bpos[2] < height:
+                towers[name], height = block, bpos[2]
+    return towers    
+
 # inverse of block_locations
 towers = {key: "none" for key in spots + blocks}
 for block, location in initial_locations.items():
     towers[location] = block
+
+# print(", ".join(["%s: %s" % (spot, towers[spot]) for spot in spots]))
+# print(", ".join(["%s: %s" % (block, towers[block]) for block in blocks]))
+# print('.')
+# extracted = extract_towers()
+# print(", ".join(["%s: %s" % (spot, extracted[spot]) for spot in spots]))
+# print(", ".join(["%s: %s" % (block, extracted[block]) for block in blocks]))
+
+# print(towers == extracted)
+# input('...?')
 
 # inverse of block_locations
 goal_towers = {key: "none" for key in spots + blocks}
@@ -152,4 +187,14 @@ restack(towers, goal_towers)
 
 action = env.get_position()
 env.goto_position(action, 1)
-while True: env.step()
+# while True: env.step()
+
+print(", ".join(["%s: %s" % (spot, goal_towers[spot]) for spot in spots]))
+print(", ".join(["%s: %s" % (block, goal_towers[block]) for block in blocks]))
+print('.')
+extracted = extract_towers()
+print(", ".join(["%s: %s" % (spot, extracted[spot]) for spot in spots]))
+print(", ".join(["%s: %s" % (block, extracted[block]) for block in blocks]))
+
+print(goal_towers == extracted)
+# input('...?')

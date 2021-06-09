@@ -20,7 +20,8 @@ class PoppyErgoJrEnv(PoppyEnv):
         return (states[0][0], states[1][0])
     
     def get_camera_image(self):
-        width, height = 1024, 768
+        # width, height = 1024, 768
+        width, height = 128, 96
         view = pb.computeViewMatrix(
             cameraEyePosition=(0,-.02,.02),
             cameraTargetPosition=(0,-.4,.02), # focal point
