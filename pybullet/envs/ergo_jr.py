@@ -25,7 +25,7 @@ class PoppyErgoJrEnv(PoppyEnv):
         view = pb.computeViewMatrix(
             cameraEyePosition=(0,-.02,.02),
             cameraTargetPosition=(0,-.4,.02), # focal point
-            cameraUpVector=(0,0,1)
+            cameraUpVector=(0,0,1),
         )
         proj = pb.computeProjectionMatrixFOV(
             fov=135,
