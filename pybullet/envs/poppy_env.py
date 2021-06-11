@@ -42,6 +42,9 @@ class PoppyEnv(object):
     
     def reset(self):
         pb.restoreState(stateId = self.initial_state_id)
+    
+    def close(self):
+        pb.disconnect()
         
     def step(self, action=None, sleep=None):
         
