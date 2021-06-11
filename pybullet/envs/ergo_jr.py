@@ -20,12 +20,11 @@ class PoppyErgoJrEnv(PoppyEnv):
         return (states[0][0], states[1][0])
     
     def get_camera_image(self):
-        # width, height = 1024, 768
-        width, height = 128, 96
+        width, height = 128, 128
         view = pb.computeViewMatrix(
             cameraEyePosition=(0,-.02,.02),
             cameraTargetPosition=(0,-.4,.02), # focal point
-            cameraUpVector=(0,0,1),
+            cameraUpVector=(0,0,.5),
         )
         proj = pb.computeProjectionMatrixFOV(
             fov=135,
@@ -33,10 +32,8 @@ class PoppyErgoJrEnv(PoppyEnv):
             nearVal=0.01,
             farVal=.4,
         )
-        _, _, rgb, depth, segment = pb.getCameraImage(width, height, view, proj)
-        return rgb
-        # import pickle as pk
-        # with open("ergo_jr_pov.pkl","wb") as f: pk.dump((width, height, view, proj), f)
+        _, _, rgb, _, _ = pb.getCameraImage(width, height, view, proj)
+        return rgb, view, proj
 
 if __name__ == '__main__':
 

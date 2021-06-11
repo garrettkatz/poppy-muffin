@@ -9,11 +9,15 @@ class PoppyEnv(object):
     def load_urdf(self):
         return 0
 
-    def __init__(self, control_mode, timestep=1/240, show=True):
+    def __init__(self, control_mode, timestep=1/240, show=True, step_hook=None):
+
+        # step_hook(env, action) is called in each env.step(action)
+        if step_hook is None: step_hook = lambda env, action: None
 
         self.control_mode = control_mode
         self.timestep = timestep
         self.show = show
+        self.step_hook = step_hook
 
         self.client_id = pb.connect(pb.GUI if show else pb.DIRECT)
         if show: pb.configureDebugVisualizer(pb.COV_ENABLE_SHADOWS, 0)
@@ -40,6 +44,8 @@ class PoppyEnv(object):
         pb.restoreState(stateId = self.initial_state_id)
         
     def step(self, action=None, sleep=None):
+        
+        self.step_hook(self, action)
     
         if action is not None:
             pb.setJointMotorControlArray(
