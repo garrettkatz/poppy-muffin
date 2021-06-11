@@ -32,7 +32,8 @@ class PoppyErgoJrEnv(PoppyEnv):
             nearVal=0.01,
             farVal=.4,
         )
-        _, _, rgb, _, _ = pb.getCameraImage(width, height, view, proj)
+        # _, _, rgb, _, _ = pb.getCameraImage(width, height, view, proj)
+        rgb = np.empty((width, height, 3)) # much faster than pb.getCameraImage
         return rgb, view, proj
 
 if __name__ == '__main__':
