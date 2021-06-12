@@ -93,7 +93,7 @@ if __name__ == "__main__":
     sys.path.append('../../envs')    
     from blocks_world import BlocksWorldEnv
     
-    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, step_hook = dump.step_hook)
+    env = BlocksWorldEnv(pb.POSITION_CONTROL, control_period=20, show=True, step_hook = dump.step_hook)
     env.load_blocks(thing_below)
 
     # from check/camera.py
