@@ -1,5 +1,6 @@
 import pybullet as pb
 import time, sys
+import matplotlib.pyplot as pt
 
 class DataDump:
     def __init__(self):
@@ -14,6 +15,13 @@ class DataDump:
         delta = action - position
         rgb, _, _, coords_of = env.get_camera_image()
         self.data[-1]["records"].append((position, delta, rgb, coords_of))
+
+        # pt.cla()
+        # pt.imshow(rgb)
+        # x, y = zip(*coords_of.values())
+        # pt.plot(x, y, 'ro')
+        # pt.show()
+        # pt.pause(0.01)
 
 class Restacker:
     def __init__(self, env, goal_block_above, dump=None):
@@ -100,6 +108,8 @@ if __name__ == "__main__":
     pb.resetDebugVisualizerCamera(
         1.2000000476837158, 56.799964904785156, -22.20000648498535,
         (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
+    
+    # pt.ion()
     
     goal_block_above = env.invert(goal_thing_below)
     restacker = Restacker(env, goal_block_above, dump)
