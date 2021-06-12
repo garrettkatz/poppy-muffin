@@ -21,6 +21,7 @@ class PoppyErgoJrEnv(PoppyEnv):
     
     def get_camera_image(self):
         width, height = 128, 128
+        # width, height = 8, 8 # doesn't actually make much difference
         view = pb.computeViewMatrix(
             cameraEyePosition=(0,-.02,.02),
             cameraTargetPosition=(0,-.4,.02), # focal point
@@ -32,8 +33,8 @@ class PoppyErgoJrEnv(PoppyEnv):
             nearVal=0.01,
             farVal=.4,
         )
-        # _, _, rgb, _, _ = pb.getCameraImage(width, height, view, proj)
-        rgb = np.empty((width, height, 3)) # much faster than pb.getCameraImage
+        _, _, rgb, _, _ = pb.getCameraImage(width, height, view, proj)
+        # rgb = np.empty((width, height, 3)) # much faster than pb.getCameraImage
         return rgb, view, proj
 
 if __name__ == '__main__':
