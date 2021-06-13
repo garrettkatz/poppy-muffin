@@ -81,6 +81,23 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         t2 = pos[0]+delta*m[1], pos[1]+delta*m[4], pos[2]+delta*m[7]
         return (t1, t2)
 
+    def run_trajectory(self, quat, waypoints):
+        for point, delta in waypoints: 
+            targs = self.tip_targets_around(point, quat, delta)
+            angles = self.inverse_kinematics([5, 7], targs)
+            self.goto_position(angles, .25)
+    
+    def pick_up(self, block):
+        pos, quat = self.placement_of(block)
+        stage = pos[:2] + (.1,)
+        self.run_trajectory(quat, [(stage, .02), (pos, .02), (pos, .01), (stage, .01)])
+
+    def put_down_on(self, thing, block):
+        pos, quat = self.placement_of(thing)
+        pos = pos[:2] + (pos[2] + .0201,)
+        stage = pos[:2] + (.1,)    
+        self.run_trajectory(quat, [(stage, .005), (pos, .005), (pos, .02), (stage, .02)])
+    
     def get_camera_image(self):
         rgba, view, proj = super().get_camera_image()        
         width, height = rgba.shape[1], rgba.shape[0]

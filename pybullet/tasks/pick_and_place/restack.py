@@ -15,8 +15,9 @@ class DataDump:
         rgba, _, _, coords_of = env.get_camera_image()
         self.data[-1]["records"].append((position, action, rgba, coords_of))
 
+        # if not pt.isinteractive(): pt.ion()
         # pt.cla()
-        # pt.imshow(rgb)
+        # pt.imshow(rgba)
         # r, c = zip(*coords_of.values())
         # pt.plot(c, r, 'ro')
         # pt.show()
@@ -33,25 +34,11 @@ class Restacker:
             if self.env.block_above[base] == 'none': return base
         return False
     
-    def run_trajectory(self, quat, waypoints):
-        for point, delta in waypoints: 
-            targs = self.env.tip_targets_around(point, quat, delta)
-            angles = self.env.inverse_kinematics([5, 7], targs)
-            self.env.goto_position(angles, .25)
-    
-    def pick_up(self, block):
-        if self.dump is not None: self.dump.add_command(("pick_up", (block,)))
-        pos, quat = self.env.placement_of(block)
-        stage = pos[:2] + (.1,)
-        self.run_trajectory(quat, [(stage, .02), (pos, .02), (pos, .01), (stage, .01)])
+    def move_to(self, thing, block):
+        if self.dump is not None: self.dump.add_command(("move_to", (thing, block)))
+        self.env.pick_up(block)
+        self.env.put_down_on(thing, block)
         self.env.block_above[self.env.thing_below[block]] = 'none'
-
-    def put_down_on(self, thing, block):
-        if self.dump is not None: dump.add_command(("put_down_on", (thing, block)))
-        pos, quat = self.env.placement_of(thing)
-        pos = pos[:2] + (pos[2] + .0201,)
-        stage = pos[:2] + (.1,)    
-        self.run_trajectory(quat, [(stage, .005), (pos, .005), (pos, .02), (stage, .02)])
         self.env.block_above[thing] = block
         self.env.thing_below[block] = thing
 
@@ -59,8 +46,7 @@ class Restacker:
         block = self.env.block_above[thing]
         if block == "none": return
         self.unstack_from(block)
-        self.pick_up(block)
-        self.put_down_on(self.free_spot(), block)
+        self.move_to(self.free_spot(), block)
     
     def unstack_all(self):
         for base in self.env.bases:
@@ -70,8 +56,7 @@ class Restacker:
     def stack_on(self, thing):
         block = self.goal_block_above[thing]
         if block == "none": return
-        self.pick_up(block)
-        self.put_down_on(thing, block)
+        self.move_to(thing, block)
         self.stack_on(block)
     
     def stack_all(self):
@@ -107,8 +92,6 @@ if __name__ == "__main__":
     pb.resetDebugVisualizerCamera(
         1.2000000476837158, 56.799964904785156, -22.20000648498535,
         (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
-    
-    # pt.ion()
     
     goal_block_above = env.invert(goal_thing_below)
     restacker = Restacker(env, goal_block_above, dump)
