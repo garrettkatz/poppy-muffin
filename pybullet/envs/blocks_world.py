@@ -82,8 +82,9 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         return (t1, t2)
 
     def get_camera_image(self):
-        rgb, view, proj = super().get_camera_image()
-        width, height = rgb.shape[1], rgb.shape[0]
+        rgba, view, proj = super().get_camera_image()        
+        width, height = rgba.shape[1], rgba.shape[0]
+
         coords_of = {} # image coordinates of things
         for thing in self.bases + self.blocks:
             pos, _ = self.placement_of(thing)
@@ -97,9 +98,10 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
             # apply perspective in image plane
             pt = (pt[0]/pt[3], pt[1]/pt[3])
             # rescale to pixel units
-            pt = (pt[0]*width/2 + width/2, -pt[1]*height/2 + height/2)
-            coords_of[thing] = pt
-        return rgb, view, proj, coords_of
+            row, col = -pt[1]*height/2 + height/2, pt[0]*width/2 + width/2
+            coords_of[thing] = (row, col)
+
+        return rgba, view, proj, coords_of
 
 if __name__ == "__main__":
 
@@ -114,8 +116,8 @@ if __name__ == "__main__":
     
     import matplotlib.pyplot as pt
     import numpy as np
-    x, y = zip(*coords_of.values())
+    r, c = zip(*coords_of.values())
     pt.imshow(rgb)
-    pt.plot(x, y, 'ro')
+    pt.plot(c, r, 'ro')
     pt.show()
     

@@ -41,10 +41,12 @@ class PoppyErgoJrEnv(PoppyEnv):
             nearVal=0.01,
             farVal=.4,
         )
-        _, _, rgb, _, _ = pb.getCameraImage(width, height, view, proj)
-            # flags = pb.ER_NO_SEGMENTATION_MASK) # not much speed difference
-        # rgb = np.empty((width, height, 3)) # much faster than pb.getCameraImage
-        return rgb, view, proj
+        # rgba shape is (height, width, 4)
+        _, _, rgba, _, _ = pb.getCameraImage(
+            width, height, view, proj,
+            flags = pb.ER_NO_SEGMENTATION_MASK) # not much speed difference
+        # rgba = np.empty((height, width, 4)) # much faster than pb.getCameraImage
+        return rgba, view, proj
 
 if __name__ == '__main__':
 

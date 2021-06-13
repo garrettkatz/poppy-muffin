@@ -12,13 +12,13 @@ class DataDump:
     def step_hook(self, env, action):
         if action is None or len(self.data) == 0: return
         position = env.get_position()
-        rgb, _, _, coords_of = env.get_camera_image()
-        self.data[-1]["records"].append((position, action, rgb, coords_of))
+        rgba, _, _, coords_of = env.get_camera_image()
+        self.data[-1]["records"].append((position, action, rgba, coords_of))
 
         # pt.cla()
         # pt.imshow(rgb)
-        # x, y = zip(*coords_of.values())
-        # pt.plot(x, y, 'ro')
+        # r, c = zip(*coords_of.values())
+        # pt.plot(c, r, 'ro')
         # pt.show()
         # pt.pause(0.01)
 
