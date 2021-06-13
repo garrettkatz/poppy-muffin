@@ -12,9 +12,8 @@ class DataDump:
     def step_hook(self, env, action):
         if action is None or len(self.data) == 0: return
         position = env.get_position()
-        delta = action - position
         rgb, _, _, coords_of = env.get_camera_image()
-        self.data[-1]["records"].append((position, delta, rgb, coords_of))
+        self.data[-1]["records"].append((position, action, rgb, coords_of))
 
         # pt.cla()
         # pt.imshow(rgb)
@@ -41,7 +40,7 @@ class Restacker:
             self.env.goto_position(angles, .25)
     
     def pick_up(self, block):
-        if self.dump is not None: dump.add_command(("pick_up", (block,)))
+        if self.dump is not None: self.dump.add_command(("pick_up", (block,)))
         pos, quat = self.env.placement_of(block)
         stage = pos[:2] + (.1,)
         self.run_trajectory(quat, [(stage, .02), (pos, .02), (pos, .01), (stage, .01)])

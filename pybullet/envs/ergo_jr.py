@@ -4,6 +4,14 @@ import numpy as np
 from poppy_env import PoppyEnv
 
 class PoppyErgoJrEnv(PoppyEnv):
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # from check/camera.py
+        pb.resetDebugVisualizerCamera(
+            1.2000000476837158, 56.799964904785156, -22.20000648498535,
+            (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
+
     def load_urdf(self):
         fpath = os.path.dirname(os.path.abspath(__file__))
         fpath += '/../../urdfs/ergo_jr'
