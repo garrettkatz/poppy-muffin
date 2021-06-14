@@ -12,6 +12,9 @@ env.load_blocks(thing_below)
 rgba, view, proj, coords_of = env.get_camera_image()
 env.close()
 
+np.save("tmp.npy", rgba)
+rgba = np.load("tmp.npy")
+
 import matplotlib.pyplot as pt
 pt.imshow(rgba)
 pt.show()

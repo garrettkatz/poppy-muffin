@@ -90,7 +90,7 @@ def generate_data(num_blocks, base_name):
         
         # preprocessing
         rgb = rgba[:,:,:,:3] # drop alpha channel
-        rgb = (rgb / 255).float() # convert to float
+        rgb = rgb.float() / 255. # convert to float
         rgb = rgb.permute(0,3,1,2) # put channels first
         rgb = rgb[:,:,32:72, 20:108] # clip rgb data
         block_coords -= tr.tensor([[32., 20.]]) # clip coordinates
@@ -105,12 +105,37 @@ def generate_data(num_blocks, base_name):
     print("  ", goal_thing_below)
     return reward
 
+class DataLoader:
+    def __init__(self, folder, episodes, shuffle=True):
+        self.folder = folder
+        self.episodes = episodes
+        self.shuffle = shuffle
+    def __iter__(self):
+
+        episodes = self.episodes
+        if self.shuffle: episodes = np.random.permutation(episodes)
+        
+        for episode in episodes:
+            subfolder = "%s/%03d" % (self.folder, episode)
+
+            with open(subfolder + "/meta.pkl", "rb") as f:
+                _, _, _, reward, commands = pk.load(f)
+            if reward < 0: continue
+            
+            for c in range(len(commands)):
+                record = tr.load("%s/%03d.pt" % (subfolder, c))
+                position, action, rgb, block_coords, thing_coords = record            
+                inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
+                targets = (action[:-1], block_coords[1:], thing_coords[1:])
+                yield inputs, targets
+        
+
 if __name__ == "__main__":
     
     import matplotlib.pyplot as pt
 
     # generate pickup data
-    regen = True
+    regen = False
     if regen:
         
         num_episodes = 500
@@ -132,10 +157,9 @@ if __name__ == "__main__":
         print("%d of %d successful" % (num_success, num_episodes))
 
     episode = 0
-    folder = "episodes/%03d" % episode
+    folder = "episodes500/%03d" % episode
     with open(folder + "/meta.pkl", "rb") as f:
         thing_below, goal_thing_below, final_thing_below, reward, commands = pk.load(f)
-    position, action, rgb, block_coords, thing_coords = tr.load(folder + "/000.pt")
 
     print(folder)
     print(" commands:")
@@ -145,21 +169,28 @@ if __name__ == "__main__":
     print("  ", final_thing_below)
     print("  ", goal_thing_below)
     
-    inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
-    targets = (action[:-1], block_coords[1:], thing_coords[1:])
+    # position, action, rgb, block_coords, thing_coords = tr.load(folder + "/000.pt")
+    # inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
+    # targets = (action[:-1], block_coords[1:], thing_coords[1:])
 
-    # pt.ion()
-    # for t in range(len(rgb)):
-    #     pt.cla()
-    #     pt.imshow(rgb.permute(0,2,3,1).data[t])
-    #     rb, cb = block_coords[t,0], block_coords[t,1]
-    #     rt, ct = thing_coords[t,0], thing_coords[t,1]
-    #     pt.plot(cb, rb, 'ro')
-    #     pt.plot(ct, rt, 'ro')
-    #     pt.show()
-    #     pt.pause(0.5)    
-    # input('.')
-    
+    dataloader = DataLoader("episodes500", list(range(10)), shuffle=False)
+    for inputs, targets in dataloader:
+        position, rgb, block_coords, thing_coords = inputs
+        action, new_block_coords, new_thing_coords = targets
+        break
+
+    pt.ion()
+    for t in range(len(rgb)):
+        pt.cla()
+        pt.imshow(rgb.permute(0,2,3,1).data[t])
+        rb, cb = block_coords[t,0], block_coords[t,1]
+        rt, ct = thing_coords[t,0], thing_coords[t,1]
+        pt.plot(cb, rb, 'ro')
+        pt.plot(ct, rt, 'ro')
+        pt.show()
+        pt.pause(0.5)    
+    input('.')
+        
     net = VisuoMotorNetwork()
     targ_action, targ_block_coords, targ_thing_coords = targets
 
