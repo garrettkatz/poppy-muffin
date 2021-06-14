@@ -200,7 +200,12 @@ if __name__ == "__main__":
     if train:
         optim = tr.optim.Adam(net.parameters(), lr=0.001)
     
+        best_loss = None
+        loss_curve = []
         for epoch in range(3):
+
+            total_loss = 0.0
+
             for batch, (inputs, targets) in enumerate(dataloader):
 
                 outputs = net(inputs)
@@ -209,33 +214,53 @@ if __name__ == "__main__":
                 loss = tr.sum((pred_action - targ_action)**2) * action_scale**2
                 loss += tr.sum((pred_block_coords - targ_block_coords)**2) * coords_scale**2
                 loss += tr.sum((pred_thing_coords - targ_thing_coords)**2) * coords_scale**2
+                total_loss += loss.item()
                 print("%d, %d: %f" % (epoch, batch, loss))
                 loss.backward()
                 optim.step()
                 optim.zero_grad()
-    
-        tr.save((inputs, targets, outputs), "preds.pt")
 
-    # inputs, targets, outputs = tr.load("preds.pt")
-    # _, rgb, _, _ = inputs
-    # targ_action, targ_block_coords, targ_thing_coords = targets
-    # pred_action, pred_block_coords, pred_thing_coords = outputs
-    
-    # pt.subplot(1,2,1)
-    # pt.plot(pred_action.detach().numpy(), color='r')
-    # pt.plot(targ_action.numpy(), color='b')
-    
-    # pt.subplot(1,2,2)
-    # pt.imshow(rgb.permute(0,2,3,1).data[-1])
-    # for (pred_coords, targ_coords) in zip(
-    #     [pred_block_coords, pred_thing_coords],
-    #     [targ_block_coords, targ_thing_coords]
-    # ):
-    #     for t in range(len(pred_action)):
-    #         rp, cp = pred_coords[t]
-    #         rt, ct = targ_coords[t]
-    #         pt.plot([cp,ct], [rp, rt], 'ro-')
-    #         pt.plot(ct, rt, 'bo')
-    # pt.show()
-    # input('.')
-    
+            loss_curve.append(total_loss)
+            if best_loss is None or total_loss < best_loss:
+                best_loss = total_loss
+                tr.save(net.state_dict(), "net.pt")
+
+        np.save("lc.npy", np.array(loss_curve))
+        # tr.save((inputs, targets, outputs), "preds.pt")
+
+    show_results = False
+    if show_results:
+
+        loss_curve = np.load("lc.npy")
+        net.load_state_dict(tr.load("net.pt"))
+
+        inputs, targets = next(iter(dataloader))
+        outputs = net(inputs)
+        position, rgb, block_coords, thing_coords = inputs
+        targ_action, targ_block_coords, targ_thing_coords = targets
+        pred_action, pred_block_coords, pred_thing_coords = outputs
+
+        # inputs, targets, outputs = tr.load("preds.pt")
+        
+        pt.subplot(1,3,1)
+        pt.plot(pred_action.detach().numpy(), color='r')
+        pt.plot(targ_action.numpy(), color='b')
+        
+        pt.subplot(1,3,2)
+        pt.imshow(rgb.permute(0,2,3,1).data[-1])
+        for (pred_coords, targ_coords) in zip(
+            [pred_block_coords, pred_thing_coords],
+            [targ_block_coords, targ_thing_coords]
+        ):
+            for t in range(len(pred_action)):
+                rp, cp = pred_coords[t]
+                rt, ct = targ_coords[t]
+                pt.plot([cp,ct], [rp, rt], 'ro-')
+                pt.plot(ct, rt, 'bo')
+
+        pt.subplot(1,3,3)
+        pt.plot(loss_curve)
+
+        pt.show()
+        input('.')
+        
