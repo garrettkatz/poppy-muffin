@@ -135,20 +135,21 @@ if __name__ == "__main__":
     import matplotlib.pyplot as pt
 
     # generate pickup data
-    regen = False
+    base_name = "episodes"
+    num_episodes = 2
+    regen = True
     if regen:
         
-        num_episodes = 500
         min_blocks = 3
         max_blocks = 7
         num_success = 0
     
-        os.system("rm -fr episodes/*")
+        os.system("rm -fr %s/*" % base_name)
         print()
 
         for episode in range(num_episodes):
             num_blocks = np.random.randint(min_blocks, max_blocks+1)
-            folder = "episodes/%03d" % episode
+            folder = "%s/%03d" % (base_name, episode)
             os.system("mkdir " + folder)
             print("%s, %d blocks" % (folder, num_blocks))
             reward = generate_data(num_blocks, base_name=folder)
@@ -157,7 +158,7 @@ if __name__ == "__main__":
         print("%d of %d successful" % (num_success, num_episodes))
 
     episode = 0
-    folder = "episodes500/%03d" % episode
+    folder = "%s/%03d" % (base_name, episode)
     with open(folder + "/meta.pkl", "rb") as f:
         thing_below, goal_thing_below, final_thing_below, reward, commands = pk.load(f)
 
@@ -173,26 +174,25 @@ if __name__ == "__main__":
     # inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
     # targets = (action[:-1], block_coords[1:], thing_coords[1:])
 
-    dataloader = DataLoader("episodes500", list(range(10)), shuffle=False)
+    dataloader = DataLoader(base_name, list(range(num_episodes)), shuffle=False)
     for inputs, targets in dataloader:
         position, rgb, block_coords, thing_coords = inputs
-        action, new_block_coords, new_thing_coords = targets
+        targ_action, targ_block_coords, targ_thing_coords = targets
         break
 
-    pt.ion()
-    for t in range(len(rgb)):
-        pt.cla()
-        pt.imshow(rgb.permute(0,2,3,1).data[t])
-        rb, cb = block_coords[t,0], block_coords[t,1]
-        rt, ct = thing_coords[t,0], thing_coords[t,1]
-        pt.plot(cb, rb, 'ro')
-        pt.plot(ct, rt, 'ro')
-        pt.show()
-        pt.pause(0.5)    
-    input('.')
+    # pt.ion()
+    # for t in range(len(rgb)):
+    #     pt.cla()
+    #     pt.imshow(rgb.permute(0,2,3,1).data[t])
+    #     rb, cb = block_coords[t,0], block_coords[t,1]
+    #     rt, ct = thing_coords[t,0], thing_coords[t,1]
+    #     pt.plot(cb, rb, 'ro')
+    #     pt.plot(ct, rt, 'ro')
+    #     pt.show()
+    #     pt.pause(0.5)    
+    # input('.')
         
     net = VisuoMotorNetwork()
-    targ_action, targ_block_coords, targ_thing_coords = targets
 
     train = False
     if train:
