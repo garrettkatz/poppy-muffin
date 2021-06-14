@@ -11,6 +11,7 @@ class DataDump:
             "command": command,
             "records": []})
         self.period_counter = 0
+        print("  added command " + str(command))
     def step_hook(self, env, action):
         if action is None or len(self.data) == 0: return
 

@@ -1,6 +1,10 @@
 import numpy as np
 import torch as tr
+import pybullet as pb
 from restack import DataDump, Restacker
+import sys, os
+sys.path.append('../../envs')    
+from blocks_world import BlocksWorldEnv, random_thing_below
 
 def spatial_softmax(inp):
     # inp should be size (N,C,H,W)
@@ -47,37 +51,28 @@ class VisuoMotorNetwork(tr.nn.Module):
         new_thing_coords = h[:, -2:] + thing_coords
         return action, new_block_coords, new_thing_coords
 
-if __name__ == "__main__":
+def generate_data(num_blocks, base_name):
     
-    import pybullet as pb
-    import sys
-    import pickle as pk
-    import matplotlib.pyplot as pt
+    dump = DataDump(control_period=24)
+    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=False, step_hook = dump.step_hook)
 
-    # generate pickup data
-    regen = True
-    if regen:
-        sys.path.append('../../envs')    
-        from blocks_world import BlocksWorldEnv, random_thing_below
-    
-        num_blocks = 7
-        # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-        # thing_below["b1"], thing_below["b2"] = "b0", "b1"
-        # thing_below["b5"], thing_below["b4"] = "b6", "b5"
-        thing_below = random_thing_below(num_blocks, max_levels=3)
-        
-        dump = DataDump(control_period=10)
-        
-        env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, step_hook = dump.step_hook)
-        env.load_blocks(thing_below)
-    
-        goal_block_above = env.invert(thing_below)
-        restacker = Restacker(env, goal_block_above, dump)
-        restacker.move_to("b3", "b4")
-        env.close()
-    
-        _, (thing, block) = dump.data[0]["command"]
-        position, action, rgba, coords_of = zip(*dump.data[0]["records"])
+    # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    # thing_below["b1"] = "b0"
+    # goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    # goal_thing_below["b2"] = "b1"
+
+    thing_below = random_thing_below(num_blocks, max_levels=3)
+    goal_thing_below = random_thing_below(num_blocks, max_levels=3)
+    env.load_blocks(thing_below)
+
+    goal_block_above = env.invert(goal_thing_below)
+    restacker = Restacker(env, goal_block_above, dump)
+    restacker.run()
+    env.close()
+
+    for d, frame in enumerate(dump.data):
+        _, (thing, block) = frame["command"]
+        position, action, rgba, coords_of = zip(*frame["records"])
         
         position = tr.tensor(np.stack(position)).float()
         action = tr.tensor(np.stack(action)).float()
@@ -92,12 +87,31 @@ if __name__ == "__main__":
         rgb = rgb[:,:,32:72, 20:108] # clip rgb data
         block_coords -= tr.tensor([[32, 20]]) # clip coordinates
         thing_coords -= tr.tensor([[32, 20]]) # clip coordinates
+
+        data_file = "%s%03d.pt" % (base_name, d)
+        tr.save((position, action, rgb, block_coords, thing_coords), data_file)
+
+if __name__ == "__main__":
     
-        with open("tdat.pkl","wb") as f:
-            pk.dump((position, action, rgb, block_coords, thing_coords), f)
+    import matplotlib.pyplot as pt
+
+    # generate pickup data
+    regen = False
+    if regen:
+        
+        num_episodes = 2
+        num_blocks = 7
     
-    with open("tdat.pkl","rb") as f:
-        position, action, rgb, block_coords, thing_coords = pk.load(f)
+        os.system("rm -fr episodes/*")
+        print()
+
+        for episode in range(num_episodes):
+            folder = "episodes/%03d" % episode
+            print(folder)
+            os.system("mkdir " + folder)
+            generate_data(num_blocks, base_name = folder + "/")
+    
+    position, action, rgb, block_coords, thing_coords = tr.load("episodes/001/005.pt")
     
     inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
     targets = (action[:-1], block_coords[1:], thing_coords[1:])
@@ -118,7 +132,7 @@ if __name__ == "__main__":
     if train:
         optim = tr.optim.Adam(net.parameters(), lr=0.001)
     
-        for epoch in range(500):
+        for epoch in range(10):
         
             outputs = net(inputs)
             pred_action, pred_block_coords, pred_thing_coords = outputs
@@ -130,10 +144,10 @@ if __name__ == "__main__":
             optim.step()
             optim.zero_grad()
     
-        outputs = net(inputs)        
-        with open("preds.pkl","wb") as f: pk.dump(outputs, f)
+        outputs = net(inputs)
+        tr.save(outputs, "preds.pt")
 
-    with open("preds.pkl","rb") as f: outputs = pk.load(f)
+    outputs = tr.load("preds.pt")
     pred_action, pred_block_coords, pred_thing_coords = outputs
     
     pt.subplot(1,2,1)
