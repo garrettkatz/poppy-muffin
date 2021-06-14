@@ -66,9 +66,9 @@ if __name__ == "__main__":
         # thing_below["b5"], thing_below["b4"] = "b6", "b5"
         thing_below = random_thing_below(num_blocks, max_levels=3)
         
-        dump = DataDump()
+        dump = DataDump(control_period=10)
         
-        env = BlocksWorldEnv(pb.POSITION_CONTROL, control_period=10, show=True, step_hook = dump.step_hook)
+        env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, step_hook = dump.step_hook)
         env.load_blocks(thing_below)
     
         goal_block_above = env.invert(thing_below)

@@ -3,25 +3,31 @@ import time, sys
 import matplotlib.pyplot as pt
 
 class DataDump:
-    def __init__(self):
+    def __init__(self, control_period):
+        self.control_period = control_period
         self.data = []
     def add_command(self, command):
         self.data.append({
             "command": command,
             "records": []})
+        self.period_counter = 0
     def step_hook(self, env, action):
         if action is None or len(self.data) == 0: return
-        position = env.get_position()
-        rgba, _, _, coords_of = env.get_camera_image()
-        self.data[-1]["records"].append((position, action, rgba, coords_of))
 
-        # if not pt.isinteractive(): pt.ion()
-        # pt.cla()
-        # pt.imshow(rgba)
-        # r, c = zip(*coords_of.values())
-        # pt.plot(c, r, 'ro')
-        # pt.show()
-        # pt.pause(0.01)
+        if self.period_counter == 0:
+            position = env.get_position()
+            rgba, _, _, coords_of = env.get_camera_image()
+            self.data[-1]["records"].append((position, action, rgba, coords_of))
+            # if not pt.isinteractive(): pt.ion()
+            # pt.cla()
+            # pt.imshow(rgba)
+            # r, c = zip(*coords_of.values())
+            # pt.plot(c, r, 'ro')
+            # pt.show()
+            # pt.pause(0.01)
+
+        self.period_counter += 1
+        self.period_counter %= self.control_period
 
 class Restacker:
     def __init__(self, env, goal_block_above, dump=None):
@@ -85,10 +91,8 @@ if __name__ == "__main__":
     thing_below = random_thing_below(num_blocks, max_levels=3)
     goal_thing_below = random_thing_below(num_blocks, max_levels=3)
 
-    dump = DataDump()
-
-    # env = BlocksWorldEnv(pb.POSITION_CONTROL, control_period=20, show=True, step_hook = dump.step_hook)
-    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True)
+    dump = DataDump(control_period=10)
+    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, step_hook=dump.step_hook)
     env.load_blocks(thing_below)
 
     # from check/camera.py

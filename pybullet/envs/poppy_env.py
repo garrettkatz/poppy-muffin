@@ -9,14 +9,13 @@ class PoppyEnv(object):
     def load_urdf(self):
         return 0
 
-    def __init__(self, control_mode, timestep=1/240, control_period=10, show=True, step_hook=None):
+    def __init__(self, control_mode, timestep=1/240, show=True, step_hook=None):
 
         # step_hook(env, action) is called in each env.step(action)
         if step_hook is None: step_hook = lambda env, action: None
 
         self.control_mode = control_mode
         self.timestep = timestep
-        self.control_period = control_period
         self.show = show
         self.step_hook = step_hook
 
@@ -61,10 +60,9 @@ class PoppyEnv(object):
                 positionGains = [.25]*len(action), # important for constant position accuracy
             )
 
+        pb.stepSimulation()
         if sleep is None: sleep = self.show
-        for _ in range(self.control_period):
-            pb.stepSimulation()
-            if sleep: time.sleep(self.timestep)
+        if sleep: time.sleep(self.timestep)
     
     # get/set joint angles as np.array
     def get_position(self):
@@ -90,7 +88,7 @@ class PoppyEnv(object):
     def goto_position(self, target, duration, hang=False):
 
         current = self.get_position()
-        num_steps = int(duration / (self.timestep * self.control_period) + 1)
+        num_steps = int(duration / self.timestep + 1)
         weights = np.linspace(0, 1, num_steps).reshape(-1,1)
         trajectory = weights * target + (1 - weights) * current
 
