@@ -85,8 +85,8 @@ def generate_data(num_blocks, base_name):
         rgb = (rgb / 255).float() # convert to float
         rgb = rgb.permute(0,3,1,2) # put channels first
         rgb = rgb[:,:,32:72, 20:108] # clip rgb data
-        block_coords -= tr.tensor([[32, 20]]) # clip coordinates
-        thing_coords -= tr.tensor([[32, 20]]) # clip coordinates
+        block_coords -= tr.tensor([[32., 20.]]) # clip coordinates
+        thing_coords -= tr.tensor([[32., 20.]]) # clip coordinates
 
         data_file = "%s%03d.pt" % (base_name, d)
         tr.save((position, action, rgb, block_coords, thing_coords), data_file)
@@ -96,7 +96,7 @@ if __name__ == "__main__":
     import matplotlib.pyplot as pt
 
     # generate pickup data
-    regen = False
+    regen = True
     if regen:
         
         num_episodes = 2
@@ -111,7 +111,7 @@ if __name__ == "__main__":
             os.system("mkdir " + folder)
             generate_data(num_blocks, base_name = folder + "/")
     
-    position, action, rgb, block_coords, thing_coords = tr.load("episodes/001/005.pt")
+    position, action, rgb, block_coords, thing_coords = tr.load("episodes/000/000.pt")
     
     inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
     targets = (action[:-1], block_coords[1:], thing_coords[1:])
