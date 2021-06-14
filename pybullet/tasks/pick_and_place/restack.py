@@ -70,22 +70,25 @@ class Restacker:
 
 if __name__ == "__main__":
 
+    sys.path.append('../../envs')    
+    from blocks_world import BlocksWorldEnv, random_thing_below
+    
     num_blocks = 7
-    thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-    # thing_below["b3"] = "b4"
-    # thing_below["b4"] = "b5"
-    # thing_below["b2"] = "b1"
+    # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    # # thing_below["b3"] = "b4"
+    # # thing_below["b4"] = "b5"
+    # # thing_below["b2"] = "b1"
 
-    goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-    goal_thing_below["b3"] = "b2"
-    # goal_thing_below["b2"] = "b6"
+    # goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    # goal_thing_below["b3"] = "b2"
+    # # goal_thing_below["b2"] = "b6"
+    thing_below = random_thing_below(num_blocks, max_levels=3)
+    goal_thing_below = random_thing_below(num_blocks, max_levels=3)
 
     dump = DataDump()
 
-    sys.path.append('../../envs')    
-    from blocks_world import BlocksWorldEnv
-    
-    env = BlocksWorldEnv(pb.POSITION_CONTROL, control_period=20, show=True, step_hook = dump.step_hook)
+    # env = BlocksWorldEnv(pb.POSITION_CONTROL, control_period=20, show=True, step_hook = dump.step_hook)
+    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True)
     env.load_blocks(thing_below)
 
     # from check/camera.py

@@ -55,19 +55,20 @@ if __name__ == "__main__":
     import matplotlib.pyplot as pt
 
     # generate pickup data
-    regen = False
+    regen = True
     if regen:
         sys.path.append('../../envs')    
-        from blocks_world import BlocksWorldEnv
+        from blocks_world import BlocksWorldEnv, random_thing_below
     
         num_blocks = 7
-        thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-        thing_below["b1"], thing_below["b2"] = "b0", "b1"
-        thing_below["b5"], thing_below["b4"] = "b6", "b5"
+        # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+        # thing_below["b1"], thing_below["b2"] = "b0", "b1"
+        # thing_below["b5"], thing_below["b4"] = "b6", "b5"
+        thing_below = random_thing_below(num_blocks, max_levels=3)
         
         dump = DataDump()
         
-        env = BlocksWorldEnv(pb.POSITION_CONTROL, control_period=30, show=True, step_hook = dump.step_hook)
+        env = BlocksWorldEnv(pb.POSITION_CONTROL, control_period=10, show=True, step_hook = dump.step_hook)
         env.load_blocks(thing_below)
     
         goal_block_above = env.invert(thing_below)

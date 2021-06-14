@@ -1,6 +1,7 @@
 import itertools as it
 import os
-from math import cos, sin
+from math import sin, cos
+import random
 import pybullet as pb
 from ergo_jr import PoppyErgoJrEnv
 
@@ -53,7 +54,7 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
             pb.changeVisualShape(self.block_id[block], linkIndex=-1, rgbaColor=rgba)
         
         self.step() # let blocks settle
-
+    
     def is_above(self, thing1, thing2):
         # true if thing1 above thing2
         pos1, _ = self.placement_of(thing1)
@@ -120,11 +121,28 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
 
         return rgba, view, proj, coords_of
 
+def random_thing_below(num_blocks, max_levels):
+    # make a random thing_below dictionary
+    # no towers have more than max_levels
+    towers = [["t%d" % n] for n in range(num_blocks)]
+    for n in range(num_blocks):
+        short_towers = list(filter(lambda x: len(x) < max_levels, towers))
+        tower = random.choice(short_towers)
+        tower.append("b%d" % n)
+    thing_below = {}
+    for tower in towers:
+        for level in range(len(tower)-1):
+            thing_below[tower[level+1]] = tower[level]
+    return thing_below
+
 if __name__ == "__main__":
+
+    thing_below = random_thing_below(num_blocks=7, max_levels=3)
 
     env = BlocksWorldEnv(pb.POSITION_CONTROL)
     env.load_blocks(
-        {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
+        thing_below)
+        # {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
 
     env.update_relations()
     print(env.block_above)
