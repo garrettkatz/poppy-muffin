@@ -2,8 +2,28 @@ import pybullet as pb
 import time, sys
 import matplotlib.pyplot as pt
 
+def compute_reward(env, goal_thing_below):
+    def target_placement_of(block):
+        if goal_thing_below[block] in env.bases:
+            # don't care which table position grounds the tower
+            pos, quat = env.placement_of(block)
+        else:
+            pos, quat = target_placement_of(goal_thing_below[block])
+            pos = (pos[0], pos[1], pos[2] + .02)
+        return pos, quat
+
+    reward = 0
+    for block in env.blocks:
+        actual_pos, actual_quat = env.placement_of(block)
+        target_pos, target_quat = target_placement_of(block)
+        reward -= sum([(t-a)**2 for (t,a) in zip(target_pos, actual_pos)])
+        reward -= sum([(t-a)**2 for (t,a) in zip(target_quat, actual_quat)])
+
+    return reward
+
 class DataDump:
-    def __init__(self, hook_period):
+    def __init__(self, goal_thing_below, hook_period):
+        self.goal_thing_below = goal_thing_below
         self.hook_period = hook_period
         self.data = []
     def add_command(self, command):
@@ -18,7 +38,8 @@ class DataDump:
         if self.period_counter % self.hook_period == 0:
             position = env.get_position()
             rgba, _, _, coords_of = env.get_camera_image()
-            self.data[-1]["records"].append((position, action, rgba, coords_of))
+            reward = compute_reward(env, self.goal_thing_below)
+            self.data[-1]["records"].append((position, action, rgba, coords_of, reward))
             # if not pt.isinteractive(): pt.ion()
             # pt.cla()
             # pt.imshow(rgba)
@@ -32,14 +53,15 @@ class DataDump:
 class Restacker:
     def __init__(self, env, goal_block_above, dump=None):
         self.env = env
-        self.goal_block_above = goal_block_above
+        self.goal_thing_below = goal_thing_below
+        self.goal_block_above = env.invert(goal_thing_below)
         self.dump = dump
 
     def free_spot(self):
         for base in self.env.bases:
             if self.env.block_above[base] == 'none': return base
         return False
-    
+
     def move_to(self, thing, block):
         if self.dump is not None: self.dump.add_command(("move_to", (thing, block)))
         self.env.pick_up(block)
@@ -53,23 +75,23 @@ class Restacker:
         if block == "none": return
         self.unstack_from(block)
         self.move_to(self.free_spot(), block)
-    
+
     def unstack_all(self):
         for base in self.env.bases:
             block = self.env.block_above[base]
             if block != "none": self.unstack_from(block)
-    
+
     def stack_on(self, thing):
         block = self.goal_block_above[thing]
         if block == "none": return
         self.move_to(thing, block)
         self.stack_on(block)
-    
+
     def stack_all(self):
         for base in self.env.bases:
             block = self.goal_block_above[base]
             if block != 'none': self.stack_on(block)
-    
+
     def run(self):
         self.unstack_all()
         self.stack_all()
@@ -87,11 +109,14 @@ if __name__ == "__main__":
 
     # goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
     # goal_thing_below["b3"] = "b2"
+    # goal_thing_below["b2"] = "t0"
+    # goal_thing_below["b0"] = "t2"
     # # goal_thing_below["b2"] = "b6"
+
     thing_below = random_thing_below(num_blocks, max_levels=3)
     goal_thing_below = random_thing_below(num_blocks, max_levels=3)
 
-    dump = DataDump(hook_period=1)
+    dump = DataDump(goal_thing_below, hook_period=1)
     env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, control_period=12, step_hook=dump.step_hook)
     env.load_blocks(thing_below)
 
@@ -100,9 +125,16 @@ if __name__ == "__main__":
         1.2000000476837158, 56.799964904785156, -22.20000648498535,
         (-0.6051651835441589, 0.26229506731033325, -0.24448847770690918))
     
-    goal_block_above = env.invert(goal_thing_below)
-    restacker = Restacker(env, goal_block_above, dump)
+    restacker = Restacker(env, goal_thing_below, dump)
     restacker.run()
-    
+        
     env.close()
+
+    rewards = []
+    for frame in dump.data:
+        for record in frame["records"]:
+            rewards.append(record[-1])
+    
+    pt.plot(rewards)
+    pt.show()
 

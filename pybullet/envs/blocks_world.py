@@ -89,7 +89,7 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
             target_position = self.inverse_kinematics([5, 7], targs)
             actual_position = self.get_position()
             distance = np.fabs(target_position - actual_position).max()
-            velocity = 1. # radians per second
+            velocity = 1.5 # radians per second
             duration = distance / velocity
             self.goto_position(target_position, duration)
     
