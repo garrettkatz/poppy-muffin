@@ -45,20 +45,23 @@ class VisuoMotorNetwork(tr.nn.Module):
         h = tr.relu(self.lin1(h))
         h = tr.relu(self.lin2(h))
         h = self.lin3(h)
-        # actions, coords = h[:, :-4], h[:, -4:]
         # residual learning
         action = h[:, :-4] + position
         new_block_coords = h[:, -4:-2] + block_coords
         new_thing_coords = h[:, -2:] + thing_coords
         return action, new_block_coords, new_thing_coords
 
+def preprocess(rgba, block_coords, thing_coords):
+    rgb = rgba[:,:,:,:3] # drop alpha channel
+    rgb = rgb.float() / 255. # convert to float
+    rgb = rgb.permute(0,3,1,2) # put channels first
+    rgb = rgb[:,:,32:72, 20:108] # clip rgb data
+    block_coords -= tr.tensor([[32., 20.]]) # clip coordinates
+    thing_coords -= tr.tensor([[32., 20.]]) # clip coordinates
+    return rgb, block_coords, thing_coords
+
 def generate_data(num_blocks, base_name):
     
-    # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-    # thing_below["b1"] = "b0"
-    # goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-    # goal_thing_below["b2"] = "b1"
-
     thing_below = random_thing_below(num_blocks, max_levels=3)
     goal_thing_below = random_thing_below(num_blocks, max_levels=3)
 
@@ -89,12 +92,7 @@ def generate_data(num_blocks, base_name):
         thing_coords = tr.tensor(np.stack([co[thing] for co in coords_of])).float()
         
         # preprocessing
-        rgb = rgba[:,:,:,:3] # drop alpha channel
-        rgb = rgb.float() / 255. # convert to float
-        rgb = rgb.permute(0,3,1,2) # put channels first
-        rgb = rgb[:,:,32:72, 20:108] # clip rgb data
-        block_coords -= tr.tensor([[32., 20.]]) # clip coordinates
-        thing_coords -= tr.tensor([[32., 20.]]) # clip coordinates
+        rgb, block_coords, thing_coords = preprocess(rgba, block_coords, thing_coords)
 
         data_file = "%s/%03d.pt" % (base_name, d)
         tr.save((position, action, rgb, block_coords, thing_coords), data_file)
@@ -132,16 +130,19 @@ class DataLoader:
 
 if __name__ == "__main__":
     
+    # scaling
+    num_episodes = 500
+    min_blocks = 3
+    max_blocks = 7
+    num_epochs = 500
+    
     import matplotlib.pyplot as pt
 
     # generate pickup data
     base_name = "episodes"
-    num_episodes = 2
-    regen = False
+    regen = True
     if regen:
         
-        min_blocks = 3
-        max_blocks = 7
         num_success = 0
     
         os.system("rm -fr %s/*" % base_name)
@@ -157,29 +158,8 @@ if __name__ == "__main__":
     
         print("%d of %d successful" % (num_success, num_episodes))
 
-    # episode = 0
-    # folder = "%s/%03d" % (base_name, episode)
-    # with open(folder + "/meta.pkl", "rb") as f:
-    #     thing_below, goal_thing_below, final_thing_below, reward, commands = pk.load(f)
-
-    # print(folder)
-    # print(" commands:")
-    # for command in commands: print("  ", command)
-    # print(" success=%s (start, end, goal)" % (reward == 0))
-    # print("  ", thing_below)
-    # print("  ", final_thing_below)
-    # print("  ", goal_thing_below)
-    
-    # position, action, rgb, block_coords, thing_coords = tr.load(folder + "/000.pt")
-    # inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
-    # targets = (action[:-1], block_coords[1:], thing_coords[1:])
-
     dataloader = DataLoader(base_name, list(range(num_episodes)), shuffle=False)
-
-    # for inputs, targets in dataloader:
-    #     position, rgb, block_coords, thing_coords = inputs
-    #     targ_action, targ_block_coords, targ_thing_coords = targets
-    #     break
+    # inputs, targets = next(iter(dataloader))
     # pt.ion()
     # for t in range(len(rgb)):
     #     pt.cla()
@@ -193,7 +173,7 @@ if __name__ == "__main__":
     # input('.')
 
     net = VisuoMotorNetwork()
-    action_scale = 1.0 / 3.14 # +/- this range for each joint
+    action_scale = 1.0 / 1.57 # +/- this range for each joint
     coords_scale = 1.0 / 50.0 # +/- this range for each pixel coordinate
 
     train = True
@@ -202,7 +182,7 @@ if __name__ == "__main__":
     
         best_loss = None
         loss_curve = []
-        for epoch in range(3):
+        for epoch in range(num_epochs):
 
             total_loss = 0.0
 
@@ -226,9 +206,8 @@ if __name__ == "__main__":
                 tr.save(net.state_dict(), "net.pt")
 
         np.save("lc.npy", np.array(loss_curve))
-        # tr.save((inputs, targets, outputs), "preds.pt")
 
-    show_results = False
+    show_results = True
     if show_results:
 
         loss_curve = np.load("lc.npy")
@@ -240,8 +219,6 @@ if __name__ == "__main__":
         targ_action, targ_block_coords, targ_thing_coords = targets
         pred_action, pred_block_coords, pred_thing_coords = outputs
 
-        # inputs, targets, outputs = tr.load("preds.pt")
-        
         pt.subplot(1,3,1)
         pt.plot(pred_action.detach().numpy(), color='r')
         pt.plot(targ_action.numpy(), color='b')
@@ -262,5 +239,4 @@ if __name__ == "__main__":
         pt.plot(loss_curve)
 
         pt.show()
-        input('.')
         
