@@ -1,8 +1,20 @@
 import pybullet as pb
 import time, sys
+import numpy as np
 import matplotlib.pyplot as pt
 
-def compute_reward(env, goal_thing_below):
+def compute_symbolic_reward(env, goal_thing_below):
+    env.update_relations()
+    reward = 0
+    for block in env.blocks:
+        actual_below = env.thing_below[block]
+        target_below = goal_thing_below[block]
+        if actual_below == target_below: continue
+        if actual_below in env.bases and target_below in env.bases: continue
+        reward -= 1
+    return reward
+
+def compute_spatial_reward(env, goal_thing_below):
     def target_placement_of(block):
         if goal_thing_below[block] in env.bases:
             # don't care which table position grounds the tower
@@ -16,9 +28,10 @@ def compute_reward(env, goal_thing_below):
     for block in env.blocks:
         actual_pos, actual_quat = env.placement_of(block)
         target_pos, target_quat = target_placement_of(block)
-        reward -= sum([(t-a)**2 for (t,a) in zip(target_pos, actual_pos)])
-        reward -= sum([(t-a)**2 for (t,a) in zip(target_quat, actual_quat)])
-
+        c = min(1, abs(sum([q1*q2 for (q1, q2) in zip(target_quat, actual_quat)])))
+        reward -= 2*np.arccos(c)
+        reward -= sum([(t-a)**2 for (t,a) in zip(target_pos, actual_pos)])**0.5
+    
     return reward
 
 class DataDump:
@@ -38,8 +51,9 @@ class DataDump:
         if self.period_counter % self.hook_period == 0:
             position = env.get_position()
             rgba, _, _, coords_of = env.get_camera_image()
-            reward = compute_reward(env, self.goal_thing_below)
-            self.data[-1]["records"].append((position, action, rgba, coords_of, reward))
+            spatial_reward = compute_spatial_reward(env, self.goal_thing_below)
+            self.data[-1]["records"].append(
+                (position, action, rgba, coords_of, spatial_reward))
             # if not pt.isinteractive(): pt.ion()
             # pt.cla()
             # pt.imshow(rgba)
@@ -51,7 +65,7 @@ class DataDump:
         self.period_counter += 1
 
 class Restacker:
-    def __init__(self, env, goal_block_above, dump=None):
+    def __init__(self, env, goal_thing_below, dump=None):
         self.env = env
         self.goal_thing_below = goal_thing_below
         self.goal_block_above = env.invert(goal_thing_below)
@@ -102,19 +116,20 @@ if __name__ == "__main__":
     from blocks_world import BlocksWorldEnv, random_thing_below
     
     num_blocks = 7
-    # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-    # # thing_below["b3"] = "b4"
-    # # thing_below["b4"] = "b5"
-    # # thing_below["b2"] = "b1"
+    thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    # thing_below["b3"] = "b4"
+    # thing_below["b4"] = "b5"
+    # thing_below["b2"] = "b1"
 
-    # goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    goal_thing_below["b0"] = "b6"
     # goal_thing_below["b3"] = "b2"
     # goal_thing_below["b2"] = "t0"
     # goal_thing_below["b0"] = "t2"
     # # goal_thing_below["b2"] = "b6"
 
-    thing_below = random_thing_below(num_blocks, max_levels=3)
-    goal_thing_below = random_thing_below(num_blocks, max_levels=3)
+    # thing_below = random_thing_below(num_blocks, max_levels=3)
+    # goal_thing_below = random_thing_below(num_blocks, max_levels=3)
 
     dump = DataDump(goal_thing_below, hook_period=1)
     env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, control_period=12, step_hook=dump.step_hook)
@@ -127,14 +142,19 @@ if __name__ == "__main__":
     
     restacker = Restacker(env, goal_thing_below, dump)
     restacker.run()
-        
-    env.close()
+    
+    reward = compute_symbolic_reward(env, goal_thing_below)
+    print("symbolic reward = %f" % reward)
 
     rewards = []
     for frame in dump.data:
         for record in frame["records"]:
             rewards.append(record[-1])
     
+    print("spatial reward = %f" % rewards[-1])
+    
     pt.plot(rewards)
     pt.show()
+
+    env.close()
 

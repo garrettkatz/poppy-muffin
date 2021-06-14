@@ -35,7 +35,7 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         self.num_blocks = len(thing_below)
         self.blocks = ["b%d" % b for b in range(self.num_blocks)]
         self.bases = ["t%d" % t for t in range(self.num_blocks)]
-        self.thing_below = thing_below
+        self.thing_below = dict(thing_below) # copy
         self.block_above = self.invert(thing_below)
 
         # cube urdf path
@@ -65,7 +65,8 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
 
     def update_relations(self):
         # update dict based on current block positions
-        for thing in self.block_above:
+        self.block_above = {}
+        for thing in self.blocks + self.bases:
             self.block_above[thing], height = 'none', 100
             for block in self.blocks:
                 if block == thing: continue
@@ -73,6 +74,7 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
                 if self.is_above(block, thing) and pos[2] < height:
                     self.block_above[thing], height = block, pos[2]
         # invert block_above for thing_below
+        self.thing_below = {block: 'none' for block in self.blocks}
         for thing, block in self.block_above.items():
             if block != 'none': self.thing_below[block] = thing
 
@@ -91,6 +93,7 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
             distance = np.fabs(target_position - actual_position).max()
             velocity = 1.5 # radians per second
             duration = distance / velocity
+            # duration = .25
             self.goto_position(target_position, duration)
     
     def pick_up(self, block):

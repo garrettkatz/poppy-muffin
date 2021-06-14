@@ -1,7 +1,8 @@
+import pickle as pk
 import numpy as np
 import torch as tr
 import pybullet as pb
-from restack import DataDump, Restacker
+from restack import DataDump, Restacker, compute_symbolic_reward
 import sys, os
 sys.path.append('../../envs')    
 from blocks_world import BlocksWorldEnv, random_thing_below
@@ -53,9 +54,6 @@ class VisuoMotorNetwork(tr.nn.Module):
 
 def generate_data(num_blocks, base_name):
     
-    dump = DataDump(hook_period=1)
-    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=False, control_period=12, step_hook=dump.step_hook)
-
     # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
     # thing_below["b1"] = "b0"
     # goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
@@ -63,16 +61,26 @@ def generate_data(num_blocks, base_name):
 
     thing_below = random_thing_below(num_blocks, max_levels=3)
     goal_thing_below = random_thing_below(num_blocks, max_levels=3)
+
+    dump = DataDump(goal_thing_below, hook_period=1)
+    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=False, control_period=12, step_hook=dump.step_hook)
     env.load_blocks(thing_below)
 
-    goal_block_above = env.invert(goal_thing_below)
-    restacker = Restacker(env, goal_block_above, dump)
+    restacker = Restacker(env, goal_thing_below, dump)
     restacker.run()
+
+    reward = compute_symbolic_reward(env, goal_thing_below)
+    final_thing_below = env.thing_below
+    commands = [frame["command"] for frame in dump.data]
+    data_file = "%s/meta.pkl" % base_name
+    data = (thing_below, goal_thing_below, final_thing_below, reward, commands)
+    with open(data_file, "wb") as f: pk.dump(data, f)
+
     env.close()
 
     for d, frame in enumerate(dump.data):
         _, (thing, block) = frame["command"]
-        position, action, rgba, coords_of = zip(*frame["records"])
+        position, action, rgba, coords_of, _ = zip(*frame["records"])
         
         position = tr.tensor(np.stack(position)).float()
         action = tr.tensor(np.stack(action)).float()
@@ -88,8 +96,14 @@ def generate_data(num_blocks, base_name):
         block_coords -= tr.tensor([[32., 20.]]) # clip coordinates
         thing_coords -= tr.tensor([[32., 20.]]) # clip coordinates
 
-        data_file = "%s%03d.pt" % (base_name, d)
+        data_file = "%s/%03d.pt" % (base_name, d)
         tr.save((position, action, rgb, block_coords, thing_coords), data_file)
+    
+    print(" success=%s (start, end, goal)" % (reward == 0))
+    print("  ", thing_below)
+    print("  ", env.thing_below)
+    print("  ", goal_thing_below)
+    return reward
 
 if __name__ == "__main__":
     
@@ -102,6 +116,7 @@ if __name__ == "__main__":
         num_episodes = 500
         min_blocks = 3
         max_blocks = 7
+        num_success = 0
     
         os.system("rm -fr episodes/*")
         print()
@@ -109,28 +124,46 @@ if __name__ == "__main__":
         for episode in range(num_episodes):
             num_blocks = np.random.randint(min_blocks, max_blocks+1)
             folder = "episodes/%03d" % episode
-            print("%s, %d blocks" % (folder, num_blocks))
             os.system("mkdir " + folder)
-            generate_data(num_blocks, base_name = folder + "/")
+            print("%s, %d blocks" % (folder, num_blocks))
+            reward = generate_data(num_blocks, base_name=folder)
+            num_success += (reward == 0)
     
-    position, action, rgb, block_coords, thing_coords = tr.load("episodes/000/000.pt")
+        print("%d of %d successful" % (num_success, num_episodes))
+
+    episode = 0
+    folder = "episodes/%03d" % episode
+    with open(folder + "/meta.pkl", "rb") as f:
+        thing_below, goal_thing_below, final_thing_below, reward, commands = pk.load(f)
+    position, action, rgb, block_coords, thing_coords = tr.load(folder + "/000.pt")
+
+    print(folder)
+    print(" commands:")
+    for command in commands: print("  ", command)
+    print(" success=%s (start, end, goal)" % (reward == 0))
+    print("  ", thing_below)
+    print("  ", final_thing_below)
+    print("  ", goal_thing_below)
     
     inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
     targets = (action[:-1], block_coords[1:], thing_coords[1:])
-    print(block_coords) # [... (r,c) ...]
-    print(rgb.shape)
 
-    # pt.imshow(rgb.permute(0,2,3,1).data[0])
-    # rb, cb = block_coords[0,0], block_coords[0,1]
-    # rt, ct = thing_coords[0,0], thing_coords[0,1]
-    # pt.plot(cb, rb, 'ro')
-    # pt.plot(ct, rt, 'ro')
-    # pt.show()
+    # pt.ion()
+    # for t in range(len(rgb)):
+    #     pt.cla()
+    #     pt.imshow(rgb.permute(0,2,3,1).data[t])
+    #     rb, cb = block_coords[t,0], block_coords[t,1]
+    #     rt, ct = thing_coords[t,0], thing_coords[t,1]
+    #     pt.plot(cb, rb, 'ro')
+    #     pt.plot(ct, rt, 'ro')
+    #     pt.show()
+    #     pt.pause(0.5)    
+    # input('.')
     
     net = VisuoMotorNetwork()
     targ_action, targ_block_coords, targ_thing_coords = targets
 
-    train = True
+    train = False
     if train:
         optim = tr.optim.Adam(net.parameters(), lr=0.001)
     
@@ -149,23 +182,24 @@ if __name__ == "__main__":
         outputs = net(inputs)
         tr.save(outputs, "preds.pt")
 
-    outputs = tr.load("preds.pt")
-    pred_action, pred_block_coords, pred_thing_coords = outputs
-    
-    pt.subplot(1,2,1)
-    pt.plot(pred_action.detach().numpy(), color='r')
-    pt.plot(targ_action.numpy(), color='b')
-    
-    pt.subplot(1,2,2)
-    pt.imshow(rgb.permute(0,2,3,1).data[-1])
-    for (pred_coords, targ_coords) in zip(
-        [pred_block_coords, pred_thing_coords],
-        [targ_block_coords, targ_thing_coords]
-    ):
-        for t in range(len(pred_action)):
-            rp, cp = pred_coords[t]
-            rt, ct = targ_coords[t]
-            pt.plot([cp,ct], [rp, rt], 'ro-')
-            pt.plot(ct, rt, 'bo')
-    pt.show()
+    if False:
+        outputs = tr.load("preds.pt")
+        pred_action, pred_block_coords, pred_thing_coords = outputs
+        
+        pt.subplot(1,2,1)
+        pt.plot(pred_action.detach().numpy(), color='r')
+        pt.plot(targ_action.numpy(), color='b')
+        
+        pt.subplot(1,2,2)
+        pt.imshow(rgb.permute(0,2,3,1).data[-1])
+        for (pred_coords, targ_coords) in zip(
+            [pred_block_coords, pred_thing_coords],
+            [targ_block_coords, targ_thing_coords]
+        ):
+            for t in range(len(pred_action)):
+                rp, cp = pred_coords[t]
+                rt, ct = targ_coords[t]
+                pt.plot([cp,ct], [rp, rt], 'ro-')
+                pt.plot(ct, rt, 'bo')
+        pt.show()
     
