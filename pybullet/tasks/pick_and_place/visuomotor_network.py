@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # generate pickup data
     base_name = "episodes"
     num_episodes = 2
-    regen = True
+    regen = False
     if regen:
         
         min_blocks = 3
@@ -157,29 +157,29 @@ if __name__ == "__main__":
     
         print("%d of %d successful" % (num_success, num_episodes))
 
-    episode = 0
-    folder = "%s/%03d" % (base_name, episode)
-    with open(folder + "/meta.pkl", "rb") as f:
-        thing_below, goal_thing_below, final_thing_below, reward, commands = pk.load(f)
+    # episode = 0
+    # folder = "%s/%03d" % (base_name, episode)
+    # with open(folder + "/meta.pkl", "rb") as f:
+    #     thing_below, goal_thing_below, final_thing_below, reward, commands = pk.load(f)
 
-    print(folder)
-    print(" commands:")
-    for command in commands: print("  ", command)
-    print(" success=%s (start, end, goal)" % (reward == 0))
-    print("  ", thing_below)
-    print("  ", final_thing_below)
-    print("  ", goal_thing_below)
+    # print(folder)
+    # print(" commands:")
+    # for command in commands: print("  ", command)
+    # print(" success=%s (start, end, goal)" % (reward == 0))
+    # print("  ", thing_below)
+    # print("  ", final_thing_below)
+    # print("  ", goal_thing_below)
     
     # position, action, rgb, block_coords, thing_coords = tr.load(folder + "/000.pt")
     # inputs = (position[:-1], rgb[:-1], block_coords[:-1], thing_coords[:-1])
     # targets = (action[:-1], block_coords[1:], thing_coords[1:])
 
     dataloader = DataLoader(base_name, list(range(num_episodes)), shuffle=False)
-    for inputs, targets in dataloader:
-        position, rgb, block_coords, thing_coords = inputs
-        targ_action, targ_block_coords, targ_thing_coords = targets
-        break
 
+    # for inputs, targets in dataloader:
+    #     position, rgb, block_coords, thing_coords = inputs
+    #     targ_action, targ_block_coords, targ_thing_coords = targets
+    #     break
     # pt.ion()
     # for t in range(len(rgb)):
     #     pt.cla()
@@ -191,46 +191,51 @@ if __name__ == "__main__":
     #     pt.show()
     #     pt.pause(0.5)    
     # input('.')
-        
-    net = VisuoMotorNetwork()
 
-    train = False
+    net = VisuoMotorNetwork()
+    action_scale = 1.0 / 3.14 # +/- this range for each joint
+    coords_scale = 1.0 / 50.0 # +/- this range for each pixel coordinate
+
+    train = True
     if train:
         optim = tr.optim.Adam(net.parameters(), lr=0.001)
     
-        for epoch in range(10):
-        
-            outputs = net(inputs)
-            pred_action, pred_block_coords, pred_thing_coords = outputs
-            loss = tr.sum((pred_action - targ_action)**2)
-            loss += tr.sum((pred_block_coords - targ_block_coords)**2)
-            loss += tr.sum((pred_thing_coords - targ_thing_coords)**2)
-            print("%d: %f" % (epoch, loss.item()))
-            loss.backward()
-            optim.step()
-            optim.zero_grad()
-    
-        outputs = net(inputs)
-        tr.save(outputs, "preds.pt")
+        for epoch in range(3):
+            for batch, (inputs, targets) in enumerate(dataloader):
 
-    if False:
-        outputs = tr.load("preds.pt")
-        pred_action, pred_block_coords, pred_thing_coords = outputs
-        
-        pt.subplot(1,2,1)
-        pt.plot(pred_action.detach().numpy(), color='r')
-        pt.plot(targ_action.numpy(), color='b')
-        
-        pt.subplot(1,2,2)
-        pt.imshow(rgb.permute(0,2,3,1).data[-1])
-        for (pred_coords, targ_coords) in zip(
-            [pred_block_coords, pred_thing_coords],
-            [targ_block_coords, targ_thing_coords]
-        ):
-            for t in range(len(pred_action)):
-                rp, cp = pred_coords[t]
-                rt, ct = targ_coords[t]
-                pt.plot([cp,ct], [rp, rt], 'ro-')
-                pt.plot(ct, rt, 'bo')
-        pt.show()
+                outputs = net(inputs)
+                targ_action, targ_block_coords, targ_thing_coords = targets
+                pred_action, pred_block_coords, pred_thing_coords = outputs
+                loss = tr.sum((pred_action - targ_action)**2) * action_scale**2
+                loss += tr.sum((pred_block_coords - targ_block_coords)**2) * coords_scale**2
+                loss += tr.sum((pred_thing_coords - targ_thing_coords)**2) * coords_scale**2
+                print("%d, %d: %f" % (epoch, batch, loss))
+                loss.backward()
+                optim.step()
+                optim.zero_grad()
+    
+        tr.save((inputs, targets, outputs), "preds.pt")
+
+    # inputs, targets, outputs = tr.load("preds.pt")
+    # _, rgb, _, _ = inputs
+    # targ_action, targ_block_coords, targ_thing_coords = targets
+    # pred_action, pred_block_coords, pred_thing_coords = outputs
+    
+    # pt.subplot(1,2,1)
+    # pt.plot(pred_action.detach().numpy(), color='r')
+    # pt.plot(targ_action.numpy(), color='b')
+    
+    # pt.subplot(1,2,2)
+    # pt.imshow(rgb.permute(0,2,3,1).data[-1])
+    # for (pred_coords, targ_coords) in zip(
+    #     [pred_block_coords, pred_thing_coords],
+    #     [targ_block_coords, targ_thing_coords]
+    # ):
+    #     for t in range(len(pred_action)):
+    #         rp, cp = pred_coords[t]
+    #         rt, ct = targ_coords[t]
+    #         pt.plot([cp,ct], [rp, rt], 'ro-')
+    #         pt.plot(ct, rt, 'bo')
+    # pt.show()
+    # input('.')
     
