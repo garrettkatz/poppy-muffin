@@ -1,5 +1,6 @@
 import itertools as it
 import os
+import numpy as np
 from math import sin, cos
 import random
 import pybullet as pb
@@ -28,7 +29,7 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         block_above = {thing: "none" for thing in self.blocks + self.bases}
         for block, thing in thing_below.items(): block_above[thing] = block
         return block_above
-        
+    
     def load_blocks(self, thing_below):
         
         self.num_blocks = len(thing_below)
@@ -85,8 +86,12 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
     def run_trajectory(self, quat, waypoints):
         for point, delta in waypoints: 
             targs = self.tip_targets_around(point, quat, delta)
-            angles = self.inverse_kinematics([5, 7], targs)
-            self.goto_position(angles, .25)
+            target_position = self.inverse_kinematics([5, 7], targs)
+            actual_position = self.get_position()
+            distance = np.fabs(target_position - actual_position).max()
+            velocity = 1. # radians per second
+            duration = distance / velocity
+            self.goto_position(target_position, duration)
     
     def pick_up(self, block):
         pos, quat = self.placement_of(block)
