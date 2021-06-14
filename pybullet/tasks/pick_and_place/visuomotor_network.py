@@ -19,8 +19,8 @@ def average_coordinates(inp):
     # takes average of image coordinates weighted by inp
     N, C, H, W = inp.shape
     h, w = tr.meshgrid(tr.arange(H), tr.arange(W))
-    i = (inp * h).reshape(N, C, H*W).sum(dim=2)
-    j = (inp * w).reshape(N, C, H*W).sum(dim=2)
+    i = (inp * h.float()).reshape(N, C, H*W).sum(dim=2)
+    j = (inp * w.float()).reshape(N, C, H*W).sum(dim=2)
     return i, j
 
 class VisuoMotorNetwork(tr.nn.Module):
@@ -99,15 +99,17 @@ if __name__ == "__main__":
     regen = True
     if regen:
         
-        num_episodes = 2
-        num_blocks = 7
+        num_episodes = 500
+        min_blocks = 3
+        max_blocks = 7
     
         os.system("rm -fr episodes/*")
         print()
 
         for episode in range(num_episodes):
+            num_blocks = np.random.randint(min_blocks, max_blocks+1)
             folder = "episodes/%03d" % episode
-            print(folder)
+            print("%s, %d blocks" % (folder, num_blocks))
             os.system("mkdir " + folder)
             generate_data(num_blocks, base_name = folder + "/")
     
