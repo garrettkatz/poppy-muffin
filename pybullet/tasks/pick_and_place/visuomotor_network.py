@@ -53,8 +53,8 @@ class VisuoMotorNetwork(tr.nn.Module):
 
 def generate_data(num_blocks, base_name):
     
-    dump = DataDump(control_period=24)
-    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=False, step_hook = dump.step_hook)
+    dump = DataDump(hook_period=1)
+    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=False, control_period=12, step_hook=dump.step_hook)
 
     # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
     # thing_below["b1"] = "b0"

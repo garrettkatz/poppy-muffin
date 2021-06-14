@@ -9,13 +9,14 @@ class PoppyEnv(object):
     def load_urdf(self):
         return 0
 
-    def __init__(self, control_mode, timestep=1/240, show=True, step_hook=None):
+    def __init__(self, control_mode, timestep=1/240, control_period=10, show=True, step_hook=None):
 
         # step_hook(env, action) is called in each env.step(action)
         if step_hook is None: step_hook = lambda env, action: None
 
         self.control_mode = control_mode
         self.timestep = timestep
+        self.control_period = control_period
         self.show = show
         self.step_hook = step_hook
 
@@ -51,6 +52,8 @@ class PoppyEnv(object):
         self.step_hook(self, action)
     
         if action is not None:
+            duration = self.control_period * self.timestep
+            distance = np.fabs(action - self.get_position())
             pb.setJointMotorControlArray(
                 self.robot_id,
                 jointIndices = range(len(self.joint_index)),
@@ -58,11 +61,20 @@ class PoppyEnv(object):
                 targetPositions = action,
                 targetVelocities = [0]*len(action),
                 positionGains = [.25]*len(action), # important for constant position accuracy
+                # maxVelocities = distance / duration,
             )
 
-        pb.stepSimulation()
         if sleep is None: sleep = self.show
-        if sleep: time.sleep(self.timestep)
+        if sleep:
+            for _ in range(self.control_period):
+                start = time.perf_counter()
+                pb.stepSimulation()
+                duration = time.perf_counter() - start
+                remainder = self.timestep - duration
+                if remainder > 0: time.sleep(remainder)
+        else:
+            for _ in range(self.control_period):
+                pb.stepSimulation()
     
     # get/set joint angles as np.array
     def get_position(self):
@@ -88,7 +100,7 @@ class PoppyEnv(object):
     def goto_position(self, target, duration, hang=False):
 
         current = self.get_position()
-        num_steps = int(duration / self.timestep + 1)
+        num_steps = int(duration / (self.timestep * self.control_period) + 1)
         weights = np.linspace(0, 1, num_steps).reshape(-1,1)
         trajectory = weights * target + (1 - weights) * current
 

@@ -3,8 +3,8 @@ import time, sys
 import matplotlib.pyplot as pt
 
 class DataDump:
-    def __init__(self, control_period):
-        self.control_period = control_period
+    def __init__(self, hook_period):
+        self.hook_period = hook_period
         self.data = []
     def add_command(self, command):
         self.data.append({
@@ -15,7 +15,7 @@ class DataDump:
     def step_hook(self, env, action):
         if action is None or len(self.data) == 0: return
 
-        if self.period_counter == 0:
+        if self.period_counter % self.hook_period == 0:
             position = env.get_position()
             rgba, _, _, coords_of = env.get_camera_image()
             self.data[-1]["records"].append((position, action, rgba, coords_of))
@@ -28,7 +28,6 @@ class DataDump:
             # pt.pause(0.01)
 
         self.period_counter += 1
-        self.period_counter %= self.control_period
 
 class Restacker:
     def __init__(self, env, goal_block_above, dump=None):
@@ -92,8 +91,8 @@ if __name__ == "__main__":
     thing_below = random_thing_below(num_blocks, max_levels=3)
     goal_thing_below = random_thing_below(num_blocks, max_levels=3)
 
-    dump = DataDump(control_period=10)
-    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, step_hook=dump.step_hook)
+    dump = DataDump(hook_period=1)
+    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, control_period=12, step_hook=dump.step_hook)
     env.load_blocks(thing_below)
 
     # from check/camera.py
