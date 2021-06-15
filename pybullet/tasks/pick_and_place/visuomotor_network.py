@@ -30,10 +30,10 @@ class VisuoMotorNetwork(tr.nn.Module):
         super().__init__()
         self.conv1 = tr.nn.Conv2d(3, 64, 5)
         self.conv2 = tr.nn.Conv2d(64, 32, 5)
-        self.conv3 = tr.nn.Conv2d(32, 16, 5)
-        self.lin1 = tr.nn.Linear(16*2 + num_feat, 32) # spatial features + linputs
-        self.lin2 = tr.nn.Linear(32, 32)
-        self.lin3 = tr.nn.Linear(32, num_feat)
+        self.conv3 = tr.nn.Conv2d(32, 32, 5)
+        self.lin1 = tr.nn.Linear(32*2 + num_feat, 40) # spatial features + linputs
+        self.lin2 = tr.nn.Linear(40, 40)
+        self.lin3 = tr.nn.Linear(40, num_feat)
         # self.action1 = tr.nn.Linear(16*2 + num_feat, 32)
         # self.action2 = tr.nn.Linear(32, 32)
         # self.action3 = tr.nn.Linear(32, 8)
@@ -57,18 +57,31 @@ class VisuoMotorNetwork(tr.nn.Module):
         # c = tr.relu(self.coords1(h))
         # c = tr.relu(self.coords2(c))
         # c = self.coords3(c)
+
         # residual learning
         # action = a + position
         # new_block_coords = c[:, :2] + block_coords
         # new_thing_coords = c[:, 2:] + thing_coords
-        action = h[:, :-4] + position
-        new_block_coords = h[:, -4:-2] + block_coords
-        new_thing_coords = h[:, -2:] + thing_coords
-        # confine to reasonable limits
-        action = tr.tanh(action / 1.57)*1.57
-        bounds = tr.tensor([[20., 44.]])
-        new_block_coords = (tr.tanh(new_block_coords / bounds - 1) + 1)*bounds
-        new_thing_coords = (tr.tanh(new_thing_coords / bounds - 1) + 1)*bounds
+
+        # action = h[:, :-4] + position
+        # new_block_coords = h[:, -4:-2] + block_coords
+        # new_thing_coords = h[:, -2:] + thing_coords
+
+        # # confine to reasonable limits
+        # action = tr.tanh(action / 1.57)*1.57
+        # bounds = tr.tensor([[20., 44.]])
+        # new_block_coords = (tr.tanh(new_block_coords / bounds - 1) + 1)*bounds
+        # new_thing_coords = (tr.tanh(new_thing_coords / bounds - 1) + 1)*bounds
+
+        # confine deltas to reasonable limits
+        action = tr.tanh(h[:, :-4] / .2) * .2
+        new_block_coords = tr.tanh(h[:, -4:-2] / 10.) * 10.
+        new_thing_coords = tr.tanh(h[:, -2:] / 10.) * 10.
+        # then apply residual learning
+        action += position
+        new_block_coords += block_coords
+        new_thing_coords += thing_coords
+
         return action, new_block_coords, new_thing_coords
 
 def preprocess(rgba, block_coords, thing_coords):
@@ -218,11 +231,12 @@ if __name__ == "__main__":
                 outputs = net(inputs)
                 targ_action, targ_block_coords, targ_thing_coords = targets
                 pred_action, pred_block_coords, pred_thing_coords = outputs
+
                 loss = tr.sum((pred_action - targ_action)**2) * action_scale**2
                 loss += tr.sum((pred_block_coords - targ_block_coords)**2) * coords_scale**2
                 loss += tr.sum((pred_thing_coords - targ_thing_coords)**2) * coords_scale**2
                 total_loss += loss.item()
-                print("%d, %d: %f" % (epoch, batch, loss))
+                print("%d, %d: %f" % (epoch, batch, loss / len(pred_action)))
                 loss.backward()
                 optim.step()
                 optim.zero_grad()
