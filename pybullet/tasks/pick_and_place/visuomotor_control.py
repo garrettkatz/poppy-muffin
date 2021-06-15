@@ -31,20 +31,33 @@ if __name__ == "__main__":
     net = VisuoMotorNetwork()
     net.load_state_dict(tr.load("net500_2.pt"))
     
+    force_coords = False
+    
     for t in range(100):
         position = env.get_position()
-        rgba, _, _, _ = env.get_camera_image()
+        if force_coords:
+            rgba, _, _, coords_of = env.get_camera_image()
+            block_coords = tr.tensor(np.stack([coords_of[block]])).float()
+            thing_coords = tr.tensor(np.stack([coords_of[thing]])).float()
+        else:
+            rgba, _, _, _ = env.get_camera_image()
         
         position = tr.tensor(np.stack([position])).float()
         rgba = tr.tensor(np.stack([rgba]))
-        rgb, _, _ = preprocess(rgba, block_coords, thing_coords)
+        if force_coords:
+            rgb, block_coords, thing_coords = preprocess(rgba, block_coords, thing_coords)
+        else:
+            rgb, _, _ = preprocess(rgba, block_coords, thing_coords)
 
         inputs = position, rgb, block_coords, thing_coords
         outputs = net(inputs)
         action, block_coords, thing_coords = outputs
+        print(block_coords)
+        print(action)
 
         action = action.detach().numpy()[0]
-        action = 0.01*action + 0.99*position.detach().numpy()[0]
+        alpha = .9
+        action = alpha*action + (1-alpha)*position.detach().numpy()[0]
         env.step(action, sleep=True)
         
         input('.')
