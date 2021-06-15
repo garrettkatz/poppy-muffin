@@ -140,7 +140,7 @@ if __name__ == "__main__":
 
     # generate pickup data
     base_name = "episodes"
-    regen = True
+    regen = False
     if regen:
         
         num_success = 0
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     action_scale = 1.0 / 1.57 # +/- this range for each joint
     coords_scale = 1.0 / 50.0 # +/- this range for each pixel coordinate
 
-    train = True
+    train = False
     if train:
         optim = tr.optim.Adam(net.parameters(), lr=0.001)
     
@@ -205,13 +205,14 @@ if __name__ == "__main__":
                 best_loss = total_loss
                 tr.save(net.state_dict(), "net.pt")
 
-        np.save("lc.npy", np.array(loss_curve))
+            np.save("lc.npy", np.array(loss_curve))
 
     show_results = True
     if show_results:
 
         loss_curve = np.load("lc.npy")
-        net.load_state_dict(tr.load("net.pt"))
+        # net.load_state_dict(tr.load("net.pt"))
+        net.load_state_dict(tr.load("net500_2.pt"))
 
         inputs, targets = next(iter(dataloader))
         outputs = net(inputs)
