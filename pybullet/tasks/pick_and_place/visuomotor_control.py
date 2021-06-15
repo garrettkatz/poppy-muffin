@@ -29,7 +29,8 @@ if __name__ == "__main__":
     
     # move to
     net = VisuoMotorNetwork()
-    net.load_state_dict(tr.load("net500_2.pt"))
+    net.load_state_dict(tr.load("net.pt"))
+    # net.load_state_dict(tr.load("net500_2.pt"))
     
     force_coords = False
     
@@ -56,7 +57,7 @@ if __name__ == "__main__":
         print(action)
 
         action = action.detach().numpy()[0]
-        alpha = .9
+        alpha = 1
         action = alpha*action + (1-alpha)*position.detach().numpy()[0]
         env.step(action, sleep=True)
         
