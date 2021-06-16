@@ -174,10 +174,11 @@ if __name__ == "__main__":
 
     nvm.reset({
         "r0": nvm.registers["r0"].encode("b5"),
-        "jnt": tr.tensor(am.ik[(num_blocks//2, max_levels, 0)])
+        "r1": nvm.registers["r1"].encode("b3"),
+        "jnt": tr.tensor(am.ik["rest"])
     })
 
-    nvm.mount("rout")
+    nvm.mount("main")
     nvm.dbg()
     while True:
         done = nvm.tick()

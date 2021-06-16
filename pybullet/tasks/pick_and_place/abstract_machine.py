@@ -63,6 +63,7 @@ class Compiler:
         self.cur_ipt = None
     
     def step_ipt(self):
+        # creates new ipt and steps to it
         self.old_ipt = self.cur_ipt
         self.cur_ipt = self.machine.get_new_ipt()
         for ipt in [self.old_ipt, self.cur_ipt]:
@@ -89,23 +90,48 @@ class Compiler:
     
     def recall(self, conn_name):
         self.ungate(recall = (conn_name,))
+
+    def store(self, conn_name):
+        self.ungate(store = (conn_name,))
     
     def mov(self, src, dst):
         name = self.machine.connection_between(src, dst)
         self.recall(name)
-        
+    
+    def call(self, routine):
+        # memorize sub-routine ipt in call connection
+        self.machine.connections["call"][self.cur_ipt] = self.machine.ipt_of[routine]
+        # set gates for call instruction
+        store = ("spt",) # store current ipt at current spt
+        recall = tuple(sorted(["call", "gts", "push"])) # call new ipt with default gates and increment spt
+        self.machine.connections["gts"][self.old_ipt] = store, recall
+        # step once to memorize default gates for sub-routine entry
+        self.step_ipt()
+        # step again so next instructions after call do not overwrite default gates
+        self.step_ipt()
+    
+    def ret(self):
+        self.recall("pop") # decrement spt
+        # memorize default gates for return to calling ipt
+        self.machine.connections["gts"][self.cur_ipt] = (), ("gts","ipt")
+        # set gates for call instruction
+        recall = tuple(sorted(["gts","spt"])) # restore calling ipt from spt with default gates
+        self.machine.connections["gts"][self.old_ipt] = (), recall
+        # no need to link new ipt since it will be restored from spt
 
 class AbstractMachine:
-    def __init__(self, env, num_blocks, max_levels):
+    def __init__(self, env, num_blocks, max_levels, spt_range=16):
         self.env = env
         self.num_blocks = num_blocks
         self.max_levels = max_levels
+        self.spt_range = spt_range
         
         # maps to starting ipt of each routine
         self.ipt_of = {}
 
         self.registers = {
             "ipt": AbstractRegister("ipt", content=0),
+            "spt": AbstractRegister("spt", content=0),
             "gts": AbstractRegister("gts"),
 
             "obj": AbstractRegister("obj"), # object names (blocks and spots)
@@ -116,6 +142,10 @@ class AbstractMachine:
         
         self.connections = {
             "ipt": AbstractConnection("ipt", src=self.registers["ipt"], dst=self.registers["ipt"]),
+            "call": AbstractConnection("call", src=self.registers["ipt"], dst=self.registers["ipt"]),
+            "spt": AbstractConnection("spt", src=self.registers["spt"], dst=self.registers["ipt"]),
+            "push": AbstractConnection("push", src=self.registers["spt"], dst=self.registers["spt"]),
+            "pop": AbstractConnection("pop", src=self.registers["spt"], dst=self.registers["spt"]),
             "gts": AbstractConnection("gts", src=self.registers["ipt"], dst=self.registers["gts"]),
 
             # memorized inverse kinematics
@@ -130,6 +160,11 @@ class AbstractMachine:
             # object locations
             "loc": AbstractConnection("loc", src=self.registers["obj"], dst=self.registers["loc"]),
         }
+        
+        # stack addresses
+        for spt in range(self.spt_range):
+            self.connections["push"][spt] = spt + 1
+            self.connections["pop"][spt + 1] = spt
 
         # keep joint positions symbolic in abstract machine
         self.ik = get_joint_positions(env, num_blocks, max_levels)
@@ -171,6 +206,7 @@ class AbstractMachine:
             self.connections[name].memory = dict(memory)
 
     def dbg(self):
+        print("****************** dbg **********************")
         for register in self.registers.values(): print(" ", register)
         for connection in self.connections.values(): print(" ", connection)
 
@@ -215,23 +251,6 @@ class AbstractMachine:
             if name == "ipt": register.reset(0)
             if name == "gts": register.reset(((), ("ipt", "gts")))
 
-# def put_down_on(am):
-#     # assume obj register has place to put down
-#     am.instruct(recall = ("loc",))
-#     am.instruct(recall = ("above",))
-#     for conn in ["pc","tc","to","po"]:
-#         am.instruct(recall = (conn,))
-#         am.instruct(recall = ("ik",))
-
-# def move_to(am):
-#     # assume obj has block to pick and ob2 has place to put
-#     pick_up(am)
-#     am.mov(src="ob2", dst="obj")
-#     put_down_on(am)
-    
-# def program(am):
-#     move_to(am)
-
 def restore_env(machine):
     env = machine.env
     for block in env.blocks:
@@ -239,16 +258,39 @@ def restore_env(machine):
         loc = (env.bases.index(base), level)
         machine.connections["loc"][block] = loc
 
-def pickup(comp):
-    # assume r0 has block to pickup
+def pick_up(comp):
+    # assume r0 has what to pickup
     comp.mov("r0", "obj")
     comp.recall("loc")
     for conn in ["po","to","tc","pc"]:
         comp.recall(conn)
         comp.recall("ik")
+    comp.ret()
 
-def rout(comp):
-    pickup(comp)
+def put_down_on(comp):
+    # r0: what's gripped; r1: where to place
+    comp.mov("r1", "obj")
+    comp.recall("loc")
+    comp.recall("above")
+    for conn in ["pc","tc","to","po"]:
+        comp.recall(conn)
+        comp.recall("ik")
+    # update location of gripped object
+    comp.mov("r0", "obj")
+    comp.store("loc") # update
+    comp.ret()
+
+def move_to(comp):
+    # r0: what to pick; r1: where to place
+    # pick_up(comp)
+    # put_down_on(comp)
+    comp.call("pick_up")
+    comp.call("put_down_on")
+    comp.ret()
+
+def main(comp):
+    comp.call("move_to")
+    #move_to(comp)
 
 def make_abstract_machine(env, num_blocks, max_levels):
 
@@ -260,7 +302,10 @@ def make_abstract_machine(env, num_blocks, max_levels):
     # restore_env(am)
 
     compiler = Compiler(am)
-    compiler.flash(rout)
+    compiler.flash(pick_up)
+    compiler.flash(put_down_on)
+    compiler.flash(move_to)
+    compiler.flash(main)
 
     # erase dynamic user memories from execution
     # am.set_memories(memories)
@@ -270,7 +315,7 @@ def make_abstract_machine(env, num_blocks, max_levels):
 if __name__ == "__main__":
     
     # num_blocks, max_levels = 7, 3
-    num_blocks, max_levels = 2, 1
+    num_blocks, max_levels = 2, 2
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
@@ -288,12 +333,11 @@ if __name__ == "__main__":
     restore_env(am)
     am.reset({
         "r0": "b0",
-        # "obj": "b0",
-        # "jnt": (num_blocks//2, max_levels, 0),
+        "r1": "b1",
         "jnt": "rest",
     })
 
-    am.mount("rout")
+    am.mount("main")
     am.dbg()
     while True:
         # input('.')
