@@ -1,6 +1,6 @@
 import torch as tr
 import itertools as it
-from abstract_machine import make_abstract_machine
+from abstract_machine import make_abstract_machine, restore_env
 
 def hadamard_matrix(N):
     H = tr.tensor([[1.]])
@@ -36,12 +36,9 @@ class NVMRegister:
     def encode(self, token):
         return self.codec[token]
     def decode(self, content):
-        low, result = None, None
         for token, pattern in self.codec.items():
-            dist = tr.sum((pattern - content)**2)
-            if low is None or dist < low:
-                low, result = dist, token
-        return result
+            if (pattern*content > 0).all(): return token
+        return None
 
 def FSER(W, x, y):
     x, y = x.reshape(-1,1), y.reshape(-1,1)
@@ -77,13 +74,9 @@ class NeuralVirtualMachine:
     
     def dbg(self):
         for register in self.registers.values(): print(" ", register)
-        for connection in self.connections.values(): print(" ", connection)
+        # for connection in self.connections.values(): print(" ", connection)
 
     def tick(self):
-
-        # returns True when program is done
-        print("ticking...")
-        self.dbg()
         
         # apply current gates
         gates = self.registers["gts"].content
@@ -100,19 +93,24 @@ class NeuralVirtualMachine:
         if ipt.decode(ipt.content) == ipt.decode(ipt.old_content): return True # program done
         else: return False # program not done
 
+    def mount(self, routine):
+        # initialize default gates at initial ipt
+        self.registers["ipt"].reset(self.ipt_of[routine])
+        self.registers["gts"].reset(self.registers["gts"].encode(((), ("gts","ipt"))))
+
     def reset(self, contents):
         for name, register in self.registers.items():
             register.reset(tr.zeros(register.size))
             if name in contents: register.reset(contents[name])
             if name == "ipt": register.reset(register.encode(0))
-            if name == "gts": register.reset(register.encode(((), ("ipt", "gts"))))
+            if name == "gts": register.reset(register.encode(((), ("gts","ipt"))))
 
 def hadamard_codec(tokens):
     N = len(tokens)
     H = hadamard_matrix(N)
     return H.shape[0], {token: H[t] for t, token in enumerate(tokens)}
 
-def compile_abstract_machine(am):
+def virtualize(am):
     
     registers = {}
     
@@ -122,7 +120,7 @@ def compile_abstract_machine(am):
         "ob2": list(am.env.blocks + am.env.bases),
         "occ": list(am.env.blocks + am.env.bases + ["nil"]),
         "loc": list(it.product(range(am.num_blocks), range(am.max_levels+1))),
-        "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])),
+        "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])) + ["rest"],
     }
 
     for name in tokens:
@@ -145,8 +143,12 @@ def compile_abstract_machine(am):
         src, dst = registers[am_conn.src.name], registers[am_conn.dst.name]
         connections[name] = NVMConnection(name, src, dst)
         for key, val in am_conn.memory.items(): connections[name][key] = val
-    
+        
     nvm = NeuralVirtualMachine(am.env, registers, connections)
+    nvm.ipt_of = {
+        routine: registers["ipt"].encode(ipt)
+        for routine, ipt in am.ipt_of.items()}
+
     return nvm
     
 if __name__ == "__main__":
@@ -164,23 +166,24 @@ if __name__ == "__main__":
     env.load_blocks(thing_below)
     
     am = make_abstract_machine(env, num_blocks, max_levels)
-    nvm = compile_abstract_machine(am)
+    nvm = virtualize(am)
     
     env.reset()
-    for block in env.blocks:
-        base, level = env.base_and_level_of(block)
-        nvm.connections["loc"][block] = (env.bases.index(base), level)
+    env.reset()
+    env.load_blocks(thing_below)
+    restore_env(nvm)
 
     nvm.reset({
         "obj": nvm.registers["obj"].encode("b5"),
         "ob2": nvm.registers["ob2"].encode("b6"),
         "jnt": tr.tensor(am.ik[(num_blocks//2, max_levels, 0)])
     })
-    
 
+    nvm.mount("rout")
+    nvm.dbg()
     while True:
         done = nvm.tick()
-        print(nvm.registers["ipt"].content)
+        nvm.dbg()
         position = nvm.registers["jnt"].content.detach().numpy()
         env.goto_position(position)
         if done: break

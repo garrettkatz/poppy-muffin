@@ -56,8 +56,9 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         
         self.step() # let blocks settle
 
-        # save state_id again to include blocks
-        self.initial_state_id = pb.saveState(self.client_id)
+    def reset(self):
+        for block in self.blocks: pb.removeBody(self.block_id[block])
+        super().reset()
     
     def is_above(self, thing1, thing2):
         # true if thing1 above thing2
