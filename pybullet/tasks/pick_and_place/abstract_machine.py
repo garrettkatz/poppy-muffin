@@ -40,6 +40,8 @@ class AbstractConnection:
     def __str__(self):
         return "%s (%s -> %s): %s" % (self.name, self.src.name, self.dst.name, self.memory)
     def __getitem__(self, key):
+        if key not in self.memory:
+            raise KeyError("%s not memorized in %s" % (key, self.name))
         return self.memory[key]
     def __setitem__(self, key, value):
         self.memory[key] = value
@@ -111,7 +113,7 @@ class Compiler:
         self.recall(name)
         self.machine.inst_at[self.old_ipt] = "'put %s in %s'" % (tok, dst)
     
-    def call(self, routine):
+    def call(self, routine, regs=[]):
         # memorize sub-routine ipt in call connection
         self.machine.connections["call"][self.cur_ipt] = self.machine.ipt_of[routine]
         # set gates for call instruction
@@ -145,6 +147,16 @@ class Compiler:
         self.machine.inst_at[self.old_ipt] = "'ret if nil'"
         # step again so next instructions after call do not overwrite default gates
         self.step_ipt()
+    
+    def push(self, regs=()):
+        self.ungate(store=tuple("spt > %s" % reg for reg in regs), recall=("push",))
+        self.machine.inst_at[self.old_ipt] = "'push %s'" % ", ".join(regs)
+
+    def pop(self, regs=()):
+        self.recall("pop")
+        self.machine.inst_at[self.old_ipt] = "'pop dec'"
+        self.ungate(recall=tuple("spt > %s" % reg for reg in regs))
+        self.machine.inst_at[self.old_ipt] = "'pop %s'" % ", ".join(regs)
 
 class AbstractMachine:
     def __init__(self, env, num_blocks, max_levels, spt_range=32):
@@ -223,7 +235,7 @@ class AbstractMachine:
         # general purpose registers and jmp
         objs = self.env.bases + self.env.blocks
         locs = list(it.product(range(num_blocks), range(max_levels+1)))
-        gen_regs = ["r0", "r1"]
+        gen_regs = ["r0", "r1", "r2"]
         for name in gen_regs:
             self.registers[name] = AbstractRegister(name)
         for src, dst in it.permutations(gen_regs + ["jmp"], 2):
@@ -244,6 +256,11 @@ class AbstractMachine:
         for reg in gen_regs + ["obj", "loc"]:
             name = "put %s" % reg
             self.connections[name] = AbstractConnection(name, src=self.registers["ipt"], dst=self.registers[reg])
+
+        # general registers and stack
+        for reg in gen_regs:
+            name = "spt > %s" % reg
+            self.connections[name] = AbstractConnection(name, src=self.registers["spt"], dst=self.registers[reg])
     
     def get_memories(self):
         memories = {}
@@ -329,19 +346,19 @@ def setup_abstract_machine(env, num_blocks, max_levels):
     return am, compiler
 
 def restore_env(machine, num_blocks, max_levels):
-    # start with all non-base locations empty    
-    for loc in it.product(range(num_blocks), range(1, max_levels+1)):
+    # start with all locations empty    
+    for loc in it.product(range(num_blocks), range(max_levels+1)):
         machine.connections["obj"][loc] = "nil"
     # overwrite non-empty occupancies
     env = machine.env
-    for obj in env.bases + env.blocks:
-        base, level = env.base_and_level_of(obj)
+    for block in env.blocks:
+        base, level = env.base_and_level_of(block)
         loc = (env.bases.index(base), level)
-        machine.connections["obj"][loc] = obj
-        machine.connections["loc"][obj] = loc
+        machine.connections["obj"][loc] = block
+        machine.connections["loc"][block] = loc
 
 def pick_up(comp):
-    # r0: what to pick; r1: where to place
+    # r0: obj to pick; r1: loc to place
     comp.move("r0", "obj")
     comp.recall("loc")
     for conn in ["po","to","tc","pc"]:
@@ -354,11 +371,9 @@ def pick_up(comp):
     comp.put("nil", "loc")
     comp.store("loc")
 
-def put_down_on(comp):
-    # r0: what to pick; r1: where to place
-    comp.move("r1", "obj")
-    comp.recall("loc")
-    comp.recall("above")
+def put_down(comp):
+    # r0: obj to pick; r1: loc to place
+    comp.move("r1", "loc")
     for conn in ["pc","tc","to","po"]:
         comp.recall(conn)
         comp.recall("ik")
@@ -370,10 +385,10 @@ def put_down_on(comp):
 def move_to(comp):
     # r0: what to pick; r1: where to place
     pick_up(comp)
-    put_down_on(comp)
+    put_down(comp)
     # comp.call("pick_up")
-    # comp.call("put_down_on")
-    comp.ret()
+    # comp.call("put_down")
+    # comp.ret()
 
 def test_rin(comp):
     comp.move("r1", "jmp")
@@ -383,7 +398,7 @@ def test_rin(comp):
 
 def free_spot(comp):
     # after recursion, loc register has free spot
-    # comp.put((0,1), "loc") # before top-level recursive call
+    # comp.put((0,0), "loc") # before top-level recursive call
     comp.recall("obj")
     comp.move("obj", "jmp")
     comp.ret_if_nil() # nil object means free spot
@@ -393,31 +408,57 @@ def free_spot(comp):
     comp.call("free_spot")
     comp.ret()
 
+def unstack_from(comp):
+    # r0: block to be cleared
+    
+    # block = self.env.block_above[thing]
+    comp.move("r0", "obj")
+    comp.recall("loc")
+    comp.recall("above")
+    comp.recall("obj")
+    # if block == "none": return
+    comp.move("obj", "jmp")
+    comp.return_if_nil()
+    # self.unstack_from(block)
+    comp.move("obj", "r0")
+    comp.call("unstack_from")
+    # self.move_to(self.free_spot(), block)
+    move_to(comp)
+
+def test_push(comp):
+    comp.put("b0", "r0")
+    comp.put("b0", "r1")
+    comp.push(("r0",))
+    comp.put("b1", "r0")
+    comp.push(("r0",))
+    comp.put("b0", "r0")
+    comp.pop(("r0",))
+    comp.pop(("r0",))
+    comp.ret()
+
 def main(comp):
-    # comp.put("b0", "r1")
-    # comp.put("b1", "r1")
-    # comp.put("b0", "r1")
+    # comp.put("b0", "r0")
+    # comp.put((1,1), "r1")
+    # move_to(comp)
 
     # comp.call("test_rin")
+    comp.call("test_push")
 
-    # comp.call("move_to")
-    # comp.put("t0", "r1")
-    # comp.call("move_to")
-
-    comp.put((0,1), "loc")
-    comp.call("free_spot")
+    # comp.put((0,1), "loc")
+    # comp.call("free_spot")
 
 def make_abstract_machine(env, num_blocks, max_levels):
 
     am, compiler = setup_abstract_machine(env, num_blocks, max_levels)
 
-    # # rin test
+    # # tests
     # compiler.flash(test_rin)
+    compiler.flash(test_push)
 
-    # block restacking routines
-    compiler.flash(free_spot)
+    # # block restacking routines
+    # compiler.flash(free_spot)
     # compiler.flash(pick_up)
-    # compiler.flash(put_down_on)
+    # compiler.flash(put_down)
     # compiler.flash(move_to)
 
     compiler.flash(main)
@@ -426,21 +467,21 @@ def make_abstract_machine(env, num_blocks, max_levels):
 
 if __name__ == "__main__":
     
-    num_blocks, max_levels = 7, 3
-    # num_blocks, max_levels = 2, 2
+    # num_blocks, max_levels = 7, 3
+    num_blocks, max_levels = 2, 2
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    thing_below["b4"] = "b0"
+    # thing_below["b4"] = "b0"
 
     env = BlocksWorldEnv()
     env.load_blocks(thing_below)
     
     am = make_abstract_machine(env, num_blocks, max_levels)
 
-    # thing_below["b6"] = "b3"
-    env.reset()
-    env.load_blocks(thing_below)
+    # # thing_below["b6"] = "b3"
+    # env.reset()
+    # env.load_blocks(thing_below)
 
     restore_env(am, num_blocks, max_levels)
     
@@ -454,7 +495,7 @@ if __name__ == "__main__":
     # restack test
     am.reset({
         "r0": "b0",
-        "r1": "b1",
+        "r1": (1,1),
         "jnt": "rest",
     })
 

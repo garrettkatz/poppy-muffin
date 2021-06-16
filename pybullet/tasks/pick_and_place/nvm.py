@@ -131,7 +131,7 @@ def virtualize(am):
         "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])) + ["rest"],
         "obj": objs + ["nil"]
     }
-    for name in ["r0", "r1", "jmp"]:
+    for name in ["r0", "r1", "r2", "jmp"]:
         tokens[name] = objs + locs + ["nil"]
 
     for name in tokens:
@@ -176,7 +176,7 @@ if __name__ == "__main__":
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
     thing_below["b4"] = "b0"
 
-    env = BlocksWorldEnv(show=False)
+    env = BlocksWorldEnv(show=True)
     env.load_blocks(thing_below)
     
     am = make_abstract_machine(env, num_blocks, max_levels)
@@ -203,7 +203,7 @@ if __name__ == "__main__":
     nvm.mount("main")
     nvm.dbg()
     while True:
-        input('.')
+        # input('.')
         done = nvm.tick()
         print(nvm.registers["ipt"].content)
         nvm.dbg()

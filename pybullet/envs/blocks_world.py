@@ -19,9 +19,10 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
             quat = pb.getQuaternionFromEuler((0,0,theta))
         return pos, quat
 
-    def base_and_level_of(self, thing):
+    def base_and_level_of(self, block):
+        # blocks starting from level 0, does not accept bases
+        thing = self.thing_below[block]
         if thing in self.bases: return thing, 0
-        thing = self.thing_below[thing]
         base, level = self.base_and_level_of(thing)
         return base, level + 1
     
