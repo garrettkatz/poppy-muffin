@@ -215,7 +215,7 @@ if __name__ == "__main__":
     action_scale = 1.0 / 1.57 # +/- this range for each joint
     coords_scale = 1.0 / 64.0 # +/- this range for each pixel coordinate
 
-    train = True
+    train = False
     if train:
         dataloader = DataLoader(base_name, list(range(num_episodes)), shuffle=True, noise=True)
         optim = tr.optim.Adam(net.parameters(), lr=0.001)
@@ -248,12 +248,13 @@ if __name__ == "__main__":
 
             np.save("lc.npy", np.array(loss_curve))
 
-    show_results = False
+    show_results = True
     if show_results:
 
-        loss_curve = np.load("lc.npy")
-        net.load_state_dict(tr.load("net.pt"))
-        # net.load_state_dict(tr.load("net500_2.pt"))
+        # loss_curve = np.load("lc.npy")
+        # net.load_state_dict(tr.load("net.pt"))
+        loss_curve = np.load("lc500.npy")
+        net.load_state_dict(tr.load("net500.pt"))
 
         dataloader = DataLoader(base_name, list(range(num_episodes)), shuffle=False, noise=False)
         inputs, targets = next(iter(dataloader))
@@ -276,6 +277,8 @@ if __name__ == "__main__":
                 rp, cp = pred_coords[t]
                 rt, ct = targ_coords[t]
                 pt.plot([cp,ct], [rp, rt], 'ro-')
+            for t in range(len(pred_action)):
+                rt, ct = targ_coords[t]
                 pt.plot(ct, rt, 'bo')
 
         pt.subplot(1,3,3)

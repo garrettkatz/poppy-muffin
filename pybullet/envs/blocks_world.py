@@ -55,6 +55,9 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
             pb.changeVisualShape(self.block_id[block], linkIndex=-1, rgbaColor=rgba)
         
         self.step() # let blocks settle
+
+        # save state_id again to include blocks
+        self.initial_state_id = pb.saveState(self.client_id)
     
     def is_above(self, thing1, thing2):
         # true if thing1 above thing2
@@ -105,7 +108,7 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         pos, quat = self.placement_of(thing)
         pos = pos[:2] + (pos[2] + .0201,)
         stage = pos[:2] + (.1,)    
-        self.run_trajectory(quat, [(stage, .005), (pos, .005), (pos, .02), (stage, .02)])
+        self.run_trajectory(quat, [(stage, .01), (pos, .01), (pos, .02), (stage, .02)])
     
     def get_camera_image(self):
         rgba, view, proj = super().get_camera_image()        

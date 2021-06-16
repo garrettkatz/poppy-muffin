@@ -29,8 +29,8 @@ if __name__ == "__main__":
     
     # move to
     net = VisuoMotorNetwork()
-    net.load_state_dict(tr.load("net.pt"))
-    # net.load_state_dict(tr.load("net500_2.pt"))
+    # net.load_state_dict(tr.load("net.pt"))
+    net.load_state_dict(tr.load("net500.pt"))
     
     force_coords = False
     
@@ -54,6 +54,7 @@ if __name__ == "__main__":
         outputs = net(inputs)
         action, block_coords, thing_coords = outputs
         print(block_coords)
+        print(position)
         print(action)
 
         action = action.detach().numpy()[0]

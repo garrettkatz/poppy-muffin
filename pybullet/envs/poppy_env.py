@@ -9,7 +9,13 @@ class PoppyEnv(object):
     def load_urdf(self):
         return 0
 
-    def __init__(self, control_mode, timestep=1/240, control_period=10, show=True, step_hook=None):
+    def __init__(self,
+        control_mode=pb.POSITION_CONTROL,
+        timestep=1/240,
+        control_period=10,
+        show=True,
+        step_hook=None
+    ):
 
         # step_hook(env, action) is called in each env.step(action)
         if step_hook is None: step_hook = lambda env, action: None
@@ -95,11 +101,14 @@ class PoppyEnv(object):
 
     # pypot-style command, goes to position in give duration
     # target is a joint angle array
-    # duration is desired duration of motion
+    # speed is desired joint speed
     # if hang==True, wait for user enter at each timestep of motion
-    def goto_position(self, target, duration, hang=False):
+    def goto_position(self, target, speed=1., hang=False):
 
         current = self.get_position()
+        distance = np.sum((target - current)**2)**.5
+        duration = distance / speed
+
         num_steps = int(duration / (self.timestep * self.control_period) + 1)
         weights = np.linspace(0, 1, num_steps).reshape(-1,1)
         trajectory = weights * target + (1 - weights) * current
