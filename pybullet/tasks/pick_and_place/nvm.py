@@ -86,10 +86,9 @@ class NeuralVirtualMachine:
         self.dbg()
         
         # apply current gates
-        # store, recall = self.registers["gts"].content
         gates = self.registers["gts"].content
         split = int(len(gates)/2)
-        gs, gr = gates[:split], gates[split:]
+        gs, gr = gates[:split], gates[split:] # store, recall
         for c, name in enumerate(self.connection_names): self.connections[name].store(gs[c])
 
         for register in self.registers.values(): register.new_content = register.content.clone() # clone important since gr is a view
@@ -98,7 +97,7 @@ class NeuralVirtualMachine:
 
         # self-loop indicates end-of-program
         ipt = self.registers["ipt"]
-        if (ipt.content == ipt.old_content).all(): return True # program done
+        if ipt.decode(ipt.content) == ipt.decode(ipt.old_content): return True # program done
         else: return False # program not done
 
     def reset(self, contents):
@@ -119,7 +118,10 @@ def compile_abstract_machine(am):
     
     tokens = {
         "ipt": list(range(len(am.connections["ipt"].memory)+1)),
-        "loc": list(it.product(range(am.num_blocks), range(am.max_levels))),
+        "obj": list(am.env.blocks + am.env.bases),
+        "ob2": list(am.env.blocks + am.env.bases),
+        "occ": list(am.env.blocks + am.env.bases + ["nil"]),
+        "loc": list(it.product(range(am.num_blocks), range(am.max_levels+1))),
         "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])),
     }
 
@@ -150,10 +152,10 @@ def compile_abstract_machine(am):
 if __name__ == "__main__":
         
     import sys
-    sys.path.append('../../envs')    
+    sys.path.append('../../envs')
     from blocks_world import BlocksWorldEnv, random_thing_below
 
-    num_blocks, max_levels = 3, 2
+    num_blocks, max_levels = 7, 3
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
@@ -165,8 +167,13 @@ if __name__ == "__main__":
     nvm = compile_abstract_machine(am)
     
     env.reset()
+    for block in env.blocks:
+        base, level = env.base_and_level_of(block)
+        nvm.connections["loc"][block] = (env.bases.index(base), level)
+
     nvm.reset({
-        "loc": nvm.registers["loc"].encode((0, 0)),
+        "obj": nvm.registers["obj"].encode("b5"),
+        "ob2": nvm.registers["ob2"].encode("b6"),
         "jnt": tr.tensor(am.ik[(num_blocks//2, max_levels, 0)])
     })
     

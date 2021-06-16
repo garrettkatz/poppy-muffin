@@ -66,9 +66,11 @@ class AbstractMachine:
             "ipt": AbstractRegister("ipt", content=0),
             "gts": AbstractRegister("gts"),
 
-            "loc": AbstractRegister("loc"),
-            "tar": AbstractRegister("tar"),
-            "jnt": AbstractRegister("jnt"),
+            "obj": AbstractRegister("obj"), # object names (blocks and spots)
+            "ob2": AbstractRegister("ob2"), # secondary storage for object names, only linked to obj
+            "loc": AbstractRegister("loc"), # (base, level) for object
+            "tar": AbstractRegister("tar"), # (base, level/perch, grasp) for gripper
+            "jnt": AbstractRegister("jnt"), # joints for target
         }
         self.connections = {
             "ipt": AbstractConnection("ipt", src=self.registers["ipt"], dst=self.registers["ipt"]),
@@ -81,6 +83,15 @@ class AbstractMachine:
             "tc": AbstractConnection("tc", src=self.registers["loc"], dst=self.registers["tar"]),
             "po": AbstractConnection("po", src=self.registers["loc"], dst=self.registers["tar"]),
             "pc": AbstractConnection("pc", src=self.registers["loc"], dst=self.registers["tar"]),
+            # location relations
+            "above": AbstractConnection("above", src=self.registers["loc"], dst=self.registers["loc"]),
+            # object locations
+            "loc": AbstractConnection("loc", src=self.registers["obj"], dst=self.registers["loc"]),
+            # location occupancy
+            "occ": AbstractConnection("occ", src=self.registers["loc"], dst=self.registers["obj"]),
+            # secondary object storage
+            "ob2<-obj": AbstractConnection("ob2<-obj", src=self.registers["obj"], dst=self.registers["ob2"]),
+            "obj<-ob2": AbstractConnection("obj<-ob2", src=self.registers["ob2"], dst=self.registers["obj"]),
         }
 
         # keep joint positions symbolic in abstract machine
@@ -92,6 +103,30 @@ class AbstractMachine:
             self.connections["to"][(base, level)] = (base, level, 0)
             self.connections["pc"][(base, level)] = (base, max_levels, 1)
             self.connections["po"][(base, level)] = (base, max_levels, 0)
+            self.connections["above"][(base, level)] = (base, level+1)
+        
+        for obj in self.env.blocks + env.bases:
+            self.connections["ob2<-obj"][obj] = obj
+            self.connections["obj<-ob2"][obj] = obj
+
+        # constant base locations
+        for b, base in enumerate(env.bases):
+            self.connections["loc"][base] = (b, 0)
+            self.connections["occ"][(b, 0)] = base
+            for level in range(1, max_levels+1):
+                self.connections["occ"][(b, level)] = "nil"
+    
+    def get_memories(self):
+        memories = {}
+        for name, conn in self.connections.items():
+            memories[name] = dict(conn.memory)
+        return memories
+    
+    def set_memories(self, memories):
+        # overwrites all user-facing memories (but not ipt or gts)
+        for name, memory in memories.items():
+            if name in ["ipt","gts"]: continue # don't overwrite programming
+            self.connections[name].memory = dict(memory)
 
     def dbg(self):
         for register in self.registers.values(): print(" ", register)
@@ -146,6 +181,16 @@ class AbstractMachine:
         self.extend_ipt()
         self.registers["gts"].content = (store, recall)
         self.tick()
+    
+    def mov(self, src, dst):
+        # helper to move data from src register to dst register
+        name = None
+        for conn in self.connections.values():
+            if (src, dst) != (conn.src.name, conn.dst.name): continue
+            if name is not None: raise ValueError("Ambiguous pathway in mov")
+            name = conn.name
+        if name is None: raise ValueError("Missing pathway in mov")
+        self.instruct(recall = (name,))
             
     def start(self):
         # initialize default gates at initial ipt
@@ -170,44 +215,80 @@ class AbstractMachine:
             if name == "ipt": register.reset(0)
             if name == "gts": register.reset(((), ("ipt", "gts")))
         
-def pick_up(am, location):
-    am.registers["loc"].reset(location)
-    
-    am.start()
-
-    # am.instruct(recall = ("po",))
-    # am.instruct(recall = ("ik",))
-
-    am.registers["loc"].content = location
+def pick_up(am):
+    # assume obj register has block to pickup
+    am.mov(src="obj", dst="loc")
     for conn in ["po","to","tc","pc"]:
+        am.instruct(recall = (conn,))
+        am.instruct(recall = ("ik",))    
+
+def put_down_on(am):
+    # assume obj register has place to put down
+    am.instruct(recall = ("loc",))
+    am.instruct(recall = ("above",))
+    for conn in ["pc","tc","to","po"]:
         am.instruct(recall = (conn,))
         am.instruct(recall = ("ik",))
 
-    am.halt()
+def move_to(am):
+    # assume obj has block to pick and ob2 has place to put
+    pick_up(am)
+    am.mov(src="ob2", dst="obj")
+    put_down_on(am)
+    
+def program(am):
+    move_to(am)
+
+def store_block_locations(env, am):
+    for block in env.blocks:
+        base, level = env.base_and_level_of(block)
+        loc = (env.bases.index(base), level)
+        am.connections["loc"][block] = loc
+        am.connections["occ"][loc] = block
 
 def make_abstract_machine(env, num_blocks, max_levels):
 
     am = AbstractMachine(env, num_blocks, max_levels)
 
-    pick_up(am, (0, 0))
+    memories = am.get_memories()
+    
+    # place holders
+    store_block_locations(env, am)
+    am.reset({"obj":"b0", "ob2":"b1"}) # placeholders
+    
+
+    am.start()
+    program(am)
+    am.halt()
+
+    # erase dynamic user memories from execution
+    am.set_memories(memories)
 
     return am
 
 if __name__ == "__main__":
     
-    num_blocks, max_levels = 3, 2
+    num_blocks, max_levels = 7, 3
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
+    thing_below["b6"] = "b1"
 
     env = BlocksWorldEnv()
     env.load_blocks(thing_below)
     
     am = make_abstract_machine(env, num_blocks, max_levels)
+
+    # thing_below["b6"] = "b3"
+    # env.load_blocks(thing_below)
+
+    store_block_locations(env, am)
     am.reset({
-        "loc": (0, 0),
+        "obj": "b5",
+        "ob2": "t6",
         "jnt": (num_blocks//2, max_levels, 0),
     })
+
     while True:
         done = am.tick()
         position = am.ik[am.registers["jnt"].content]
