@@ -109,11 +109,11 @@ class AbstractMachine:
             "gts": AbstractRegister("gts"),
 
             "obj": AbstractRegister("obj"), # object names (blocks and spots)
-            "ob2": AbstractRegister("ob2"), # secondary storage for object names, only linked to obj
             "loc": AbstractRegister("loc"), # (base, level) for object
             "tar": AbstractRegister("tar"), # (base, level/perch, grasp) for gripper
             "jnt": AbstractRegister("jnt"), # joints for target
         }
+        
         self.connections = {
             "ipt": AbstractConnection("ipt", src=self.registers["ipt"], dst=self.registers["ipt"]),
             "gts": AbstractConnection("gts", src=self.registers["ipt"], dst=self.registers["gts"]),
@@ -129,9 +129,6 @@ class AbstractMachine:
             "above": AbstractConnection("above", src=self.registers["loc"], dst=self.registers["loc"]),
             # object locations
             "loc": AbstractConnection("loc", src=self.registers["obj"], dst=self.registers["loc"]),
-            # secondary object storage
-            "ob2<-obj": AbstractConnection("ob2<-obj", src=self.registers["obj"], dst=self.registers["ob2"]),
-            "obj<-ob2": AbstractConnection("obj<-ob2", src=self.registers["ob2"], dst=self.registers["obj"]),
         }
 
         # keep joint positions symbolic in abstract machine
@@ -146,13 +143,20 @@ class AbstractMachine:
             self.connections["po"][(base, level)] = (base, max_levels, 0)
             self.connections["above"][(base, level)] = (base, level+1)
         
-        for obj in self.env.blocks + env.bases:
-            self.connections["ob2<-obj"][obj] = obj
-            self.connections["obj<-ob2"][obj] = obj
-
         # constant base locations
         for b, base in enumerate(env.bases):
             self.connections["loc"][base] = (b, 0)
+
+        # general purpose registers
+        gen_regs = ["r0", "r1"]
+        gen_toks = self.env.bases + self.env.blocks
+        for name in gen_regs:
+            self.registers[name] = AbstractRegister(name)
+        for src, dst in it.permutations(gen_regs + ["obj"], 2):
+            name = "%s > %s" % (src, dst)
+            self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
+            for token in gen_toks:
+                self.connections[name][token] = token
     
     def get_memories(self):
         memories = {}
@@ -236,8 +240,9 @@ def restore_env(machine):
         machine.connections["loc"][block] = loc
 
 def pickup(comp):
-    # assume obj register has block to pickup
-    comp.mov("obj", "loc")
+    # assume r0 has block to pickup
+    comp.mov("r0", "obj")
+    comp.recall("loc")
     for conn in ["po","to","tc","pc"]:
         comp.recall(conn)
         comp.recall("ik")
@@ -249,21 +254,16 @@ def make_abstract_machine(env, num_blocks, max_levels):
 
     am = AbstractMachine(env, num_blocks, max_levels)
 
-    memories = am.get_memories()
+    # memories = am.get_memories()
     
-    # place holders
-    restore_env(am)
-    # am.reset({"obj":"b0", "ob2":"b1"}) # placeholders
+    # # place holders
+    # restore_env(am)
 
     compiler = Compiler(am)
     compiler.flash(rout)
 
-    # am.start()
-    # program(am)
-    # am.halt()
-
     # erase dynamic user memories from execution
-    am.set_memories(memories)
+    # am.set_memories(memories)
 
     return am
 
@@ -287,8 +287,8 @@ if __name__ == "__main__":
 
     restore_env(am)
     am.reset({
-        "obj": "b0",
-        # "ob2": "t6",
+        "r0": "b0",
+        # "obj": "b0",
         # "jnt": (num_blocks//2, max_levels, 0),
         "jnt": "rest",
     })

@@ -116,12 +116,11 @@ def virtualize(am):
     
     tokens = {
         "ipt": list(range(len(am.connections["ipt"].memory)+1)),
-        "obj": list(am.env.blocks + am.env.bases),
-        "ob2": list(am.env.blocks + am.env.bases),
-        "occ": list(am.env.blocks + am.env.bases + ["nil"]),
         "loc": list(it.product(range(am.num_blocks), range(am.max_levels+1))),
         "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])) + ["rest"],
     }
+    for name in ["r0", "r1", "obj"]:
+        tokens[name] = list(am.env.blocks + am.env.bases)
 
     for name in tokens:
         size, codec = hadamard_codec(tokens[name])
@@ -174,8 +173,7 @@ if __name__ == "__main__":
     restore_env(nvm)
 
     nvm.reset({
-        "obj": nvm.registers["obj"].encode("b5"),
-        "ob2": nvm.registers["ob2"].encode("b6"),
+        "r0": nvm.registers["r0"].encode("b5"),
         "jnt": tr.tensor(am.ik[(num_blocks//2, max_levels, 0)])
     })
 
