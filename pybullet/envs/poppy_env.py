@@ -12,7 +12,7 @@ class PoppyEnv(object):
     def __init__(self,
         control_mode=pb.POSITION_CONTROL,
         timestep=1/240,
-        control_period=10,
+        control_period=1,
         show=True,
         step_hook=None
     ):

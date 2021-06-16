@@ -98,13 +98,13 @@ class Compiler:
         self.ungate(store = (conn_name,))
         self.machine.inst_at[self.old_ipt] = "'store %s'" % conn_name
     
-    def mov(self, src, dst):
+    def move(self, src, dst):
         name = self.machine.connection_between(src, dst)
         self.recall(name)
         self.machine.inst_at[self.old_ipt] = "'mov %s to %s'" % (src, dst)
     
     def put(self, tok, dst):
-        name = "set %s" % dst
+        name = "put %s" % dst
         # memorize ipt -> dst token
         self.machine.connections[name][self.cur_ipt] = tok
         # recall memory into dst
@@ -147,7 +147,7 @@ class Compiler:
         self.step_ipt()
 
 class AbstractMachine:
-    def __init__(self, env, num_blocks, max_levels, spt_range=16):
+    def __init__(self, env, num_blocks, max_levels, spt_range=32):
         self.env = env
         self.num_blocks = num_blocks
         self.max_levels = max_levels
@@ -188,6 +188,7 @@ class AbstractMachine:
             "pc": AbstractConnection("pc", src=self.registers["loc"], dst=self.registers["tar"]),
             # object locations
             "loc": AbstractConnection("loc", src=self.registers["obj"], dst=self.registers["loc"]),
+            "obj": AbstractConnection("obj", src=self.registers["loc"], dst=self.registers["obj"]), # reverse lookup
             # location relations
             "above": AbstractConnection("above", src=self.registers["loc"], dst=self.registers["loc"]),
             "right": AbstractConnection("right", src=self.registers["loc"], dst=self.registers["loc"]),
@@ -217,6 +218,7 @@ class AbstractMachine:
         # constant base locations
         for b, base in enumerate(env.bases):
             self.connections["loc"][base] = (b, 0)
+            self.connections["obj"][(b, 0)] = base
 
         # general purpose registers and jmp
         objs = self.env.bases + self.env.blocks
@@ -238,11 +240,10 @@ class AbstractMachine:
                 self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
                 for token in locs + ["nil"]: self.connections[name][token] = token
 
-        # setting gen regs
-        for reg in gen_regs:
-            name = "set %s" % reg
+        # put instruction
+        for reg in gen_regs + ["obj", "loc"]:
+            name = "put %s" % reg
             self.connections[name] = AbstractConnection(name, src=self.registers["ipt"], dst=self.registers[reg])
-
     
     def get_memories(self):
         memories = {}
@@ -304,63 +305,7 @@ class AbstractMachine:
             if name == "ipt": register.reset(0)
             if name == "gts": register.reset(((), ("ipt", "gts")))
 
-def restore_env(machine):
-    env = machine.env
-    for block in env.blocks:
-        base, level = env.base_and_level_of(block)
-        loc = (env.bases.index(base), level)
-        machine.connections["loc"][block] = loc
-
-def pick_up(comp):
-    # assume r0 has what to pickup
-    comp.mov("r0", "obj")
-    comp.recall("loc")
-    for conn in ["po","to","tc","pc"]:
-        comp.recall(conn)
-        comp.recall("ik")
-    comp.ret()
-
-def put_down_on(comp):
-    # r0: what's gripped; r1: where to place
-    comp.mov("r1", "obj")
-    comp.recall("loc")
-    comp.recall("above")
-    for conn in ["pc","tc","to","po"]:
-        comp.recall(conn)
-        comp.recall("ik")
-    # update location of gripped object
-    comp.mov("r0", "obj")
-    comp.store("loc") # update
-    comp.ret()
-
-def move_to(comp):
-    # r0: what to pick; r1: where to place
-    # pick_up(comp)
-    # put_down_on(comp)
-    comp.call("pick_up")
-    comp.call("put_down_on")
-    comp.ret()
-
-def test_rin(comp):
-    comp.mov("r1", "jmp")
-    comp.ret_if_nil()
-    comp.mov("r0", "r1")
-    comp.ret()
-
-# def free_spot(comp):
-#     # overwrites obj
-#     comp.set("loc"
-
-def main(comp):
-    comp.put("b0", "r1")
-    comp.put("b1", "r1")
-    comp.put("b0", "r1")
-
-    # comp.call("test_rin")
-
-    # comp.call("move_to")
-
-def make_abstract_machine(env, num_blocks, max_levels):
+def setup_abstract_machine(env, num_blocks, max_levels):
 
     am = AbstractMachine(env, num_blocks, max_levels)
     compiler = Compiler(am)
@@ -380,14 +325,100 @@ def make_abstract_machine(env, num_blocks, max_levels):
     for token in env.bases + env.blocks + locs:
         am.connections["jmp"][token] = am.ipt_of["rin_not_nil"]
     am.connections["jmp"]["nil"] = am.ipt_of["rin_nil"]
+    
+    return am, compiler
+
+def restore_env(machine, num_blocks, max_levels):
+    # start with all non-base locations empty    
+    for loc in it.product(range(num_blocks), range(1, max_levels+1)):
+        machine.connections["obj"][loc] = "nil"
+    # overwrite non-empty occupancies
+    env = machine.env
+    for obj in env.bases + env.blocks:
+        base, level = env.base_and_level_of(obj)
+        loc = (env.bases.index(base), level)
+        machine.connections["obj"][loc] = obj
+        machine.connections["loc"][obj] = loc
+
+def pick_up(comp):
+    # r0: what to pick; r1: where to place
+    comp.move("r0", "obj")
+    comp.recall("loc")
+    for conn in ["po","to","tc","pc"]:
+        comp.recall(conn)
+        comp.recall("ik")
+    # unbind r0 from location
+    comp.put("nil", "obj")
+    comp.store("obj")
+    comp.move("r0", "obj")
+    comp.put("nil", "loc")
+    comp.store("loc")
+
+def put_down_on(comp):
+    # r0: what to pick; r1: where to place
+    comp.move("r1", "obj")
+    comp.recall("loc")
+    comp.recall("above")
+    for conn in ["pc","tc","to","po"]:
+        comp.recall(conn)
+        comp.recall("ik")
+    # bind r0 to new location
+    comp.move("r0", "obj")
+    comp.store("loc")
+    comp.store("obj")
+
+def move_to(comp):
+    # r0: what to pick; r1: where to place
+    pick_up(comp)
+    put_down_on(comp)
+    # comp.call("pick_up")
+    # comp.call("put_down_on")
+    comp.ret()
+
+def test_rin(comp):
+    comp.move("r1", "jmp")
+    comp.ret_if_nil()
+    comp.move("r0", "r1")
+    comp.ret()
+
+def free_spot(comp):
+    # after recursion, loc register has free spot
+    # comp.put((0,1), "loc") # before top-level recursive call
+    comp.recall("obj")
+    comp.move("obj", "jmp")
+    comp.ret_if_nil() # nil object means free spot
+    comp.recall("right") # not free, move right
+    comp.move("loc", "jmp")
+    comp.ret_if_nil() # nil loc means done checking
+    comp.call("free_spot")
+    comp.ret()
+
+def main(comp):
+    # comp.put("b0", "r1")
+    # comp.put("b1", "r1")
+    # comp.put("b0", "r1")
+
+    # comp.call("test_rin")
+
+    # comp.call("move_to")
+    # comp.put("t0", "r1")
+    # comp.call("move_to")
+
+    comp.put((0,1), "loc")
+    comp.call("free_spot")
+
+def make_abstract_machine(env, num_blocks, max_levels):
+
+    am, compiler = setup_abstract_machine(env, num_blocks, max_levels)
 
     # # rin test
     # compiler.flash(test_rin)
 
     # block restacking routines
-    compiler.flash(pick_up)
-    compiler.flash(put_down_on)
-    compiler.flash(move_to)
+    compiler.flash(free_spot)
+    # compiler.flash(pick_up)
+    # compiler.flash(put_down_on)
+    # compiler.flash(move_to)
 
     compiler.flash(main)
 
@@ -395,12 +426,12 @@ def make_abstract_machine(env, num_blocks, max_levels):
 
 if __name__ == "__main__":
     
-    # num_blocks, max_levels = 7, 3
-    num_blocks, max_levels = 2, 2
+    num_blocks, max_levels = 7, 3
+    # num_blocks, max_levels = 2, 2
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    # thing_below["b6"] = "b1"
+    thing_below["b4"] = "b0"
 
     env = BlocksWorldEnv()
     env.load_blocks(thing_below)
@@ -411,7 +442,7 @@ if __name__ == "__main__":
     env.reset()
     env.load_blocks(thing_below)
 
-    restore_env(am)
+    restore_env(am, num_blocks, max_levels)
     
     # # rin test
     # am.reset({
@@ -430,7 +461,7 @@ if __name__ == "__main__":
     am.mount("main")
     am.dbg()
     while True:
-        # input('.')
+        input('.')
         done = am.tick()
         am.dbg()
         position = am.ik[am.registers["jnt"].content]

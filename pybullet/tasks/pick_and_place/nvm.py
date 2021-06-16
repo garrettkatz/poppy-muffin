@@ -9,7 +9,8 @@ def hadamard_matrix(N):
             tr.cat((H,  H), dim=1),
             tr.cat((H, -H), dim=1),
         ), dim=0)
-    return H / H.shape[0]**.5
+    # return H / H.shape[0]**.5
+    return H
 
 class NVMRegister:
     def __init__(self, name, size, codec):
@@ -30,6 +31,8 @@ class NVMRegister:
         self.new_content = tr.zeros(self.size)
         self.old_content = tr.zeros(self.size)
     def update(self):
+        # activation
+        # shift buffers
         self.old_content = self.content
         self.content = self.new_content
         self.new_content = tr.zeros(self.size)
@@ -44,7 +47,7 @@ class NVMRegister:
 
 def FSER(W, x, y):
     x, y = x.reshape(-1,1), y.reshape(-1,1)
-    dW = (y - W.mm(x)) * x.t()
+    dW = (y - W.mm(x)) * x.t() / W.shape[1]
     return dW
 
 class NVMConnection:
@@ -171,17 +174,17 @@ if __name__ == "__main__":
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
+    thing_below["b4"] = "b0"
 
-    env = BlocksWorldEnv()
+    env = BlocksWorldEnv(show=False)
     env.load_blocks(thing_below)
     
     am = make_abstract_machine(env, num_blocks, max_levels)
     nvm = virtualize(am)
     
     env.reset()
-    env.reset()
     env.load_blocks(thing_below)
-    restore_env(nvm)
+    restore_env(nvm, num_blocks, max_levels)
 
     # # rin test
     # nvm.reset({
@@ -202,8 +205,8 @@ if __name__ == "__main__":
     while True:
         input('.')
         done = nvm.tick()
+        print(nvm.registers["ipt"].content)
         nvm.dbg()
-        print(nvm.registers["spt"].content)
         position = nvm.registers["jnt"].content.detach().numpy()
         env.goto_position(position)
         if done: break
