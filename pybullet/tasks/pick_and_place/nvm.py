@@ -31,7 +31,7 @@ class NVMRegister:
         self.new_content = tr.zeros(self.size)
         self.old_content = tr.zeros(self.size)
     def update(self):
-        # activation
+        # activation?
         # shift buffers
         self.old_content = self.content
         self.content = self.new_content
