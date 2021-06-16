@@ -73,6 +73,7 @@ class Compiler:
     def flash(self, routine):
         self.cur_ipt = self.machine.get_new_ipt()
         self.machine.ipt_of[routine.__name__] = self.cur_ipt
+        self.machine.inst_at[self.cur_ipt] = "'start %s'" % routine.__name__
         self.step_ipt()
         routine(self)
 
@@ -87,16 +88,20 @@ class Compiler:
         # associate gates and new ipt with previous ipt (one-step delay)
         self.machine.connections["gts"][self.old_ipt] = (store, recall)
         self.step_ipt()
+        self.machine.inst_at[self.old_ipt] = "'ungate'"
     
     def recall(self, conn_name):
         self.ungate(recall = (conn_name,))
+        self.machine.inst_at[self.old_ipt] = "'recall %s'" % conn_name
 
     def store(self, conn_name):
         self.ungate(store = (conn_name,))
+        self.machine.inst_at[self.old_ipt] = "'store %s'" % conn_name
     
     def mov(self, src, dst):
         name = self.machine.connection_between(src, dst)
         self.recall(name)
+        self.machine.inst_at[self.old_ipt] = "'mov %s to %s'" % (src, dst)
     
     def call(self, routine):
         # memorize sub-routine ipt in call connection
@@ -107,17 +112,31 @@ class Compiler:
         self.machine.connections["gts"][self.old_ipt] = store, recall
         # step once to memorize default gates for sub-routine entry
         self.step_ipt()
+        self.machine.inst_at[self.old_ipt] = "'call %s'" % routine
         # step again so next instructions after call do not overwrite default gates
         self.step_ipt()
     
     def ret(self):
         self.recall("pop") # decrement spt
+        self.machine.inst_at[self.old_ipt] = "'ret pop'"
         # memorize default gates for return to calling ipt
         self.machine.connections["gts"][self.cur_ipt] = (), ("gts","ipt")
         # set gates for call instruction
         recall = tuple(sorted(["gts","spt"])) # restore calling ipt from spt with default gates
         self.machine.connections["gts"][self.old_ipt] = (), recall
         # no need to link new ipt since it will be restored from spt
+        self.machine.inst_at[self.cur_ipt] = "'ret'"
+
+    def ret_if_nil(self):
+        # set gates for call instruction
+        store = ("spt",) # store current ipt at current spt
+        recall = tuple(sorted(["jmp", "gts", "push"])) # call ipt from jmp register with default gates and increment spt
+        self.machine.connections["gts"][self.old_ipt] = store, recall
+        # step once to memorize default gates for sub-routine entry
+        self.step_ipt()
+        self.machine.inst_at[self.old_ipt] = "'ret if nil'"
+        # step again so next instructions after call do not overwrite default gates
+        self.step_ipt()
 
 class AbstractMachine:
     def __init__(self, env, num_blocks, max_levels, spt_range=16):
@@ -128,10 +147,13 @@ class AbstractMachine:
         
         # maps to starting ipt of each routine
         self.ipt_of = {}
+        # maps ipt to compiled instruction
+        self.inst_at = {}
 
         self.registers = {
             "ipt": AbstractRegister("ipt", content=0),
             "spt": AbstractRegister("spt", content=0),
+            "jmp": AbstractRegister("jmp"),
             "gts": AbstractRegister("gts"),
 
             "obj": AbstractRegister("obj"), # object names (blocks and spots)
@@ -146,6 +168,7 @@ class AbstractMachine:
             "spt": AbstractConnection("spt", src=self.registers["spt"], dst=self.registers["ipt"]),
             "push": AbstractConnection("push", src=self.registers["spt"], dst=self.registers["spt"]),
             "pop": AbstractConnection("pop", src=self.registers["spt"], dst=self.registers["spt"]),
+            "jmp": AbstractConnection("call", src=self.registers["jmp"], dst=self.registers["ipt"]),
             "gts": AbstractConnection("gts", src=self.registers["ipt"], dst=self.registers["gts"]),
 
             # memorized inverse kinematics
@@ -155,17 +178,18 @@ class AbstractMachine:
             "tc": AbstractConnection("tc", src=self.registers["loc"], dst=self.registers["tar"]),
             "po": AbstractConnection("po", src=self.registers["loc"], dst=self.registers["tar"]),
             "pc": AbstractConnection("pc", src=self.registers["loc"], dst=self.registers["tar"]),
-            # location relations
-            "above": AbstractConnection("above", src=self.registers["loc"], dst=self.registers["loc"]),
             # object locations
             "loc": AbstractConnection("loc", src=self.registers["obj"], dst=self.registers["loc"]),
+            # location relations
+            "above": AbstractConnection("above", src=self.registers["loc"], dst=self.registers["loc"]),
+            "right": AbstractConnection("right", src=self.registers["loc"], dst=self.registers["loc"]),
         }
         
         # stack addresses
-        for spt in range(self.spt_range):
+        for spt in range(self.spt_range-2):
             self.connections["push"][spt] = spt + 1
             self.connections["pop"][spt + 1] = spt
-
+        
         # keep joint positions symbolic in abstract machine
         self.ik = get_joint_positions(env, num_blocks, max_levels)
         self.ik["rest"] = env.get_position()
@@ -177,21 +201,34 @@ class AbstractMachine:
             self.connections["pc"][(base, level)] = (base, max_levels, 1)
             self.connections["po"][(base, level)] = (base, max_levels, 0)
             self.connections["above"][(base, level)] = (base, level+1)
+            if base + 1 < num_blocks:
+                self.connections["right"][(base, level)] = (base+1, level)
+            else:
+                self.connections["right"][(base, level)] = "nil"
         
         # constant base locations
         for b, base in enumerate(env.bases):
             self.connections["loc"][base] = (b, 0)
 
-        # general purpose registers
+        # general purpose registers and jmp
+        objs = self.env.bases + self.env.blocks
+        locs = list(it.product(range(num_blocks), range(max_levels+1)))
         gen_regs = ["r0", "r1"]
-        gen_toks = self.env.bases + self.env.blocks
         for name in gen_regs:
             self.registers[name] = AbstractRegister(name)
-        for src, dst in it.permutations(gen_regs + ["obj"], 2):
+        for src, dst in it.permutations(gen_regs + ["jmp"], 2):
             name = "%s > %s" % (src, dst)
             self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
-            for token in gen_toks:
-                self.connections[name][token] = token
+            for token in objs + locs + ["nil"]: self.connections[name][token] = token
+        for reg in gen_regs + ["jmp"]:
+            for (src, dst) in [(reg, "obj"), ("obj", reg)]:
+                name = "%s > %s" % (src, dst)
+                self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
+                for token in objs + ["nil"]: self.connections[name][token] = token
+            for (src, dst) in [(reg, "loc"), ("loc", reg)]:
+                name = "%s > %s" % (src, dst)
+                self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
+                for token in locs + ["nil"]: self.connections[name][token] = token
     
     def get_memories(self):
         memories = {}
@@ -207,8 +244,9 @@ class AbstractMachine:
 
     def dbg(self):
         print("****************** dbg **********************")
+        print(self.inst_at.get(self.registers["ipt"].content, "internal"))
         for register in self.registers.values(): print(" ", register)
-        for connection in self.connections.values(): print(" ", connection)
+        # for connection in self.connections.values(): print(" ", connection)
 
     def tick(self):
         # returns True when program is done
@@ -229,7 +267,8 @@ class AbstractMachine:
     def mount(self, routine):
         # initialize default gates at initial ipt
         self.registers["ipt"].reset(self.ipt_of[routine])
-        self.registers["gts"].reset(((), ("ipt", "gts")))        
+        self.registers["spt"].reset(0) # fresh call stack
+        self.registers["gts"].reset(((), ("ipt", "gts")))
 
     def get_new_ipt(self):
         new_ipt = len(self.connections["ipt"]) + 1
@@ -288,27 +327,50 @@ def move_to(comp):
     comp.call("put_down_on")
     comp.ret()
 
+def test_rin(comp):
+    comp.mov("r1", "jmp")
+    comp.ret_if_nil()
+    comp.mov("r0", "r1")
+    comp.ret()
+
+# def free_spot(comp):
+#     # overwrites obj
+#     comp.set("loc"
+
 def main(comp):
-    comp.call("move_to")
-    #move_to(comp)
+    # comp.call("move_to")
+    comp.call("test_rin")
 
 def make_abstract_machine(env, num_blocks, max_levels):
 
     am = AbstractMachine(env, num_blocks, max_levels)
-
-    # memories = am.get_memories()
-    
-    # # place holders
-    # restore_env(am)
-
     compiler = Compiler(am)
-    compiler.flash(pick_up)
-    compiler.flash(put_down_on)
-    compiler.flash(move_to)
-    compiler.flash(main)
+    
+    # special firmware routines for return-if-nil
+    def rin_not_nil(comp):
+        comp.ret()
+    def rin_nil(comp):
+        comp.recall("pop")
+        comp.ret()
+    compiler.flash(rin_not_nil)
+    compiler.flash(rin_nil)
 
-    # erase dynamic user memories from execution
-    # am.set_memories(memories)
+    # return-if-nil jmp connections
+    # need to be added after flashing special rin_programs to get their ipts
+    locs = list(it.product(range(num_blocks), range(max_levels+1)))
+    for token in env.bases + env.blocks + locs:
+        am.connections["jmp"][token] = am.ipt_of["rin_not_nil"]
+    am.connections["jmp"]["nil"] = am.ipt_of["rin_nil"]
+
+    # rin test
+    compiler.flash(test_rin)
+
+    # # block restacking routines
+    # compiler.flash(pick_up)
+    # compiler.flash(put_down_on)
+    # compiler.flash(move_to)
+
+    compiler.flash(main)
 
     return am
 
@@ -333,14 +395,14 @@ if __name__ == "__main__":
     restore_env(am)
     am.reset({
         "r0": "b0",
-        "r1": "b1",
+        "r1": "nil",
         "jnt": "rest",
     })
 
     am.mount("main")
     am.dbg()
     while True:
-        # input('.')
+        input('.')
         done = am.tick()
         am.dbg()
         position = am.ik[am.registers["jnt"].content]

@@ -34,6 +34,8 @@ class NVMRegister:
         self.content = self.new_content
         self.new_content = tr.zeros(self.size)
     def encode(self, token):
+        if token not in self.codec:
+            raise KeyError("%s not in %s codec" % (token, self.name))
         return self.codec[token]
     def decode(self, content):
         for token, pattern in self.codec.items():
@@ -73,6 +75,8 @@ class NeuralVirtualMachine:
         self.env = env
     
     def dbg(self):
+        print("****************** dbg **********************")
+        print(self.inst_at.get(self.registers["ipt"].decode(self.registers["ipt"].content), "internal"))
         for register in self.registers.values(): print(" ", register)
         # for connection in self.connections.values(): print(" ", connection)
 
@@ -96,6 +100,7 @@ class NeuralVirtualMachine:
     def mount(self, routine):
         # initialize default gates at initial ipt
         self.registers["ipt"].reset(self.ipt_of[routine])
+        self.registers["spt"].reset(self.registers["spt"].encode(0))
         self.registers["gts"].reset(self.registers["gts"].encode(((), ("gts","ipt"))))
 
     def reset(self, contents):
@@ -114,13 +119,17 @@ def virtualize(am):
     
     registers = {}
     
+    objs = am.env.bases + am.env.blocks
+    locs = list(it.product(range(num_blocks), range(max_levels+1)))
     tokens = {
         "ipt": list(range(len(am.connections["ipt"].memory)+1)),
-        "loc": list(it.product(range(am.num_blocks), range(am.max_levels+1))),
+        "spt": list(range(am.spt_range)),
+        "loc": locs + ["nil"],
         "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])) + ["rest"],
+        "obj": objs + ["nil"]
     }
-    for name in ["r0", "r1", "obj"]:
-        tokens[name] = list(am.env.blocks + am.env.bases)
+    for name in ["r0", "r1", "jmp"]:
+        tokens[name] = objs + locs + ["nil"]
 
     for name in tokens:
         size, codec = hadamard_codec(tokens[name])
@@ -137,6 +146,7 @@ def virtualize(am):
         gts_codec[store, recall] = tr.cat((gs, gr))
     registers["gts"] = NVMRegister("gts", 2*len(connection_names), gts_codec)
 
+
     connections = {}
     for name, am_conn in am.connections.items():
         src, dst = registers[am_conn.src.name], registers[am_conn.dst.name]
@@ -147,6 +157,7 @@ def virtualize(am):
     nvm.ipt_of = {
         routine: registers["ipt"].encode(ipt)
         for routine, ipt in am.ipt_of.items()}
+    nvm.inst_at = dict(am.inst_at)
 
     return nvm
     
@@ -173,16 +184,18 @@ if __name__ == "__main__":
     restore_env(nvm)
 
     nvm.reset({
-        "r0": nvm.registers["r0"].encode("b5"),
-        "r1": nvm.registers["r1"].encode("b3"),
+        "r0": nvm.registers["r0"].encode("b0"),
+        "r1": nvm.registers["r1"].encode("nil"),
         "jnt": tr.tensor(am.ik["rest"])
     })
 
     nvm.mount("main")
     nvm.dbg()
     while True:
+        input('.')
         done = nvm.tick()
         nvm.dbg()
+        print(nvm.registers["spt"].content)
         position = nvm.registers["jnt"].content.detach().numpy()
         env.goto_position(position)
         if done: break
