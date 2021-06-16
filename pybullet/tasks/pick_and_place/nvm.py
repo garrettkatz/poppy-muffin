@@ -183,9 +183,17 @@ if __name__ == "__main__":
     env.load_blocks(thing_below)
     restore_env(nvm)
 
+    # # rin test
+    # nvm.reset({
+    #     "r0": nvm.registers["r0"].encode("b0"),
+    #     "r1": nvm.registers["r1"].encode("nil"),
+    #     "jnt": tr.tensor(am.ik["rest"])
+    # })
+
+    # block stacking test
     nvm.reset({
         "r0": nvm.registers["r0"].encode("b0"),
-        "r1": nvm.registers["r1"].encode("nil"),
+        "r1": nvm.registers["r1"].encode("b1"),
         "jnt": tr.tensor(am.ik["rest"])
     })
 

@@ -103,6 +103,14 @@ class Compiler:
         self.recall(name)
         self.machine.inst_at[self.old_ipt] = "'mov %s to %s'" % (src, dst)
     
+    def put(self, tok, dst):
+        name = "set %s" % dst
+        # memorize ipt -> dst token
+        self.machine.connections[name][self.cur_ipt] = tok
+        # recall memory into dst
+        self.recall(name)
+        self.machine.inst_at[self.old_ipt] = "'put %s in %s'" % (tok, dst)
+    
     def call(self, routine):
         # memorize sub-routine ipt in call connection
         self.machine.connections["call"][self.cur_ipt] = self.machine.ipt_of[routine]
@@ -229,6 +237,12 @@ class AbstractMachine:
                 name = "%s > %s" % (src, dst)
                 self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
                 for token in locs + ["nil"]: self.connections[name][token] = token
+
+        # setting gen regs
+        for reg in gen_regs:
+            name = "set %s" % reg
+            self.connections[name] = AbstractConnection(name, src=self.registers["ipt"], dst=self.registers[reg])
+
     
     def get_memories(self):
         memories = {}
@@ -338,8 +352,13 @@ def test_rin(comp):
 #     comp.set("loc"
 
 def main(comp):
+    comp.put("b0", "r1")
+    comp.put("b1", "r1")
+    comp.put("b0", "r1")
+
+    # comp.call("test_rin")
+
     # comp.call("move_to")
-    comp.call("test_rin")
 
 def make_abstract_machine(env, num_blocks, max_levels):
 
@@ -362,13 +381,13 @@ def make_abstract_machine(env, num_blocks, max_levels):
         am.connections["jmp"][token] = am.ipt_of["rin_not_nil"]
     am.connections["jmp"]["nil"] = am.ipt_of["rin_nil"]
 
-    # rin test
-    compiler.flash(test_rin)
+    # # rin test
+    # compiler.flash(test_rin)
 
-    # # block restacking routines
-    # compiler.flash(pick_up)
-    # compiler.flash(put_down_on)
-    # compiler.flash(move_to)
+    # block restacking routines
+    compiler.flash(pick_up)
+    compiler.flash(put_down_on)
+    compiler.flash(move_to)
 
     compiler.flash(main)
 
@@ -393,16 +412,25 @@ if __name__ == "__main__":
     env.load_blocks(thing_below)
 
     restore_env(am)
+    
+    # # rin test
+    # am.reset({
+    #     "r0": "b0",
+    #     "r1": "nil",
+    #     "jnt": "rest",
+    # })
+
+    # restack test
     am.reset({
         "r0": "b0",
-        "r1": "nil",
+        "r1": "b1",
         "jnt": "rest",
     })
 
     am.mount("main")
     am.dbg()
     while True:
-        input('.')
+        # input('.')
         done = am.tick()
         am.dbg()
         position = am.ik[am.registers["jnt"].content]
