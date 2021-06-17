@@ -52,18 +52,19 @@ def run_trial(num_bases, num_blocks, max_levels):
 
 if __name__ == "__main__":
 
-    num_bases, max_levels = 4, 3
+    num_bases, max_levels = 7, 3
     result_file = "results_compare_%d_%d.pkl" % (num_bases, max_levels)
 
+    # 7 bases, 7 blocks ~ 12 seconds
+    # <12s * 5 block counts * reps = time
+    # reps = time / 60s = time minutes (1 minute per rep)
     run_exp = True
     if run_exp:
-        all_results = {}
-        num_reps = 2
-        block_counts = [3] # list(range(3, 8))
-        for num_blocks in block_counts:
-    
-            all_results[num_blocks] = {}
-            for rep in range(num_reps):
+        num_reps = 60 * 5
+        block_counts = list(range(3, 8))
+        all_results = {num_blocks: {} for num_blocks in block_counts}
+        for rep in range(num_reps):
+            for num_blocks in block_counts:
     
                 am_results, nvm_results, nvm_size = run_trial(num_bases, num_blocks, max_levels)
                 all_results[num_blocks][rep] = am_results, nvm_results, nvm_size
@@ -75,7 +76,7 @@ if __name__ == "__main__":
                 print(" nvm:", all_results[num_blocks][rep][1])
                 # print(" size:")
                 # for sz in nvm_size: print(sz) 
-                print(" nvm size: %d" % nvm_size[0])
+                print(" nvm size: %d" % nvm_size[2])
 
     plt_exp = True
     if plt_exp:
@@ -88,8 +89,9 @@ if __name__ == "__main__":
                 print("%d blocks, rep %d of %d:" % (num_blocks, rep, num_reps))
                 print(" am:", all_results[num_blocks][rep][0])
                 print(" nvm:", all_results[num_blocks][rep][1])
+                nvm_size = all_results[num_blocks][rep][2]
                 # print(" size:")
-                # for sz in nvm_size: print(sz) 
-                print(" nvm size: %d" % nvm_size[0])
+                # for sz in nvm_size: print(sz)
+                print(" nvm size: %d" % nvm_size[2])
 
 
