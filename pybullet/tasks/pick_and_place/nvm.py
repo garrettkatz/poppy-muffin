@@ -175,8 +175,9 @@ if __name__ == "__main__":
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    thing_below["b1"] = "b0"
-    thing_below["b3"] = "b2"
+    # thing_below["b1"] = "b0"
+    # thing_below["b3"] = "b2"
+    goal_thing_below = {"b1": "b0", "b2": "b1"}
 
     env = BlocksWorldEnv(show=True)
     env.load_blocks(thing_below)
@@ -184,9 +185,13 @@ if __name__ == "__main__":
     am = make_abstract_machine(env, num_blocks, max_levels)
     nvm = virtualize(am)
     
-    env.reset()
-    env.load_blocks(thing_below)
-    restore_env(nvm, num_blocks, max_levels)
+    # env.reset()
+    # env.load_blocks(thing_below)
+
+    goal_thing_above = env.invert(goal_thing_below)
+    for key, val in goal_thing_above.items():
+        if val == "none": goal_thing_above[key] = "nil"
+    restore_env(nvm, num_blocks, max_levels, goal_thing_above)
 
     # # rin test
     # nvm.reset({

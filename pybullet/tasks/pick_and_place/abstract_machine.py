@@ -204,6 +204,8 @@ class AbstractMachine:
             # location relations
             "above": AbstractConnection("above", src=self.registers["loc"], dst=self.registers["loc"]),
             "right": AbstractConnection("right", src=self.registers["loc"], dst=self.registers["loc"]),
+            # goal thing above
+            "goal": AbstractConnection("goal", src=self.registers["obj"], dst=self.registers["obj"]),
         }
         
         # stack addresses
@@ -250,7 +252,7 @@ class AbstractMachine:
             for (src, dst) in [(reg, "loc"), ("loc", reg)]:
                 name = "%s > %s" % (src, dst)
                 self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
-                for token in locs + ["nil"]: self.connections[name][token] = token
+                for token in locs + ["nil"]: self.connections[name][token] = token            
 
         # put instruction
         for reg in gen_regs + ["obj", "loc"]:
@@ -346,7 +348,7 @@ def setup_abstract_machine(env, num_blocks, max_levels):
     
     return am, compiler
 
-def restore_env(machine, num_blocks, max_levels):
+def restore_env(machine, num_blocks, max_levels, goal_thing_above={}):
     # start with all locations empty    
     for loc in it.product(range(num_blocks), range(max_levels+1)):
         machine.connections["obj"][loc] = "nil"
@@ -357,6 +359,26 @@ def restore_env(machine, num_blocks, max_levels):
         loc = (env.bases.index(base), level)
         machine.connections["obj"][loc] = block
         machine.connections["loc"][block] = loc
+    for thing, block in goal_thing_above.items():
+        machine.connections["goal"][thing] = block
+
+# testing routines
+def test_rin(comp):
+    comp.move("r1", "jmp")
+    comp.ret_if_nil()
+    comp.move("r0", "r1")
+    comp.ret()
+
+def test_push(comp):
+    comp.put("b0", "r0")
+    comp.put("b0", "r1")
+    comp.push(("r0",))
+    comp.put("b1", "r0")
+    comp.push(("r0",))
+    comp.put("b0", "r0")
+    comp.pop(("r0",))
+    comp.pop(("r0",))
+    comp.ret()
 
 # MACRO, don't flash
 def pick_up(comp):
@@ -387,18 +409,12 @@ def put_down(comp):
 
 # MACRO, don't flash
 def move_to(comp):
-    # r0: what to pick; r1: where to place
+    # r0: obj to pick; r1: loc to place
     pick_up(comp)
     put_down(comp)
     # comp.call("pick_up")
     # comp.call("put_down")
     # comp.ret()
-
-def test_rin(comp):
-    comp.move("r1", "jmp")
-    comp.ret_if_nil()
-    comp.move("r0", "r1")
-    comp.ret()
 
 def free_spot(comp):
     # after recursion, loc register has free spot
@@ -466,21 +482,36 @@ def unstack_all(comp):
     comp.recall("right")
     comp.call("unstack_all")
 
-def test_push(comp):
-    comp.put("b0", "r0")
-    comp.put("b0", "r1")
-    comp.push(("r0",))
-    comp.put("b1", "r0")
-    comp.push(("r0",))
-    comp.put("b0", "r0")
-    comp.pop(("r0",))
-    comp.pop(("r0",))
-    comp.ret()
+def stack_on(comp):
+    # r0 should have thing to stack on
+    
+    # get location to stack on in r1
+    comp.move("r0", "obj")
+    comp.recall("loc")
+    comp.recall("above")
+    comp.move("loc", "r1")
+
+    # block = self.goal_block_above[thing]
+    comp.recall("goal")
+
+    # if block == "none": return
+    comp.move("obj", "jmp")
+    comp.ret_if_nil()
+
+    # self.move_to(thing, block)
+    comp.move("obj", "r0")
+    move_to(comp)
+    
+    # self.stack_on(block)
+    comp.call("stack_on")
 
 def main(comp):
 
-    comp.put((0, 0), "loc")
-    comp.call("unstack_all")
+    # comp.put((0, 0), "loc")
+    # comp.call("unstack_all")
+
+    comp.put("b0", "r0")
+    comp.call("stack_on")
 
     # comp.put("b0", "r0")
     # comp.put((1,1), "r1")
@@ -504,6 +535,7 @@ def make_abstract_machine(env, num_blocks, max_levels):
     compiler.flash(free_spot)
     compiler.flash(unstack_from)
     compiler.flash(unstack_all)
+    compiler.flash(stack_on)
 
     compiler.flash(main)
 
@@ -516,19 +548,21 @@ if __name__ == "__main__":
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    thing_below["b1"] = "b0"
-    thing_below["b3"] = "b2"
+    # thing_below["b1"] = "b0"
+    # thing_below["b3"] = "b2"    
+    goal_thing_below = {"b1": "b0", "b2": "b1"}
 
-    env = BlocksWorldEnv()
+    env = BlocksWorldEnv()    
     env.load_blocks(thing_below)
-    
     am = make_abstract_machine(env, num_blocks, max_levels)
 
     # # thing_below["b6"] = "b3"
     # env.reset()
-    # env.load_blocks(thing_below)
 
-    restore_env(am, num_blocks, max_levels)
+    goal_thing_above = env.invert(goal_thing_below)
+    for key, val in goal_thing_above.items():
+        if val == "none": goal_thing_above[key] = "nil"
+    restore_env(am, num_blocks, max_levels, goal_thing_above)
     
     # # rin test
     # am.reset({
