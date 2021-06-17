@@ -116,6 +116,15 @@ class NeuralVirtualMachine:
             if name in contents: register.reset(contents[name])
             if name == "ipt": register.reset(register.encode(0))
             if name == "gts": register.reset(register.encode(((), ("gts","ipt"))))
+    
+    def size(self):
+        reg_sizes, conn_sizes, total = {}, {}, 0
+        for name, reg in self.registers.items():
+            reg_sizes[name] = (reg.size, len(reg.codec))
+        for name, conn in self.connections.items():
+            conn_sizes[name] = conn.W.shape
+            total += conn.W.shape[0] * conn.W.shape[1]
+        return reg_sizes, conn_sizes, total
 
 def hadamard_codec(tokens):
     N = len(tokens)
@@ -211,6 +220,9 @@ if __name__ == "__main__":
         "r1": nvm.registers["r1"].encode("b1"),
         "jnt": tr.tensor(am.ik["rest"])
     })
+    
+    _, _, total = nvm.size()
+    input("%d weights total!" % total)
 
     nvm.mount("main")
     nvm.dbg()
