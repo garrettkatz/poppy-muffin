@@ -177,7 +177,8 @@ if __name__ == "__main__":
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
     # thing_below["b1"] = "b0"
     # thing_below["b3"] = "b2"
-    goal_thing_below = {"b1": "b0", "b2": "b1"}
+    goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
+    goal_thing_below.update({"b1": "b0", "b2": "b3"})
 
     env = BlocksWorldEnv(show=True)
     env.load_blocks(thing_below)

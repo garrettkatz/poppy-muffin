@@ -41,7 +41,7 @@ class AbstractConnection:
         return "%s (%s -> %s): %s" % (self.name, self.src.name, self.dst.name, self.memory)
     def __getitem__(self, key):
         if key not in self.memory:
-            raise KeyError("%s not memorized in %s" % (key, self.name))
+            raise KeyError("%s not memorized in %s" % (key, self))
         return self.memory[key]
     def __setitem__(self, key, value):
         self.memory[key] = value
@@ -157,6 +157,9 @@ class Compiler:
         self.machine.inst_at[self.old_ipt] = "'pop dec'"
         self.ungate(recall=tuple("spt > %s" % reg for reg in regs))
         self.machine.inst_at[self.old_ipt] = "'pop %s'" % ", ".join(regs)
+    
+    def breakpoint(self, message):
+        self.machine.message_at[self.cur_ipt] = message
 
 class AbstractMachine:
     def __init__(self, env, num_blocks, max_levels, spt_range=32):
@@ -164,11 +167,14 @@ class AbstractMachine:
         self.num_blocks = num_blocks
         self.max_levels = max_levels
         self.spt_range = spt_range
+        self.tick_counter = 0
         
         # maps to starting ipt of each routine
         self.ipt_of = {}
         # maps ipt to compiled instruction
         self.inst_at = {}
+        # stores breakpoint messages
+        self.message_at = {}
 
         self.registers = {
             "ipt": AbstractRegister("ipt", content=0),
@@ -206,6 +212,8 @@ class AbstractMachine:
             "right": AbstractConnection("right", src=self.registers["loc"], dst=self.registers["loc"]),
             # goal thing above
             "goal": AbstractConnection("goal", src=self.registers["obj"], dst=self.registers["obj"]),
+            # base list
+            "base": AbstractConnection("base", src=self.registers["obj"], dst=self.registers["obj"]),
         }
         
         # stack addresses
@@ -229,10 +237,10 @@ class AbstractMachine:
             else:
                 self.connections["right"][(base, level)] = "nil"
         
-        # constant base locations
-        for b, base in enumerate(env.bases):
-            self.connections["loc"][base] = (b, 0)
-            self.connections["obj"][(b, 0)] = base
+        # constant base loop
+        for b in range(len(env.bases)):
+            next_base = env.bases[b+1] if b+1 < len(env.bases) else "nil"
+            self.connections["base"][env.bases[b]] = next_base
 
         # general purpose registers and jmp
         objs = self.env.bases + self.env.blocks
@@ -277,7 +285,7 @@ class AbstractMachine:
             self.connections[name].memory = dict(memory)
 
     def dbg(self):
-        print("****************** dbg **********************")
+        print("****************** dbg: tick %d **********************" % self.tick_counter)
         inst = self.inst_at.get(self.registers["ipt"].content, "internal")
         print(inst)
         for register in self.registers.values(): print(" ", register)
@@ -294,8 +302,14 @@ class AbstractMachine:
         for name in recall: self.connections[name].recall()
         for register in self.registers.values(): register.update()
 
-        # self-loop indicates end-of-program
+        # check breakpoints
         ipt = self.registers["ipt"]
+        if ipt.content in self.message_at:
+            input(self.message_at[ipt.content])
+
+        self.tick_counter += 1
+
+        # self-loop indicates end-of-program
         if ipt.content == ipt.old_content: return True # program done
         else: return False # program not done
     
@@ -304,6 +318,7 @@ class AbstractMachine:
         self.registers["ipt"].reset(self.ipt_of[routine])
         self.registers["spt"].reset(0) # fresh call stack
         self.registers["gts"].reset(((), ("ipt", "gts")))
+        self.tick_counter = 0
 
     def get_new_ipt(self):
         new_ipt = len(self.connections["ipt"]) + 1
@@ -482,8 +497,14 @@ def unstack_all(comp):
     comp.recall("right")
     comp.call("unstack_all")
 
+    # return
+    comp.ret()
+
 def stack_on(comp):
     # r0 should have thing to stack on
+    # don't initiate if thing itself is nil
+    comp.move("r0", "jmp")
+    comp.ret_if_nil()
     
     # get location to stack on in r1
     comp.move("r0", "obj")
@@ -505,13 +526,47 @@ def stack_on(comp):
     # self.stack_on(block)
     comp.call("stack_on")
 
+    # return
+    comp.ret()
+
+def stack_all(comp):
+    # comp.put("t0", "obj") # before top-level recursive call
+    
+    # save current base in r0
+    comp.move("obj", "r0")
+
+    # for base in self.env.bases:
+    comp.move("obj", "jmp")
+    comp.ret_if_nil()
+
+    #     block = self.goal_block_above[base]
+    comp.recall("goal")
+    
+    #     if block != 'none': # checked inside stack_on
+    #         self.stack_on(block)
+    comp.push(regs=("r0",))
+    comp.move("obj", "r0")
+    comp.call("stack_on")
+
+    # continue loop recursively
+    comp.pop(regs=("r0",))
+    comp.move("r0", "obj")
+    comp.recall("base")
+    comp.call("stack_all")
+
+    # return
+    comp.ret()
+
 def main(comp):
 
     # comp.put((0, 0), "loc")
     # comp.call("unstack_all")
 
-    comp.put("b0", "r0")
-    comp.call("stack_on")
+    # comp.put("b0", "r0")
+    # comp.call("stack_on")
+
+    comp.put("t0", "obj")
+    comp.call("stack_all")
 
     # comp.put("b0", "r0")
     # comp.put((1,1), "r1")
@@ -536,6 +591,7 @@ def make_abstract_machine(env, num_blocks, max_levels):
     compiler.flash(unstack_from)
     compiler.flash(unstack_all)
     compiler.flash(stack_on)
+    compiler.flash(stack_all)
 
     compiler.flash(main)
 
@@ -550,7 +606,8 @@ if __name__ == "__main__":
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
     # thing_below["b1"] = "b0"
     # thing_below["b3"] = "b2"    
-    goal_thing_below = {"b1": "b0", "b2": "b1"}
+    goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
+    goal_thing_below.update({"b1": "b0", "b2": "b3"})
 
     env = BlocksWorldEnv()    
     env.load_blocks(thing_below)
