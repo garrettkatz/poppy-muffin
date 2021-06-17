@@ -76,9 +76,10 @@ class NeuralVirtualMachine:
         self.connections = connections
         self.connection_names = list(sorted(connections.keys()))
         self.env = env
+        self.tick_counter = 0
     
     def dbg(self):
-        print("****************** dbg **********************")
+        print("****************** dbg: tick %d **********************" % self.tick_counter)
         print(self.inst_at.get(self.registers["ipt"].decode(self.registers["ipt"].content), "internal"))
         for register in self.registers.values(): print(" ", register)
         # for connection in self.connections.values(): print(" ", connection)
@@ -95,6 +96,8 @@ class NeuralVirtualMachine:
         for c, name in enumerate(self.connection_names): self.connections[name].recall(gr[c])
         for register in self.registers.values(): register.update()
 
+        self.tick_counter += 1
+
         # self-loop indicates end-of-program
         ipt = self.registers["ipt"]
         if ipt.decode(ipt.content) == ipt.decode(ipt.old_content): return True # program done
@@ -105,6 +108,7 @@ class NeuralVirtualMachine:
         self.registers["ipt"].reset(self.ipt_of[routine])
         self.registers["spt"].reset(self.registers["spt"].encode(0))
         self.registers["gts"].reset(self.registers["gts"].encode(((), ("gts","ipt"))))
+        self.tick_counter = 0
 
     def reset(self, contents):
         for name, register in self.registers.items():
@@ -171,14 +175,14 @@ if __name__ == "__main__":
     from blocks_world import BlocksWorldEnv, random_thing_below
 
     # num_blocks, max_levels = 7, 3
-    num_blocks, max_levels = 4, 3
+    num_blocks, max_levels = 5, 3
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    # thing_below["b1"] = "b0"
-    # thing_below["b3"] = "b2"
+    thing_below["b0"] = "b1"
+    thing_below["b1"] = "b4"
     goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    goal_thing_below.update({"b1": "b0", "b2": "b3"})
+    goal_thing_below.update({"b1": "b0", "b2": "b3", "b3": "b4"})
 
     env = BlocksWorldEnv(show=True)
     env.load_blocks(thing_below)
@@ -225,5 +229,6 @@ if __name__ == "__main__":
 
         if done: break
 
+    input('...')
     env.close()    
 

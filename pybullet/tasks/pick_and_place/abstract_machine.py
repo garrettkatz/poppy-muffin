@@ -445,6 +445,9 @@ def free_spot(comp):
 
 def unstack_from(comp):
     # r0: block to be cleared
+    # do not initiate if block is nil
+    comp.move("r0", "jmp")
+    comp.ret_if_nil()
     
     # block = self.env.block_above[thing]
     comp.move("r0", "obj")
@@ -481,10 +484,7 @@ def unstack_all(comp):
     #     block = self.env.block_above[base]
     comp.recall("obj")
 
-    #     if block != "none":
-    comp.move("obj", "jmp")
-    comp.ret_if_nil()
-
+    #     if block != "none": # handled in unstack_from
     #         self.unstack_from(block)
     comp.move("loc", "r0")
     comp.push(regs=("r0",))
@@ -559,14 +559,13 @@ def stack_all(comp):
 
 def main(comp):
 
-    # comp.put((0, 0), "loc")
-    # comp.call("unstack_all")
+    comp.put((0, 0), "loc")
+    comp.call("unstack_all")
+    comp.put("t0", "obj")
+    comp.call("stack_all")
 
     # comp.put("b0", "r0")
     # comp.call("stack_on")
-
-    comp.put("t0", "obj")
-    comp.call("stack_all")
 
     # comp.put("b0", "r0")
     # comp.put((1,1), "r1")
@@ -604,8 +603,8 @@ if __name__ == "__main__":
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    # thing_below["b1"] = "b0"
-    # thing_below["b3"] = "b2"    
+    thing_below["b0"] = "b1"
+    # thing_below["b3"] = "b2"
     goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
     goal_thing_below.update({"b1": "b0", "b2": "b3"})
 
@@ -630,8 +629,6 @@ if __name__ == "__main__":
 
     # restack test
     am.reset({
-        "r0": "b1",
-        # "r1": (1,1),
         "jnt": "rest",
     })
 
