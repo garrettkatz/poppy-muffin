@@ -357,6 +357,7 @@ def restore_env(machine, num_blocks, max_levels):
         machine.connections["obj"][loc] = block
         machine.connections["loc"][block] = loc
 
+# MACRO, don't flash
 def pick_up(comp):
     # r0: obj to pick; r1: loc to place
     comp.move("r0", "obj")
@@ -371,6 +372,7 @@ def pick_up(comp):
     comp.put("nil", "loc")
     comp.store("loc")
 
+# MACRO, don't flash
 def put_down(comp):
     # r0: obj to pick; r1: loc to place
     comp.move("r1", "loc")
@@ -382,6 +384,7 @@ def put_down(comp):
     comp.store("loc")
     comp.store("obj")
 
+# MACRO, don't flash
 def move_to(comp):
     # r0: what to pick; r1: where to place
     pick_up(comp)
@@ -416,14 +419,25 @@ def unstack_from(comp):
     comp.recall("loc")
     comp.recall("above")
     comp.recall("obj")
+
     # if block == "none": return
     comp.move("obj", "jmp")
-    comp.return_if_nil()
+    comp.ret_if_nil()
+
     # self.unstack_from(block)
     comp.move("obj", "r0")
+    comp.push(regs=("r0",))
     comp.call("unstack_from")
+    comp.pop(regs=("r0",))
+
     # self.move_to(self.free_spot(), block)
+    comp.put((0,0), "loc")
+    comp.call("free_spot")
+    comp.move("loc", "r1")
     move_to(comp)
+    
+    # return
+    comp.ret()
 
 def test_push(comp):
     comp.put("b0", "r0")
@@ -437,12 +451,15 @@ def test_push(comp):
     comp.ret()
 
 def main(comp):
+
+    comp.call("unstack_from")
+
     # comp.put("b0", "r0")
     # comp.put((1,1), "r1")
     # move_to(comp)
 
     # comp.call("test_rin")
-    comp.call("test_push")
+    # comp.call("test_push")
 
     # comp.put((0,1), "loc")
     # comp.call("free_spot")
@@ -453,13 +470,11 @@ def make_abstract_machine(env, num_blocks, max_levels):
 
     # # tests
     # compiler.flash(test_rin)
-    compiler.flash(test_push)
+    # compiler.flash(test_push)
 
-    # # block restacking routines
-    # compiler.flash(free_spot)
-    # compiler.flash(pick_up)
-    # compiler.flash(put_down)
-    # compiler.flash(move_to)
+    # block restacking routines
+    compiler.flash(free_spot)
+    compiler.flash(unstack_from)
 
     compiler.flash(main)
 
@@ -468,11 +483,12 @@ def make_abstract_machine(env, num_blocks, max_levels):
 if __name__ == "__main__":
     
     # num_blocks, max_levels = 7, 3
-    num_blocks, max_levels = 2, 2
+    num_blocks, max_levels = 3, 3
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    # thing_below["b4"] = "b0"
+    thing_below["b0"] = "b1"
+    thing_below["b2"] = "b0"
 
     env = BlocksWorldEnv()
     env.load_blocks(thing_below)
@@ -494,19 +510,20 @@ if __name__ == "__main__":
 
     # restack test
     am.reset({
-        "r0": "b0",
-        "r1": (1,1),
+        "r0": "b1",
+        # "r1": (1,1),
         "jnt": "rest",
     })
 
     am.mount("main")
     am.dbg()
     while True:
-        input('.')
+        # input('.')
         done = am.tick()
         am.dbg()
         position = am.ik[am.registers["jnt"].content]
-        am.env.goto_position(position)
+        if am.registers["tar"].content != am.registers["tar"].old_content:
+            am.env.goto_position(position)
         if done: break
         
 

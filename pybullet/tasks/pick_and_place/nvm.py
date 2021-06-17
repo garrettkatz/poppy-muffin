@@ -170,11 +170,12 @@ if __name__ == "__main__":
     sys.path.append('../../envs')
     from blocks_world import BlocksWorldEnv, random_thing_below
 
-    num_blocks, max_levels = 7, 3
+    # num_blocks, max_levels = 7, 3
+    num_blocks, max_levels = 3, 3
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    thing_below["b4"] = "b0"
+    thing_below["b2"] = "b0"
 
     env = BlocksWorldEnv(show=True)
     env.load_blocks(thing_below)
@@ -205,10 +206,12 @@ if __name__ == "__main__":
     while True:
         # input('.')
         done = nvm.tick()
-        print(nvm.registers["ipt"].content)
         nvm.dbg()
-        position = nvm.registers["jnt"].content.detach().numpy()
-        env.goto_position(position)
+
+        tar = nvm.registers["tar"]
+        if tar.decode(tar.content) != tar.decode(tar.old_content):
+            position = nvm.registers["jnt"].content.detach().numpy()
+            env.goto_position(position)
         if done: break
 
     env.close()    
