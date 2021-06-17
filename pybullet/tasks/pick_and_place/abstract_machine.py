@@ -276,7 +276,8 @@ class AbstractMachine:
 
     def dbg(self):
         print("****************** dbg **********************")
-        print(self.inst_at.get(self.registers["ipt"].content, "internal"))
+        inst = self.inst_at.get(self.registers["ipt"].content, "internal")
+        print(inst)
         for register in self.registers.values(): print(" ", register)
         # for connection in self.connections.values(): print(" ", connection)
 
@@ -439,6 +440,32 @@ def unstack_from(comp):
     # return
     comp.ret()
 
+def unstack_all(comp):
+    # comp.put((0,0), "loc") # before top-level recursive call
+
+    # for base in self.env.bases:
+    comp.move("loc", "jmp")
+    comp.ret_if_nil()
+
+    #     block = self.env.block_above[base]
+    comp.recall("obj")
+
+    #     if block != "none":
+    comp.move("obj", "jmp")
+    comp.ret_if_nil()
+
+    #         self.unstack_from(block)
+    comp.move("loc", "r0")
+    comp.push(regs=("r0",))
+    comp.move("obj", "r0")
+    comp.call("unstack_from")
+    
+    # continue loop recursively
+    comp.pop(regs=("r0",))
+    comp.move("r0", "loc")
+    comp.recall("right")
+    comp.call("unstack_all")
+
 def test_push(comp):
     comp.put("b0", "r0")
     comp.put("b0", "r1")
@@ -452,7 +479,8 @@ def test_push(comp):
 
 def main(comp):
 
-    comp.call("unstack_from")
+    comp.put((0, 0), "loc")
+    comp.call("unstack_all")
 
     # comp.put("b0", "r0")
     # comp.put((1,1), "r1")
@@ -475,6 +503,7 @@ def make_abstract_machine(env, num_blocks, max_levels):
     # block restacking routines
     compiler.flash(free_spot)
     compiler.flash(unstack_from)
+    compiler.flash(unstack_all)
 
     compiler.flash(main)
 
@@ -483,12 +512,12 @@ def make_abstract_machine(env, num_blocks, max_levels):
 if __name__ == "__main__":
     
     # num_blocks, max_levels = 7, 3
-    num_blocks, max_levels = 3, 3
+    num_blocks, max_levels = 4, 3
     # thing_below = random_thing_below(num_blocks=7, max_levels=3)
     # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
     thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    thing_below["b0"] = "b1"
-    thing_below["b2"] = "b0"
+    thing_below["b1"] = "b0"
+    thing_below["b3"] = "b2"
 
     env = BlocksWorldEnv()
     env.load_blocks(thing_below)
@@ -521,8 +550,8 @@ if __name__ == "__main__":
         # input('.')
         done = am.tick()
         am.dbg()
-        position = am.ik[am.registers["jnt"].content]
-        if am.registers["tar"].content != am.registers["tar"].old_content:
+        if am.registers["jnt"].content != am.registers["jnt"].old_content:
+            position = am.ik[am.registers["jnt"].content]
             am.env.goto_position(position)
         if done: break
         
