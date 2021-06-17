@@ -3,9 +3,9 @@ import sys
 sys.path.append('../../envs')    
 from blocks_world import BlocksWorldEnv, random_thing_below
 
-def get_joint_positions(env, num_blocks, max_levels):
+def get_joint_positions(env, num_bases, max_levels):
     joint_position = {}
-    for base in range(num_blocks):
+    for base in range(num_bases):
         for level in range(max_levels+1):
             pos, quat = env.placement_of("t%d" % base)
             pos = (pos[0], pos[1], .01 + level * .02)
@@ -162,10 +162,11 @@ class Compiler:
         self.machine.message_at[self.cur_ipt] = message
 
 class AbstractMachine:
-    def __init__(self, env, num_blocks, max_levels, spt_range=32):
+    def __init__(self, env, num_bases, max_levels, spt_range=32):
         self.env = env
-        self.num_blocks = num_blocks
+        self.num_blocks = num_bases
         self.max_levels = max_levels
+        self.num_bases = num_bases
         self.spt_range = spt_range
         self.tick_counter = 0
         
@@ -222,45 +223,46 @@ class AbstractMachine:
             self.connections["pop"][spt + 1] = spt
         
         # keep joint positions symbolic in abstract machine
-        self.ik = get_joint_positions(env, num_blocks, max_levels)
+        self.ik = get_joint_positions(env, num_bases, max_levels)
         self.ik["rest"] = env.get_position()
         self.connections["ik"].memory = {key: key for key in self.ik}
 
-        for base, level in it.product(range(num_blocks), range(max_levels)):
+        self.locs = list(it.product(range(num_bases), range(max_levels+1)))
+        for base, level in it.product(range(num_bases), range(max_levels)):
             self.connections["tc"][(base, level)] = (base, level, 1)
             self.connections["to"][(base, level)] = (base, level, 0)
             self.connections["pc"][(base, level)] = (base, max_levels, 1)
             self.connections["po"][(base, level)] = (base, max_levels, 0)
             self.connections["above"][(base, level)] = (base, level+1)
-            if base + 1 < num_blocks:
+            if base + 1 < num_bases:
                 self.connections["right"][(base, level)] = (base+1, level)
             else:
                 self.connections["right"][(base, level)] = "nil"
         
         # constant base loop
-        for b in range(len(env.bases)):
+        for b in range(num_bases):
             next_base = env.bases[b+1] if b+1 < len(env.bases) else "nil"
             self.connections["base"][env.bases[b]] = next_base
 
         # general purpose registers and jmp
-        objs = self.env.bases + self.env.blocks
-        locs = list(it.product(range(num_blocks), range(max_levels+1)))
+        self.blocks = ["b%d" % b for b in range(num_bases)]
+        self.objs = self.env.bases + self.blocks
         gen_regs = ["r0", "r1", "r2"]
         for name in gen_regs:
             self.registers[name] = AbstractRegister(name)
         for src, dst in it.permutations(gen_regs + ["jmp"], 2):
             name = "%s > %s" % (src, dst)
             self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
-            for token in objs + locs + ["nil"]: self.connections[name][token] = token
+            for token in self.objs + self.locs + ["nil"]: self.connections[name][token] = token
         for reg in gen_regs + ["jmp"]:
             for (src, dst) in [(reg, "obj"), ("obj", reg)]:
                 name = "%s > %s" % (src, dst)
                 self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
-                for token in objs + ["nil"]: self.connections[name][token] = token
+                for token in self.objs + ["nil"]: self.connections[name][token] = token
             for (src, dst) in [(reg, "loc"), ("loc", reg)]:
                 name = "%s > %s" % (src, dst)
                 self.connections[name] = AbstractConnection(name, src=self.registers[src], dst=self.registers[dst])
-                for token in locs + ["nil"]: self.connections[name][token] = token            
+                for token in self.locs + ["nil"]: self.connections[name][token] = token            
 
         # put instruction
         for reg in gen_regs + ["obj", "loc"]:
@@ -339,10 +341,22 @@ class AbstractMachine:
             if name in contents: register.reset(contents[name])
             if name == "ipt": register.reset(0)
             if name == "gts": register.reset(((), ("ipt", "gts")))
+    
+    def run(self, dbg=False):
+        self.mount("main")
+        if dbg: self.dbg()
+        while True:
+            done = self.tick()
+            if dbg: self.dbg()
+            if self.registers["jnt"].content != self.registers["jnt"].old_content:
+                position = self.ik[self.registers["jnt"].content]
+                self.env.goto_position(position)
+            if done: break
+        return self.tick_counter
 
-def setup_abstract_machine(env, num_blocks, max_levels):
+def setup_abstract_machine(env, num_bases, max_levels):
 
-    am = AbstractMachine(env, num_blocks, max_levels)
+    am = AbstractMachine(env, num_bases, max_levels)
     compiler = Compiler(am)
     
     # special firmware routines for return-if-nil
@@ -356,16 +370,15 @@ def setup_abstract_machine(env, num_blocks, max_levels):
 
     # return-if-nil jmp connections
     # need to be added after flashing special rin_programs to get their ipts
-    locs = list(it.product(range(num_blocks), range(max_levels+1)))
-    for token in env.bases + env.blocks + locs:
+    for token in am.objs + am.locs:
         am.connections["jmp"][token] = am.ipt_of["rin_not_nil"]
     am.connections["jmp"]["nil"] = am.ipt_of["rin_nil"]
     
     return am, compiler
 
-def restore_env(machine, num_blocks, max_levels, goal_thing_above={}):
+def memorize_env(machine, goal_thing_above={}):
     # start with all locations empty    
-    for loc in it.product(range(num_blocks), range(max_levels+1)):
+    for loc in machine.locs:
         machine.connections["obj"][loc] = "nil"
     # overwrite non-empty occupancies
     env = machine.env
@@ -577,9 +590,9 @@ def main(comp):
     # comp.put((0,1), "loc")
     # comp.call("free_spot")
 
-def make_abstract_machine(env, num_blocks, max_levels):
+def make_abstract_machine(env, num_bases, max_levels):
 
-    am, compiler = setup_abstract_machine(env, num_blocks, max_levels)
+    am, compiler = setup_abstract_machine(env, num_bases, max_levels)
 
     # # tests
     # compiler.flash(test_rin)
@@ -598,27 +611,27 @@ def make_abstract_machine(env, num_blocks, max_levels):
 
 if __name__ == "__main__":
     
+    num_bases = 7
     # num_blocks, max_levels = 7, 3
     num_blocks, max_levels = 4, 3
-    # thing_below = random_thing_below(num_blocks=7, max_levels=3)
-    # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
-    thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    thing_below["b0"] = "b1"
-    # thing_below["b3"] = "b2"
-    goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    goal_thing_below.update({"b1": "b0", "b2": "b3"})
+    thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+    goal_thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+
+    # # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
+    # thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
+    # thing_below["b0"] = "b1"
+    # # thing_below["b3"] = "b2"
+    # goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
+    # goal_thing_below.update({"b1": "b0", "b2": "b3"})
 
     env = BlocksWorldEnv()    
-    env.load_blocks(thing_below)
-    am = make_abstract_machine(env, num_blocks, max_levels)
-
-    # # thing_below["b6"] = "b3"
-    # env.reset()
+    env.load_blocks(thing_below, num_bases)
+    am = make_abstract_machine(env, num_bases, max_levels)
 
     goal_thing_above = env.invert(goal_thing_below)
     for key, val in goal_thing_above.items():
         if val == "none": goal_thing_above[key] = "nil"
-    restore_env(am, num_blocks, max_levels, goal_thing_above)
+    memorize_env(am, goal_thing_above)
     
     # # rin test
     # am.reset({
@@ -631,18 +644,7 @@ if __name__ == "__main__":
     am.reset({
         "jnt": "rest",
     })
-
-    am.mount("main")
-    am.dbg()
-    while True:
-        # input('.')
-        done = am.tick()
-        am.dbg()
-        if am.registers["jnt"].content != am.registers["jnt"].old_content:
-            position = am.ik[am.registers["jnt"].content]
-            am.env.goto_position(position)
-        if done: break
-        
-
+    
+    am.run(dbg=True)
 
 

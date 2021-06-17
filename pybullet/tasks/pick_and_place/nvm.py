@@ -1,6 +1,6 @@
 import torch as tr
 import itertools as it
-from abstract_machine import make_abstract_machine, restore_env
+from abstract_machine import make_abstract_machine, memorize_env
 
 def hadamard_matrix(N):
     H = tr.tensor([[1.]])
@@ -125,6 +125,21 @@ class NeuralVirtualMachine:
             conn_sizes[name] = conn.W.shape
             total += conn.W.shape[0] * conn.W.shape[1]
         return reg_sizes, conn_sizes, total
+    
+    def run(self, dbg=False):
+        self.mount("main")
+        if dbg: self.dbg()
+        target_changed = True
+        while True:
+            done = self.tick()
+            if dbg: self.dbg()
+            if target_changed:
+                position = self.registers["jnt"].content.detach().numpy()
+                self.env.goto_position(position)
+            tar = self.registers["tar"]
+            target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
+            if done: break
+        return self.tick_counter
 
 def hadamard_codec(tokens):
     N = len(tokens)
@@ -135,17 +150,15 @@ def virtualize(am):
     
     registers = {}
     
-    objs = am.env.bases + am.env.blocks
-    locs = list(it.product(range(num_blocks), range(max_levels+1)))
     tokens = {
         "ipt": list(range(len(am.connections["ipt"].memory)+1)),
         "spt": list(range(am.spt_range)),
-        "loc": locs + ["nil"],
+        "loc": am.locs + ["nil"],
         "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])) + ["rest"],
-        "obj": objs + ["nil"]
+        "obj": am.objs + ["nil"]
     }
     for name in ["r0", "r1", "r2", "jmp"]:
-        tokens[name] = objs + locs + ["nil"]
+        tokens[name] = am.objs + am.locs + ["nil"]
 
     for name in tokens:
         size, codec = hadamard_codec(tokens[name])
@@ -162,7 +175,6 @@ def virtualize(am):
         gts_codec[store, recall] = tr.cat((gs, gr))
     registers["gts"] = NVMRegister("gts", 2*len(connection_names), gts_codec)
 
-
     connections = {}
     for name, am_conn in am.connections.items():
         src, dst = registers[am_conn.src.name], registers[am_conn.dst.name]
@@ -170,10 +182,14 @@ def virtualize(am):
         for key, val in am_conn.memory.items(): connections[name][key] = val
         
     nvm = NeuralVirtualMachine(am.env, registers, connections)
+    
     nvm.ipt_of = {
         routine: registers["ipt"].encode(ipt)
         for routine, ipt in am.ipt_of.items()}
     nvm.inst_at = dict(am.inst_at)
+
+    nvm.objs = list(am.objs)
+    nvm.locs = list(am.locs)
 
     return nvm
     
@@ -183,29 +199,28 @@ if __name__ == "__main__":
     sys.path.append('../../envs')
     from blocks_world import BlocksWorldEnv, random_thing_below
 
+    num_bases = 3
     # num_blocks, max_levels = 7, 3
-    num_blocks, max_levels = 5, 3
-    # thing_below = random_thing_below(num_blocks=7, max_levels=3)
-    # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
-    thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    thing_below["b0"] = "b1"
-    thing_below["b1"] = "b4"
-    goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    goal_thing_below.update({"b1": "b0", "b2": "b3", "b3": "b4"})
+    num_blocks, max_levels = 3, 3
+    thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+    goal_thing_below = random_thing_below(num_blocks, max_levels, num_bases)
 
-    env = BlocksWorldEnv(show=True)
-    env.load_blocks(thing_below)
-    
-    am = make_abstract_machine(env, num_blocks, max_levels)
+    # # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
+    # thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
+    # thing_below["b0"] = "b1"
+    # # thing_below["b3"] = "b2"
+    # goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
+    # goal_thing_below.update({"b1": "b0", "b2": "b3"})
+
+    env = BlocksWorldEnv()    
+    env.load_blocks(thing_below, num_bases)
+    am = make_abstract_machine(env, num_bases, max_levels)
     nvm = virtualize(am)
-    
-    # env.reset()
-    # env.load_blocks(thing_below)
 
     goal_thing_above = env.invert(goal_thing_below)
     for key, val in goal_thing_above.items():
         if val == "none": goal_thing_above[key] = "nil"
-    restore_env(nvm, num_blocks, max_levels, goal_thing_above)
+    memorize_env(nvm, goal_thing_above)
 
     # # rin test
     # nvm.reset({
@@ -221,26 +236,10 @@ if __name__ == "__main__":
         "jnt": tr.tensor(am.ik["rest"])
     })
     
-    _, _, total = nvm.size()
-    input("%d weights total!" % total)
+    # _, _, total = nvm.size()
+    # input("%d weights total!" % total)
 
-    nvm.mount("main")
-    nvm.dbg()
-    target_changed = True
-    while True:
-        # input('.')
-        done = nvm.tick()
-        nvm.dbg()
-        
-        if target_changed:
-            position = nvm.registers["jnt"].content.detach().numpy()
-            env.goto_position(position)
+    nvm.run(dbg=True)
 
-        tar = nvm.registers["tar"]
-        target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
-
-        if done: break
-
-    input('...')
     env.close()    
 

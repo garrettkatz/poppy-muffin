@@ -31,11 +31,12 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         for block, thing in thing_below.items(): block_above[thing] = block
         return block_above
     
-    def load_blocks(self, thing_below):
+    def load_blocks(self, thing_below, num_bases=None):
         
         self.num_blocks = len(thing_below)
+        self.num_bases = self.num_blocks if num_bases is None else num_bases
         self.blocks = ["b%d" % b for b in range(self.num_blocks)]
-        self.bases = ["t%d" % t for t in range(self.num_blocks)]
+        self.bases = ["t%d" % t for t in range(self.num_bases)]
         self.thing_below = dict(thing_below) # copy
         self.block_above = self.invert(thing_below)
 
@@ -134,12 +135,15 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
 
         return rgba, view, proj, coords_of
 
-def random_thing_below(num_blocks, max_levels):
+def random_thing_below(num_blocks, max_levels, num_bases=None):
     # make a random thing_below dictionary
     # no towers have more than max_levels
-    towers = [["t%d" % n] for n in range(num_blocks)]
+    if num_bases is None: num_bases = num_blocks
+    # towers = [["t%d" % n] for n in range(num_bases)] # singleton towers too likely
+    active_bases = random.sample(range(num_bases), num_blocks)
+    towers = [["t%d" % n] for n in active_bases]
     for n in range(num_blocks):
-        short_towers = list(filter(lambda x: len(x) < max_levels, towers))
+        short_towers = list(filter(lambda x: len(x[1:]) < max_levels, towers)) # exclude bases
         tower = random.choice(short_towers)
         tower.append("b%d" % n)
     thing_below = {}
@@ -150,12 +154,15 @@ def random_thing_below(num_blocks, max_levels):
 
 if __name__ == "__main__":
 
-    thing_below = random_thing_below(num_blocks=7, max_levels=3)
+    num_blocks = 3
+    num_bases = 7
+    thing_below = random_thing_below(num_blocks=num_blocks, max_levels=3, num_bases=num_bases)
 
     env = BlocksWorldEnv(pb.POSITION_CONTROL)
     env.load_blocks(
-        thing_below)
-        # {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
+        thing_below,
+        # {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"},
+        num_bases)
 
     env.update_relations()
     print(env.block_above)
