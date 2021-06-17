@@ -44,35 +44,38 @@ def run_trial(num_bases, num_blocks, max_levels):
     env.reset()
     env.load_blocks(thing_below, num_bases)
 
-    nvm_results = run_machine(nvm, goal_thing_below, {"jnt": tr.tensor(am.ik["rest"])})
+    nvm_results = run_machine(nvm, goal_thing_below, {"jnt": tr.tensor(am.ik["rest"]).float()})
 
     env.close()
     
-    return am_results, nvm_results
+    return am_results, nvm_results, nvm.size()
 
 if __name__ == "__main__":
 
-    num_bases, max_levels = 7, 3
+    num_bases, max_levels = 4, 3
     result_file = "results_compare_%d_%d.pkl" % (num_bases, max_levels)
 
     run_exp = True
     if run_exp:
         all_results = {}
         num_reps = 2
-        block_counts = [4] # list(range(3, 8))
+        block_counts = [3] # list(range(3, 8))
         for num_blocks in block_counts:
     
             all_results[num_blocks] = {}
             for rep in range(num_reps):
     
-                am_results, nvm_results = run_trial(num_bases, num_blocks, max_levels)
-                all_results[num_blocks][rep] = am_results, nvm_results
+                am_results, nvm_results, nvm_size = run_trial(num_bases, num_blocks, max_levels)
+                all_results[num_blocks][rep] = am_results, nvm_results, nvm_size
     
                 with open(result_file, "wb") as f: pk.dump(all_results, f)
     
                 print("%d blocks, rep %d of %d:" % (num_blocks, rep, num_reps))
                 print(" am:", all_results[num_blocks][rep][0])
                 print(" nvm:", all_results[num_blocks][rep][1])
+                # print(" size:")
+                # for sz in nvm_size: print(sz) 
+                print(" nvm size: %d" % nvm_size[0])
 
     plt_exp = True
     if plt_exp:
@@ -85,5 +88,8 @@ if __name__ == "__main__":
                 print("%d blocks, rep %d of %d:" % (num_blocks, rep, num_reps))
                 print(" am:", all_results[num_blocks][rep][0])
                 print(" nvm:", all_results[num_blocks][rep][1])
+                # print(" size:")
+                # for sz in nvm_size: print(sz) 
+                print(" nvm size: %d" % nvm_size[0])
 
 

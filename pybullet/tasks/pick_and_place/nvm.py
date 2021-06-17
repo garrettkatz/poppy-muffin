@@ -47,7 +47,7 @@ class NVMRegister:
 
 def FSER(W, x, y):
     x, y = x.reshape(-1,1), y.reshape(-1,1)
-    dW = (y - W.mm(x)) * x.t() / W.shape[1]
+    dW = (y - W.mm(x)) * x.t() / float(W.shape[1])
     return dW
 
 class NVMConnection:
@@ -164,7 +164,7 @@ def virtualize(am):
         size, codec = hadamard_codec(tokens[name])
         registers[name] = NVMRegister(name, size, codec)
 
-    jnt_codec = {key: tr.tensor(val) for key, val in am.ik.items()}
+    jnt_codec = {key: tr.tensor(val).float() for key, val in am.ik.items()}
     registers["jnt"] = NVMRegister("jnt", am.env.num_joints, jnt_codec)
 
     gts_codec = {}
@@ -226,14 +226,14 @@ if __name__ == "__main__":
     # nvm.reset({
     #     "r0": nvm.registers["r0"].encode("b0"),
     #     "r1": nvm.registers["r1"].encode("nil"),
-    #     "jnt": tr.tensor(am.ik["rest"])
+    #     "jnt": tr.tensor(am.ik["rest"]).float()
     # })
 
     # block stacking test
     nvm.reset({
         "r0": nvm.registers["r0"].encode("b0"),
         "r1": nvm.registers["r1"].encode("b1"),
-        "jnt": tr.tensor(am.ik["rest"])
+        "jnt": tr.tensor(am.ik["rest"]).float()
     })
     
     # _, _, total = nvm.size()
