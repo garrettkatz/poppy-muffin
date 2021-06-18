@@ -44,14 +44,14 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         fpath = os.path.dirname(os.path.abspath(__file__)) + '/../../urdfs/objects'
         pb.setAdditionalSearchPath(fpath)
         
-        colors = list(it.product([0,1], repeat=3))[:self.num_blocks]
+        colors = list(it.product([0,1], repeat=3))
         self.block_id = {}
         for b, block in enumerate(self.blocks):
             base, level = self.base_and_level_of(block)
             height = .01 + level * .0201
             pos, quat = self.placement_of(base)
             pos = (pos[0], pos[1], height)
-            rgba = colors[b] + (1,)
+            rgba = colors[b % len(colors)] + (1,)
             self.block_id[block] = pb.loadURDF(
                 'cube.urdf', basePosition=pos, baseOrientation=quat, useFixedBase=False)
             pb.changeVisualShape(self.block_id[block], linkIndex=-1, rgbaColor=rgba)
@@ -95,12 +95,13 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         for point, delta in waypoints: 
             targs = self.tip_targets_around(point, quat, delta)
             target_position = self.inverse_kinematics([5, 7], targs)
-            actual_position = self.get_position()
-            distance = np.fabs(target_position - actual_position).max()
-            velocity = 1.5 # radians per second
-            duration = distance / velocity
-            # duration = .25
-            self.goto_position(target_position, duration)
+            # actual_position = self.get_position()
+            # distance = np.fabs(target_position - actual_position).max()
+            # velocity = 1.5 # radians per second
+            # duration = distance / velocity
+            # # duration = .25
+            # self.goto_position(target_position, duration)
+            self.goto_position(target_position, 1.0)
     
     def pick_up(self, block):
         pos, quat = self.placement_of(block)
@@ -154,9 +155,20 @@ def random_thing_below(num_blocks, max_levels, num_bases=None):
 
 if __name__ == "__main__":
 
-    num_blocks = 3
+    num_blocks = 7
     num_bases = 7
-    thing_below = random_thing_below(num_blocks=num_blocks, max_levels=3, num_bases=num_bases)
+    max_levels = 3
+    thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+    
+    # # full occupancy
+    # thing_below = {}
+    # b = 0
+    # for base in range(num_bases):
+    #     thing_below["b%d" % b] = "t%d" % base
+    #     b += 1
+    #     for level in range(max_levels-1):
+    #         thing_below["b%d" % b] = "b%d" % (b-1)
+    #         b += 1
 
     env = BlocksWorldEnv(pb.POSITION_CONTROL)
     env.load_blocks(

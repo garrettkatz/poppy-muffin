@@ -195,7 +195,7 @@ class AbstractMachine:
             "spt": AbstractConnection("spt", src=self.registers["spt"], dst=self.registers["ipt"]),
             "push": AbstractConnection("push", src=self.registers["spt"], dst=self.registers["spt"]),
             "pop": AbstractConnection("pop", src=self.registers["spt"], dst=self.registers["spt"]),
-            "jmp": AbstractConnection("call", src=self.registers["jmp"], dst=self.registers["ipt"]),
+            "jmp": AbstractConnection("jmp", src=self.registers["jmp"], dst=self.registers["ipt"]),
             "gts": AbstractConnection("gts", src=self.registers["ipt"], dst=self.registers["gts"]),
 
             # memorized inverse kinematics

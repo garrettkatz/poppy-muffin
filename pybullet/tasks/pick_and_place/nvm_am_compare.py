@@ -58,7 +58,7 @@ if __name__ == "__main__":
     # 7 bases, 7 blocks ~ 12 seconds
     # <12s * 5 block counts * reps = time
     # reps = time / 60s = time minutes (1 minute per rep)
-    run_exp = True
+    run_exp = False
     if run_exp:
         num_reps = 60 * 5
         block_counts = list(range(3, 8))
@@ -81,9 +81,12 @@ if __name__ == "__main__":
     plt_exp = True
     if plt_exp:
 
+        import numpy as np
+        import matplotlib.pyplot as pt
         with open(result_file, "rb") as f: all_results = pk.load(f)
     
-        for num_blocks in sorted(all_results.keys()):
+        block_counts = sorted(all_results.keys())
+        for num_blocks in block_counts:
             num_reps = len(all_results[num_blocks])
             for rep in range(num_reps):
                 print("%d blocks, rep %d of %d:" % (num_blocks, rep, num_reps))
@@ -93,5 +96,22 @@ if __name__ == "__main__":
                 # print(" size:")
                 # for sz in nvm_size: print(sz)
                 print(" nvm size: %d" % nvm_size[2])
+        
+        # scatter plots
+        pt.figure(figsize=(3,8))
+        for m, metric in enumerate(["Ticks", "Runtime (s)", "Symbolic reward", "Spatial reward"]):
+            pt.subplot(4,1,m+1)
+            for num_blocks in reversed(block_counts):
+                x = [am_result[m] for am_result, nvm_result, nvm_size in all_results[num_blocks].values()]
+                y = [nvm_result[m] for am_result, nvm_result, nvm_size in all_results[num_blocks].values()]
+                if m == 2:
+                    x = 0.1*np.random.rand(len(x)) + x
+                    y = 0.1*np.random.rand(len(y)) + y
+                pt.plot(x, y, '.', label="%d blocks" % num_blocks)
+            if m == 3: pt.xlabel("VM")
+            pt.ylabel("NVM")
+            if m == 0: pt.legend(loc="upper left")
+            pt.title(metric)
 
-
+        pt.tight_layout()
+        pt.show()
