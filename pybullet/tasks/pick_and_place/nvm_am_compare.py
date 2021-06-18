@@ -28,13 +28,7 @@ def run_trial(num_bases, num_blocks, max_levels):
 
     env = BlocksWorldEnv(show=False)
 
-    # # rejection sample non-trivial instance
-    # while True:
-    #     thing_below = random_thing_below(num_blocks, max_levels, num_bases)
-    #     goal_thing_below = random_thing_below(num_blocks, max_levels, num_bases)
-    #     env.load_blocks(thing_below, num_bases)    
-    #     if compute_symbolic_reward(env, goal_thing_below) < 0: break
-    #     env.reset()
+    # rejection sample non-trivial instance
     thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)
 
     am = make_abstract_machine(env, num_bases, max_levels)
@@ -49,7 +43,7 @@ def run_trial(num_bases, num_blocks, max_levels):
 
     env.close()
     
-    return am_results, nvm_results, nvm.size()
+    return am_results, nvm_results, nvm.size(), thing_below, goal_thing_below
 
 if __name__ == "__main__":
 

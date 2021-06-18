@@ -127,24 +127,24 @@ class Restacker:
 
 if __name__ == "__main__":
 
-    num_blocks = 7
-    thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-    # thing_below["b3"] = "b4"
-    # thing_below["b4"] = "b5"
-    # thing_below["b2"] = "b1"
+    # failure case:
+    num_blocks = 5
+    thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
+    goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
 
-    goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
-    goal_thing_below["b0"] = "b6"
-    # goal_thing_below["b3"] = "b2"
-    # goal_thing_below["b2"] = "t0"
-    # goal_thing_below["b0"] = "t2"
-    # # goal_thing_below["b2"] = "b6"
+    # num_blocks = 4
+    # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    # thing_below.update({"b1": "b0", "b2": "b3"})
 
-    # thing_below = random_thing_below(num_blocks, max_levels=3)
-    # goal_thing_below = random_thing_below(num_blocks, max_levels=3)
+    # goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+    # goal_thing_below.update({"b1": "b2", "b2": "b0"})
+
+    # # thing_below = random_thing_below(num_blocks, max_levels=3)
+    # # goal_thing_below = random_thing_below(num_blocks, max_levels=3)
 
     dump = DataDump(goal_thing_below, hook_period=1)
-    env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, control_period=12, step_hook=dump.step_hook)
+    # env = BlocksWorldEnv(pb.POSITION_CONTROL, show=True, control_period=12, step_hook=dump.step_hook)
+    env = BlocksWorldEnv()
     env.load_blocks(thing_below)
 
     # from check/camera.py
@@ -158,15 +158,16 @@ if __name__ == "__main__":
     reward = compute_symbolic_reward(env, goal_thing_below)
     print("symbolic reward = %f" % reward)
 
-    rewards = []
-    for frame in dump.data:
-        for record in frame["records"]:
-            rewards.append(record[-1])
-    
-    print("spatial reward = %f" % rewards[-1])
-    
-    pt.plot(rewards)
-    pt.show()
+    reward = compute_spatial_reward(env, goal_thing_below)
+    print("spatial reward = %f" % reward)
+
+    # rewards = []
+    # for frame in dump.data:
+    #     for record in frame["records"]:
+    #         rewards.append(record[-1])
+    # print("spatial reward = %f" % rewards[-1])    
+    # pt.plot(rewards)
+    # pt.show()
 
     env.close()
 

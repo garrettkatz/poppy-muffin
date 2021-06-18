@@ -10,9 +10,9 @@ from nvm import virtualize
 
 if __name__ == "__main__":
 
-    num_blocks, max_levels, num_bases = 2, 3, 2
-    num_episodes = 3
-    num_epochs = 3
+    num_blocks, max_levels, num_bases = 6, 3, 6
+    num_episodes = 30
+    num_epochs = 50
     
     run_exp = True
     if run_exp:
@@ -37,13 +37,17 @@ if __name__ == "__main__":
         
         orig_ik = nvm.connections["ik"].W.clone()
     
+        # env.reset()
         # thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)
 
-        # thing_below = {"b0": "t0", "b1": "t1", "b2": "b0"}
-        # goal_thing_below = {"b0": "t0", "b1": "b2", "b2": "b0"}
+        # failure case:
+        thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
+        goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
 
-        thing_below = {"b0": "t0", "b1": "t1"}
-        goal_thing_below = {"b0": "t0", "b1": "b0"}
+        # thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+        # thing_below.update({"b1": "b0", "b2": "b3"})    
+        # goal_thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
+        # goal_thing_below.update({"b1": "b2", "b2": "b0"})
     
         goal_thing_above = nvm.env.invert(goal_thing_below)
         for key, val in goal_thing_above.items():
@@ -130,7 +134,16 @@ if __name__ == "__main__":
         pt.plot([rewards[0] for rewards in epoch_rewards], 'b-')
         x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rewards[r]])    
         pt.plot(x, y, 'k.')
+
         # pt.plot(np.log(-np.array(rewards)))
         # pt.ylabel("log(-R)")
+        
+        # trend line
+        avg_rewards = np.mean(epoch_rewards, axis=1)
+        for r in range(len(avg_rewards)-10):
+            avg_rewards[r] += avg_rewards[r+1:r+10].sum()
+            avg_rewards[r] /= 10
+        pt.plot(avg_rewards, 'ro-')
+
         pt.show()
     
