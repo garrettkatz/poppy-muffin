@@ -153,6 +153,7 @@ def random_thing_below(num_blocks, max_levels, num_bases=None):
             thing_below[tower[level+1]] = tower[level]
     return thing_below
 
+
 if __name__ == "__main__":
 
     num_blocks = 7

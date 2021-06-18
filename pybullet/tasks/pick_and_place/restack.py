@@ -2,6 +2,9 @@ import pybullet as pb
 import time, sys
 import numpy as np
 import matplotlib.pyplot as pt
+sys.path.append('../../envs')    
+from blocks_world import BlocksWorldEnv, random_thing_below
+    
 
 def compute_symbolic_reward(env, goal_thing_below):
     env.update_relations()
@@ -33,6 +36,18 @@ def compute_spatial_reward(env, goal_thing_below):
         reward -= sum([(t-a)**2 for (t,a) in zip(target_pos, actual_pos)])**0.5
     
     return reward
+
+def random_problem_instance(env, num_blocks, max_levels, num_bases):
+
+    # rejection sample non-trivial instance
+    while True:
+        thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+        goal_thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+        env.load_blocks(thing_below, num_bases)
+        if compute_symbolic_reward(env, goal_thing_below) < 0: break
+        env.reset()
+    
+    return thing_below, goal_thing_below
 
 class DataDump:
     def __init__(self, goal_thing_below, hook_period):
@@ -112,9 +127,6 @@ class Restacker:
 
 if __name__ == "__main__":
 
-    sys.path.append('../../envs')    
-    from blocks_world import BlocksWorldEnv, random_thing_below
-    
     num_blocks = 7
     thing_below = {"b%d"%b: "t%d"%b for b in range(num_blocks)}
     # thing_below["b3"] = "b4"

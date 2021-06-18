@@ -61,15 +61,19 @@ class NVMConnection:
     def __setitem__(self, key, val):
         x = self.src.encode(key)
         y = self.dst.encode(val)
-        self.W += FSER(self.W, x, y)
+        self.W = self.W + FSER(self.W, x, y)
+
+    def reset(self):
+        self.W = tr.zeros(self.dst.size, self.src.size)
 
     def store(self, gate = 1.0):
         dW = FSER(self.W, self.src.content, self.dst.content)
-        self.W += gate * dW
+        # self.W += gate * dW # bad if self.W is a leaf variable requiring grad
+        self.W = self.W + gate * dW
     def recall(self, gate = 1.0):
-        self.dst.new_content *= 1. - gate
-        self.dst.new_content += self.W.mv(self.src.content) * gate
-    
+        self.dst.new_content = self.dst.new_content * (1. - gate)
+        self.dst.new_content = self.dst.new_content + self.W.mv(self.src.content) * gate
+
 class NeuralVirtualMachine:
     def __init__(self, env, registers, connections):
         self.registers = registers
@@ -92,7 +96,7 @@ class NeuralVirtualMachine:
         gs, gr = gates[:split], gates[split:] # store, recall
         for c, name in enumerate(self.connection_names): self.connections[name].store(gs[c])
 
-        for register in self.registers.values(): register.new_content = register.content.clone() # clone important since gr is a view
+        for register in self.registers.values(): register.new_content = register.content.clone() # clone important since gr is a view, don't want to update gates
         for c, name in enumerate(self.connection_names): self.connections[name].recall(gr[c])
         for register in self.registers.values(): register.update()
 

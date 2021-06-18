@@ -36,6 +36,8 @@ class AbstractConnection:
         self.src = src
         self.dst = dst
         self.memory = {}
+    def reset(self):
+        self.memory = {}
 
     def __str__(self):
         return "%s (%s -> %s): %s" % (self.name, self.src.name, self.dst.name, self.memory)
@@ -377,6 +379,10 @@ def setup_abstract_machine(env, num_bases, max_levels):
     return am, compiler
 
 def memorize_env(machine, goal_thing_above={}):
+    # reset input connections
+    machine.connections["obj"].reset()
+    machine.connections["loc"].reset()
+    machine.connections["goal"].reset()
     # start with all locations empty    
     for loc in machine.locs:
         machine.connections["obj"][loc] = "nil"

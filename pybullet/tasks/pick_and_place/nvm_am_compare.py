@@ -5,7 +5,7 @@ sys.path.append('../../envs')
 from blocks_world import BlocksWorldEnv, random_thing_below
 from abstract_machine import make_abstract_machine, memorize_env
 from nvm import virtualize
-from restack import compute_spatial_reward, compute_symbolic_reward
+from restack import compute_spatial_reward, compute_symbolic_reward, random_problem_instance
 
 def run_machine(machine, goal_thing_below, reset_dict):
 
@@ -28,13 +28,14 @@ def run_trial(num_bases, num_blocks, max_levels):
 
     env = BlocksWorldEnv(show=False)
 
-    # rejection sample non-trivial instance
-    while True:
-        thing_below = random_thing_below(num_blocks, max_levels, num_bases)
-        goal_thing_below = random_thing_below(num_blocks, max_levels, num_bases)
-        env.load_blocks(thing_below, num_bases)    
-        if compute_symbolic_reward(env, goal_thing_below) < 0: break
-        env.reset()
+    # # rejection sample non-trivial instance
+    # while True:
+    #     thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+    #     goal_thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+    #     env.load_blocks(thing_below, num_bases)    
+    #     if compute_symbolic_reward(env, goal_thing_below) < 0: break
+    #     env.reset()
+    thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)
 
     am = make_abstract_machine(env, num_bases, max_levels)
     nvm = virtualize(am)
