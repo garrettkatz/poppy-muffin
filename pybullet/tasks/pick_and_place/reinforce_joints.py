@@ -11,8 +11,8 @@ from nvm import virtualize
 if __name__ == "__main__":
 
     num_blocks, max_levels, num_bases = 2, 3, 2
-    num_episodes = 10
-    num_epochs = 10
+    num_episodes = 3
+    num_epochs = 3
     
     run_exp = True
     if run_exp:
@@ -69,7 +69,7 @@ if __name__ == "__main__":
                 # reset_dict.update({"r0": nvm.registers["r0"].encode("b0")}) # stack on
                 nvm.reset(reset_dict)
             
-                sigma = 0.01 # radians
+                sigma = 0.001 # radians
                 log_prob = 0.0 # accumulate over episode
             
                 dbg = False
@@ -84,9 +84,12 @@ if __name__ == "__main__":
                     if target_changed:
                         mu = nvm.registers["jnt"].content
                         dist = tr.distributions.normal.Normal(mu, sigma)
-                        position = dist.sample()
-                        log_probs = dist.log_prob(position)
-                        log_prob += log_probs.sum() # multivariate white noise
+                        if episode == 0:
+                            position = mu.detach().clone()
+                        else:
+                            position = dist.sample()
+                            log_probs = dist.log_prob(position)
+                            log_prob += log_probs.sum() # multivariate white noise
                         nvm.env.goto_position(position.detach().numpy())
                     tar = nvm.registers["tar"]
                     target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
@@ -95,8 +98,9 @@ if __name__ == "__main__":
                 spa_reward = compute_spatial_reward(nvm.env, goal_thing_below)
                 epoch_rewards.append(spa_reward)
                 
-                loss = -spa_reward * log_prob
-                loss.backward()
+                if episode != 0:
+                    loss = -spa_reward * log_prob
+                    loss.backward()
 
                 print("  %d(%d): r = %f, lp= %f" % (epoch, episode, spa_reward, log_prob))
 
@@ -112,21 +116,21 @@ if __name__ == "__main__":
             print("%d: R = %f (+/- %f), dW = %f" % (epoch, avg_reward, std_reward, delta))
             with open("rj.pkl","wb") as f: pk.dump(results, f)
     
-    # show results
-    with open("rj.pkl","rb") as f: results = pk.load(f)
-    epoch_rewards, deltas = zip(*results)
-    num_epochs = len(results)
-
-    print("LC:")
-    for r,rewards in enumerate(epoch_rewards): print(r, rewards)
+    showresults = False
+    if showresults:
+        with open("rj.pkl","rb") as f: results = pk.load(f)
+        epoch_rewards, deltas = zip(*results)
+        num_epochs = len(results)
     
-    import matplotlib.pyplot as pt
-    pt.plot([np.mean(rewards) for rewards in epoch_rewards], 'k-')
-    x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rewards[r]])    
-    pt.plot(x, y, 'k.')
-    # pt.plot(np.log(-np.array(rewards)))
-    # pt.ylabel("log(-R)")
-    pt.show()
+        print("LC:")
+        for r,rewards in enumerate(epoch_rewards): print(r, rewards)
         
+        import matplotlib.pyplot as pt
+        pt.plot([np.mean(rewards) for rewards in epoch_rewards], 'k-')
+        pt.plot([rewards[0] for rewards in epoch_rewards], 'b-')
+        x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rewards[r]])    
+        pt.plot(x, y, 'k.')
+        # pt.plot(np.log(-np.array(rewards)))
+        # pt.ylabel("log(-R)")
+        pt.show()
     
-
