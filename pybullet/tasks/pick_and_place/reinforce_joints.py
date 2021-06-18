@@ -1,3 +1,5 @@
+import pickle as pk
+import numpy as np
 import torch as tr
 import sys, time
 sys.path.append('../../envs')
@@ -9,87 +11,122 @@ from nvm import virtualize
 if __name__ == "__main__":
 
     num_blocks, max_levels, num_bases = 2, 3, 2
-    num_episodes = 2
-
-    env = BlocksWorldEnv(show=False)
-    env.load_blocks({"b%d" % n: "t%d" % n for n in range(num_bases)}) # placehold for nvm init
-
-    # tr.autograd.set_detect_anomaly(True)
-
-    am = make_abstract_machine(env, num_bases, max_levels)
-    nvm = virtualize(am)
-    # print(nvm.size())
-    # input('.')
-
-    # set up trainable connections
-    conn_params = {
-        "ik": nvm.connections["ik"].W,
-    }
-    for p in conn_params.values(): p.requires_grad_()
-    opt = tr.optim.Adam(conn_params.values(), lr=0.001)
-
-    # thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)
-    thing_below = {"b0": "t0", "b1": "t1"}
-    goal_thing_below = {"b0": "t0", "b1": "b0"}
-
-    goal_thing_above = nvm.env.invert(goal_thing_below)
-    for key, val in goal_thing_above.items():
-        if val == "none": goal_thing_above[key] = "nil"
-
-    lc = []
-    for episode in range(num_episodes):
-
-        env.reset()
-        env.load_blocks(thing_below, num_bases)
-
-        # reset trainable parameters
-        for name, param in conn_params.items():
-            nvm.connections[name].W = param
-        
-        # input env
-        memorize_env(nvm, goal_thing_above)
+    num_episodes = 10
+    num_epochs = 10
     
-        reset_dict = {"jnt": tr.tensor(am.ik["rest"]).float()}
-        # reset_dict.update({"obj": nvm.registers["obj"].encode("t0")}) # stack all
-        reset_dict.update({"r0": nvm.registers["r0"].encode("b0")}) # stack on
-        nvm.reset(reset_dict)
+    run_exp = True
+    if run_exp:
+        results = []
+
+        env = BlocksWorldEnv(show=False)
+        env.load_blocks({"b%d" % n: "t%d" % n for n in range(num_bases)}) # placehold for nvm init
     
-        sigma = 0.02 # radians
-        log_prob = 0.0 # accumulate over episode
+        # tr.autograd.set_detect_anomaly(True)
     
-        dbg = True
-        # nvm.mount("main")
-        # nvm.mount("stack_all")
-        nvm.mount("stack_on")
-        if dbg: nvm.dbg()
-        target_changed = True
-        while True:
-            done = nvm.tick()
-            if dbg: nvm.dbg()
-            if target_changed:
-                mu = nvm.registers["jnt"].content
-                dist = tr.distributions.normal.Normal(mu, sigma)
-                position = dist.sample()
-                log_probs = dist.log_prob(position)
-                log_prob += log_probs.sum() # multivariate white noise
-                nvm.env.goto_position(position.detach().numpy())
-            tar = nvm.registers["tar"]
-            target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
-            if done: break
+        am = make_abstract_machine(env, num_bases, max_levels)
+        nvm = virtualize(am)
+        # print(nvm.size())
+        # input('.')
+    
+        # set up trainable connections
+        conn_params = {
+            "ik": nvm.connections["ik"].W,
+        }
+        for p in conn_params.values(): p.requires_grad_()
+        opt = tr.optim.Adam(conn_params.values(), lr=0.00001)
         
-        spa_reward = compute_spatial_reward(nvm.env, goal_thing_below)
+        orig_ik = nvm.connections["ik"].W.clone()
+    
+        # thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)
+
+        # thing_below = {"b0": "t0", "b1": "t1", "b2": "b0"}
+        # goal_thing_below = {"b0": "t0", "b1": "b2", "b2": "b0"}
+
+        thing_below = {"b0": "t0", "b1": "t1"}
+        goal_thing_below = {"b0": "t0", "b1": "b0"}
+    
+        goal_thing_above = nvm.env.invert(goal_thing_below)
+        for key, val in goal_thing_above.items():
+            if val == "none": goal_thing_above[key] = "nil"
+    
+        lc = []
+        for epoch in range(num_epochs):
+            epoch_rewards = []
+            for episode in range(num_episodes):
         
-        loss = -spa_reward * log_prob
-        # loss.backward(retain_graph=True)
-        loss.backward()
-        opt.step()
-        opt.zero_grad()
+                env.reset()
+                env.load_blocks(thing_below, num_bases)
         
-        lc.append(spa_reward)
-        print("%d: R = %f" % (episode, spa_reward))
+                # reset trainable parameters
+                for name, param in conn_params.items():
+                    nvm.connections[name].W = param
+                
+                # input env
+                memorize_env(nvm, goal_thing_above)
+            
+                reset_dict = {"jnt": tr.tensor(am.ik["rest"]).float()}
+                # reset_dict.update({"obj": nvm.registers["obj"].encode("t0")}) # stack all
+                # reset_dict.update({"r0": nvm.registers["r0"].encode("b0")}) # stack on
+                nvm.reset(reset_dict)
+            
+                sigma = 0.01 # radians
+                log_prob = 0.0 # accumulate over episode
+            
+                dbg = False
+                nvm.mount("main")
+                # nvm.mount("stack_all")
+                # nvm.mount("stack_on")
+                if dbg: nvm.dbg()
+                target_changed = True
+                while True:
+                    done = nvm.tick()
+                    if dbg: nvm.dbg()
+                    if target_changed:
+                        mu = nvm.registers["jnt"].content
+                        dist = tr.distributions.normal.Normal(mu, sigma)
+                        position = dist.sample()
+                        log_probs = dist.log_prob(position)
+                        log_prob += log_probs.sum() # multivariate white noise
+                        nvm.env.goto_position(position.detach().numpy())
+                    tar = nvm.registers["tar"]
+                    target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
+                    if done: break
+                
+                spa_reward = compute_spatial_reward(nvm.env, goal_thing_below)
+                epoch_rewards.append(spa_reward)
+                
+                loss = -spa_reward * log_prob
+                loss.backward()
+
+                print("  %d(%d): r = %f, lp= %f" % (epoch, episode, spa_reward, log_prob))
+
+            # update params based on episodes
+            opt.step()
+            opt.zero_grad()
+            
+            delta = (orig_ik - conn_params["ik"]).abs().max()
+            avg_reward = np.mean(epoch_rewards)
+            std_reward = np.std(epoch_rewards)
+            
+            results.append((epoch_rewards, delta.item()))
+            print("%d: R = %f (+/- %f), dW = %f" % (epoch, avg_reward, std_reward, delta))
+            with open("rj.pkl","wb") as f: pk.dump(results, f)
+    
+    # show results
+    with open("rj.pkl","rb") as f: results = pk.load(f)
+    epoch_rewards, deltas = zip(*results)
+    num_epochs = len(results)
 
     print("LC:")
-    print(lc)
+    for r,rewards in enumerate(epoch_rewards): print(r, rewards)
+    
+    import matplotlib.pyplot as pt
+    pt.plot([np.mean(rewards) for rewards in epoch_rewards], 'k-')
+    x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rewards[r]])    
+    pt.plot(x, y, 'k.')
+    # pt.plot(np.log(-np.array(rewards)))
+    # pt.ylabel("log(-R)")
+    pt.show()
         
     
 
