@@ -63,8 +63,9 @@ class NVMConnection:
         y = self.dst.encode(val)
         self.W = self.W + FSER(self.W, x, y)
 
-    def reset(self):
-        self.W = tr.zeros(self.dst.size, self.src.size)
+    def reset(self, W=None):
+        if W is None: W = tr.zeros(self.dst.size, self.src.size)
+        self.W = W
 
     def store(self, gate = 1.0):
         dW = FSER(self.W, self.src.content, self.dst.content)
@@ -144,6 +145,17 @@ class NeuralVirtualMachine:
             target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
             if done: break
         return self.tick_counter
+    
+    def get_state(self):
+        registers = {name: reg.content for name, reg in self.registers.items()}
+        connections = {name: conn.W for name, conn in self.connections.items()}
+        return registers, connections
+    def reset_state(self, registers, connections):
+        for name, content in registers.items():
+            self.registers[name].reset(content)
+        for name, W in connections.items():
+            self.connections[name].reset(W)
+        
 
 def hadamard_codec(tokens):
     N = len(tokens)

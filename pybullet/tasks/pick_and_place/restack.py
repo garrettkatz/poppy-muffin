@@ -38,6 +38,7 @@ def compute_spatial_reward(env, goal_thing_below):
     return reward
 
 def random_problem_instance(env, num_blocks, max_levels, num_bases):
+    # sets env with initial blocks in the process
 
     # rejection sample non-trivial instance
     while True:
