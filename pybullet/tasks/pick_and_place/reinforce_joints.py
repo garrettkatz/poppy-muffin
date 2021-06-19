@@ -4,7 +4,7 @@ import torch as tr
 import sys, time
 sys.path.append('../../envs')
 from blocks_world import BlocksWorldEnv
-from restack import random_problem_instance, compute_spatial_reward
+from restack import random_problem_instance, compute_spatial_reward, compute_symbolic_reward
 from abstract_machine import make_abstract_machine, memorize_env
 from nvm import virtualize
 
@@ -12,9 +12,9 @@ if __name__ == "__main__":
 
     num_blocks, max_levels, num_bases = 6, 3, 6
     num_episodes = 30
-    num_epochs = 50
+    num_epochs = 100
     
-    run_exp = True
+    run_exp = False
     if run_exp:
         results = []
 
@@ -30,7 +30,9 @@ if __name__ == "__main__":
     
         # set up trainable connections
         conn_params = {
-            "ik": nvm.connections["ik"].W,
+            name: nvm.connections[name].W
+            # for name in ["ik", "to", "tc", "pc", "pc"]
+            for name in ["ik"]
         }
         for p in conn_params.values(): p.requires_grad_()
         opt = tr.optim.Adam(conn_params.values(), lr=0.00001)
@@ -100,13 +102,15 @@ if __name__ == "__main__":
                     if done: break
                 
                 spa_reward = compute_spatial_reward(nvm.env, goal_thing_below)
-                epoch_rewards.append(spa_reward)
+                sym_reward = compute_symbolic_reward(nvm.env, goal_thing_below)
+                reward = sym_reward + 0.01*spa_reward
+                epoch_rewards.append(reward)
                 
                 if episode != 0:
-                    loss = -spa_reward * log_prob
+                    loss = -reward * log_prob
                     loss.backward()
 
-                print("  %d(%d): r = %f, lp= %f" % (epoch, episode, spa_reward, log_prob))
+                print("  %d(%d): r = %f, lp= %f" % (epoch, episode, reward, log_prob))
 
             # update params based on episodes
             opt.step()
@@ -120,7 +124,7 @@ if __name__ == "__main__":
             print("%d: R = %f (+/- %f), dW = %f" % (epoch, avg_reward, std_reward, delta))
             with open("rj.pkl","wb") as f: pk.dump(results, f)
     
-    showresults = False
+    showresults = True
     if showresults:
         with open("rj.pkl","rb") as f: results = pk.load(f)
         epoch_rewards, deltas = zip(*results)
@@ -140,9 +144,10 @@ if __name__ == "__main__":
         
         # trend line
         avg_rewards = np.mean(epoch_rewards, axis=1)
-        for r in range(len(avg_rewards)-10):
-            avg_rewards[r] += avg_rewards[r+1:r+10].sum()
-            avg_rewards[r] /= 10
+        window = 5
+        for r in range(len(avg_rewards)-window):
+            avg_rewards[r] += avg_rewards[r+1:r+window].sum()
+            avg_rewards[r] /= window
         pt.plot(avg_rewards, 'ro-')
 
         pt.show()
