@@ -8,6 +8,35 @@ from restack import random_problem_instance, compute_spatial_reward, compute_sym
 from abstract_machine import make_abstract_machine, memorize_env
 from nvm import virtualize
 
+def calc_reward(sym_reward, spa_reward):
+    # reward = sym_reward + 0.5*spa_reward
+    reward = spa_reward
+    return reward
+
+def rvm_baseline(env, thing_below, goal_thing_above, rvm):
+
+    start = time.perf_counter()
+
+    # reload blocks
+    env.reset()
+    env.load_blocks(thing_below)
+
+    # reset rvm, input new env, mount main program
+    rvm.env = env
+    memorize_env(rvm, goal_thing_above)
+    rvm.reset({"jnt": "rest"})
+    rvm.mount("main")
+
+    # run
+    ticks = rvm.run()
+    running_time = time.perf_counter() - start    
+
+    sym_reward = compute_symbolic_reward(env, goal_thing_below)
+    spa_reward = compute_spatial_reward(env, goal_thing_below)
+    reward = calc_reward(sym_reward, spa_reward)
+    
+    return running_time, reward
+
 def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, sigma=0):
 
     # reload blocks
@@ -42,10 +71,9 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
         target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
         if done: break
     
+    sym_reward = compute_symbolic_reward(nvm.env, goal_thing_below)
     spa_reward = compute_spatial_reward(nvm.env, goal_thing_below)
-    # sym_reward = compute_symbolic_reward(nvm.env, goal_thing_below)
-    # reward = sym_reward + 0.5*spa_reward
-    reward = spa_reward
+    reward = calc_reward(sym_reward, spa_reward)
     
     return reward, log_prob
     
@@ -61,8 +89,8 @@ if __name__ == "__main__":
     num_episodes = 2
     num_epochs = 3
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     # tr.autograd.set_detect_anomaly(True)
 
     if run_exp:
@@ -76,13 +104,13 @@ if __name__ == "__main__":
             # placehold blocks for nvm init
             env.load_blocks({"b%d" % n: "t%d" % n for n in range(num_bases)})
         
-            am = make_abstract_machine(env, num_bases, max_levels)
-            nvm = virtualize(am)
+            rvm = make_abstract_machine(env, num_bases, max_levels)
+            nvm = virtualize(rvm)
             # print(nvm.size())
             # input('.')
             init_regs, init_conns = nvm.get_state()
             orig_ik_W = init_conns["ik"].clone()
-            init_regs["jnt"] = tr.tensor(am.ik["rest"]).float()
+            init_regs["jnt"] = tr.tensor(rvm.ik["rest"]).float()
         
             # set up trainable connections
             conn_params = {
@@ -119,14 +147,14 @@ if __name__ == "__main__":
                     # run twice, once noiseless, to compute baseline
                     sigma = 0.001 # stdev in random angular sampling (radians)
                     log_prob = 0.0 # accumulate over episode
-                    baseline = 0
-                    reward = 0
                     
-                    # noiseless
-                    start_noiseless = time.perf_counter()
-                    with tr.no_grad():
-                        baseline, _ = run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns)
-                    noiseless_time = time.perf_counter() - start_noiseless
+                    # # noiseless
+                    # start_noiseless = time.perf_counter()
+                    # with tr.no_grad():
+                    #     baseline, _ = run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns)
+                    # noiseless_time = time.perf_counter() - start_noiseless
+                    # print("     noiseless took %fs" % noiseless_time)
+                    noiseless_time, baseline = rvm_baseline(env, thing_below, goal_thing_above, rvm)                    
                     print("     noiseless took %fs" % noiseless_time)
 
                     # noisy
