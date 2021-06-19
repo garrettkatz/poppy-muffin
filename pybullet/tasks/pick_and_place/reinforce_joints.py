@@ -9,8 +9,8 @@ from abstract_machine import make_abstract_machine, memorize_env
 from nvm import virtualize
 
 def calc_reward(sym_reward, spa_reward):
-    # reward = sym_reward + 0.5*spa_reward
-    reward = spa_reward
+    reward = sym_reward + 0.1*spa_reward
+    # reward = spa_reward
     return reward
 
 def rvm_baseline(env, thing_below, goal_thing_above, rvm):
