@@ -235,7 +235,9 @@ if __name__ == "__main__":
         # pt.close()
 
         # spa scatterplot
-        fig = pt.figure(figsize=(5,3.25))
+        fig = pt.figure(figsize=(3,3.25))
+        gs = fig.add_gridspec(1,1)
+        fig.add_subplot(gs[0,0])
         for n,num_blocks in enumerate(reversed(sorted(metrics["spa"].keys()))):
             x = -np.array(metrics["spa"][num_blocks]["rvm"])
             y = -np.array(metrics["spa"][num_blocks]["nvm"])
@@ -255,7 +257,7 @@ if __name__ == "__main__":
         pt.savefig("spa_compare.png")
         pt.show()
         pt.close()
-        
+
         # # scatter plots
         # pt.figure(figsize=(3,8))
         # for m, metric in enumerate(["Ticks", "Runtime (s)", "Symbolic reward", "Spatial reward"]):

@@ -89,8 +89,8 @@ if __name__ == "__main__":
     num_episodes = 2
     num_epochs = 3
     
-    run_exp = True
-    showresults = False
+    run_exp = False
+    showresults = True
     # tr.autograd.set_detect_anomaly(True)
 
     if run_exp:
@@ -254,8 +254,10 @@ if __name__ == "__main__":
             pt.plot([np.mean(rewards) for rewards in epoch_rewards], 'k-')
             # pt.plot([rewards[0] for rewards in epoch_rewards], 'b-')
             pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
-            x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rewards[r]])    
+            x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rewards[r]])
             pt.plot(x, y, 'k.')
+            x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
+            pt.plot(np.array(x)+.5, y, 'b.')
     
             # pt.plot(np.log(-np.array(rewards)))
             # pt.ylabel("log(-R)")
