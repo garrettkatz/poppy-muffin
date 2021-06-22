@@ -37,6 +37,13 @@ def compute_spatial_reward(env, goal_thing_below):
     
     return reward
 
+def invert(thing_below, num_blocks, num_bases):
+    blocks = ["b%d" % n for n in range(num_blocks)]
+    bases = ["t%d" % n for n in range(num_bases)]
+    block_above = {thing: "none" for thing in blocks + bases}
+    for block, thing in thing_below.items(): block_above[thing] = block
+    return block_above
+
 def random_problem_instance(env, num_blocks, max_levels, num_bases):
     # sets env with initial blocks in the process
 
