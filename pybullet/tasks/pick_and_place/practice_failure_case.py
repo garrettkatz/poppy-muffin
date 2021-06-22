@@ -114,7 +114,7 @@ if __name__ == "__main__":
             start_rep = time.perf_counter()
             results.append([])
         
-            env = BlocksWorldEnv(show=True, step_hook = penalty_tracker.step_hook)
+            env = BlocksWorldEnv(show=False, step_hook = penalty_tracker.step_hook)
             env.load_blocks(thing_below)
         
             # set up rvm and virtualize
@@ -142,6 +142,7 @@ if __name__ == "__main__":
                 start_epoch = time.perf_counter()
                 epoch_rewards = []
                 epoch_baselines = []
+                epoch_rtgs = []
 
                 # print("Wik:")
                 # print(conn_params["ik"][:,:8])
@@ -173,6 +174,7 @@ if __name__ == "__main__":
                                             
                     epoch_rewards.append(reward)
                     epoch_baselines.append(baseline)
+                    epoch_rtgs.append(rewards_to_go[0])
                     episode_time = time.perf_counter() - start_episode
                     print("    %d,%d,%d: r = %f[%f], b = %f, lp= %f, took %fs" % (
                         rep, epoch, episode, reward, rewards_to_go[0], baseline, log_prob, episode_time))
@@ -182,10 +184,10 @@ if __name__ == "__main__":
                 opt.zero_grad()
                                 
                 delta = max((orig_conns[name] - conn_params[name]).abs().max() for name in trainable).item()
-                avg_reward = np.mean(epoch_rewards)
-                std_reward = np.std(epoch_rewards)
+                avg_reward = np.mean(epoch_rtgs)
+                std_reward = np.std(epoch_rtgs)
                 
-                results[-1].append((epoch_rewards, epoch_baselines, delta))
+                results[-1].append((epoch_rewards, epoch_baselines, epoch_rtgs, delta))
                 with open("pfc.pkl","wb") as f: pk.dump(results, f)
                 epoch_time = time.perf_counter() - start_epoch
                 print(" %d,%d: R = %f (+/- %f), dW = %f" % (rep, epoch, avg_reward, std_reward, delta))
@@ -193,7 +195,9 @@ if __name__ == "__main__":
 
             env.close()
             rep_time = time.perf_counter() - start_rep
-            print("%d took %fs" % (rep, rep_time))
+            print("%d took %fs" % (rep, rep_time))        
+            # save trained model
+            with open("pfc_state_%d.pkl","wb") as f: pk.dump((init_regs, init_conns), f)
     
     if showresults:
         import matplotlib.pyplot as pt
