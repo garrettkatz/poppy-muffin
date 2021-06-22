@@ -61,7 +61,7 @@ if __name__ == "__main__":
     num_episodes = 2
     num_epochs = 3
     
-    run_exp = True
+    run_exp = False
     showresults = True
     # tr.autograd.set_detect_anomaly(True)
 
@@ -103,7 +103,7 @@ if __name__ == "__main__":
             trainable = ["ik"]
             conn_params = {name: init_conns[name] for name in trainable}
             for p in conn_params.values(): p.requires_grad_()
-            opt = tr.optim.Adam(conn_params.values(), lr=0.00001)
+            opt = tr.optim.Adam(conn_params.values(), lr=0.000005)
             
             # save original values for comparison
             orig_conns = {name: init_conns[name].detach().clone() for name in trainable}
@@ -153,3 +153,40 @@ if __name__ == "__main__":
         import matplotlib.pyplot as pt
 
         with open("pfc.pkl","rb") as f: results = pk.load(f)
+
+        num_repetitions = len(results)
+        for rep in range(num_repetitions):
+            epoch_rewards, epoch_baselines, deltas = zip(*results[rep])
+            num_epochs = len(results[rep])
+        
+            print("rep %d LC:" % rep)
+            for r,rewards in enumerate(epoch_rewards): print(r, rewards)
+            
+            pt.subplot(num_repetitions, 1, rep+1)
+            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k-')
+            pt.plot([rewards[0] for rewards in epoch_rewards], 'b-')
+            # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
+            x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rewards[r]])
+            pt.plot(x, y, 'k.')
+            # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
+            # pt.plot(np.array(x)+.5, y, 'b.')
+    
+            # pt.plot(np.log(-np.array(rewards)))
+            # pt.ylabel("log(-R)")
+            
+            # trend line
+            window = 10
+            avg_rewards = np.mean(epoch_rewards, axis=1)
+            trend = np.zeros(len(avg_rewards) - window+1)
+            for w in range(window):
+                trend += avg_rewards[w:w+len(trend)]
+            trend /= window
+            # for r in range(len(avg_rewards)-window):
+            #     avg_rewards[r] += avg_rewards[r+1:r+window].sum()
+            #     avg_rewards[r] /= window
+            # pt.plot(np.arange(window//2, len(avg_rewards)-(window//2)), avg_rewards, 'ro-')
+            pt.plot(np.arange(len(trend)) + window//2, trend, 'ro-')
+            # pt.ylim([-2, 0])
+
+        pt.show()
+    

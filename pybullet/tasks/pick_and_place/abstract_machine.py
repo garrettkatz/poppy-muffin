@@ -417,29 +417,53 @@ def test_push(comp):
 # MACRO, don't flash
 def pick_up(comp):
     # r0: obj to pick; r1: loc to place
+    
+    # # orig
+    # comp.move("r0", "obj")
+    # comp.recall("loc")
+    # for conn in ["po","to","tc","pc"]:
+    #     comp.recall(conn)
+    #     comp.recall("ik")
+    # # unbind r0 from location
+    # comp.put("nil", "obj")
+    # comp.store("obj")
+    # comp.move("r0", "obj")
+    # comp.put("nil", "loc")
+    # comp.store("loc")
+    
+    # optimized
     comp.move("r0", "obj")
     comp.recall("loc")
-    for conn in ["po","to","tc","pc"]:
-        comp.recall(conn)
-        comp.recall("ik")
-    # unbind r0 from location
+    comp.recall("po")
+    for conn in ["to","tc","pc"]: comp.ungate(recall=("ik",conn))
+    comp.recall("ik")
     comp.put("nil", "obj")
-    comp.store("obj")
-    comp.move("r0", "obj")
+    comp.ungate(store=("obj",), recall=("r0 > obj",))
     comp.put("nil", "loc")
     comp.store("loc")
 
 # MACRO, don't flash
 def put_down(comp):
     # r0: obj to pick; r1: loc to place
+    
+    # # orig
+    # comp.move("r1", "loc")
+    # for conn in ["pc","tc","to","po"]:
+    #     comp.recall(conn)
+    #     comp.recall("ik")
+    # # bind r0 to new location
+    # comp.move("r0", "obj")
+    # comp.store("loc")
+    # comp.store("obj")
+    
+    # opt
     comp.move("r1", "loc")
-    for conn in ["pc","tc","to","po"]:
-        comp.recall(conn)
-        comp.recall("ik")
+    comp.recall("pc")
+    for conn in ["tc","to","po"]: comp.ungate(recall=("ik", conn))
+    comp.recall("ik")
     # bind r0 to new location
     comp.move("r0", "obj")
-    comp.store("loc")
-    comp.store("obj")
+    comp.ungate(store=("loc","obj"))
 
 # MACRO, don't flash
 def move_to(comp):
@@ -521,59 +545,88 @@ def unstack_all(comp):
 
 def stack_on(comp):
     # r0 should have thing to stack on
-    # don't initiate if thing itself is nil
-    comp.move("r0", "jmp")
-    comp.ret_if_nil()
     
-    # get location to stack on in r1
+    # # orig
+    # # don't initiate if thing itself is nil
+    # comp.move("r0", "jmp")
+    # comp.ret_if_nil()
+    
+    # # get location to stack on in r1
+    # comp.move("r0", "obj")
+    # comp.recall("loc")
+    # comp.recall("above")
+    # comp.move("loc", "r1")
+
+    # # block = self.goal_block_above[thing]
+    # comp.recall("goal")
+
+    # # if block == "none": return
+    # comp.move("obj", "jmp")
+    # comp.ret_if_nil()
+
+    # # self.move_to(thing, block)
+    # comp.move("obj", "r0")
+    # move_to(comp)
+    
+    # # self.stack_on(block)
+    # comp.call("stack_on")
+
+    # # return
+    # comp.ret()
+
+    # opt
+    comp.move("r0", "jmp")
+    comp.ret_if_nil()    
     comp.move("r0", "obj")
-    comp.recall("loc")
+    comp.ungate(recall=("goal","loc"))
     comp.recall("above")
     comp.move("loc", "r1")
-
-    # block = self.goal_block_above[thing]
-    comp.recall("goal")
-
-    # if block == "none": return
-    comp.move("obj", "jmp")
+    comp.ungate(recall=("loc > r1", "obj > jmp", "obj > r0"))
     comp.ret_if_nil()
-
-    # self.move_to(thing, block)
-    comp.move("obj", "r0")
-    move_to(comp)
-    
-    # self.stack_on(block)
+    move_to(comp)    
     comp.call("stack_on")
-
-    # return
     comp.ret()
 
 def stack_all(comp):
     # comp.put("t0", "obj") # before top-level recursive call
     
-    # save current base in r0
-    comp.move("obj", "r0")
+    # # orig
+    # # save current base in r0
+    # comp.move("obj", "r0")
 
-    # for base in self.env.bases:
-    comp.move("obj", "jmp")
-    comp.ret_if_nil()
+    # # for base in self.env.bases:
+    # comp.move("obj", "jmp")
+    # comp.ret_if_nil()
 
-    #     block = self.goal_block_above[base]
-    comp.recall("goal")
+    # #     block = self.goal_block_above[base]
+    # comp.recall("goal")
     
-    #     if block != 'none': # checked inside stack_on
-    #         self.stack_on(block)
+    # #     if block != 'none': # checked inside stack_on
+    # #         self.stack_on(block)
+    # comp.push(regs=("r0",))
+    # comp.move("obj", "r0")
+    # comp.call("stack_on")
+
+    # # continue loop recursively
+    # comp.pop(regs=("r0",))
+    # comp.move("r0", "obj")
+    # comp.recall("base")
+    # comp.call("stack_all")
+
+    # # return
+    # comp.ret()
+
+    # opt
+    comp.ungate(recall=("obj > jmp", "obj > r0"))
+    comp.ret_if_nil()
+    comp.recall("goal")
     comp.push(regs=("r0",))
     comp.move("obj", "r0")
     comp.call("stack_on")
-
-    # continue loop recursively
     comp.pop(regs=("r0",))
     comp.move("r0", "obj")
     comp.recall("base")
     comp.call("stack_all")
-
-    # return
     comp.ret()
 
 def main(comp):
@@ -617,20 +670,20 @@ def make_abstract_machine(env, num_bases, max_levels):
 
 if __name__ == "__main__":
     
-    num_bases = 7
-    # num_blocks, max_levels = 7, 3
-    num_blocks, max_levels = 4, 3
-    thing_below = random_thing_below(num_blocks, max_levels, num_bases)
-    goal_thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+    # num_bases = 7
+    # # num_blocks, max_levels = 7, 3
+    # num_blocks, max_levels = 4, 3
+    # thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+    # goal_thing_below = random_thing_below(num_blocks, max_levels, num_bases)
 
-    # # thing_below = {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"})
-    # thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    # thing_below["b0"] = "b1"
-    # # thing_below["b3"] = "b2"
-    # goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
-    # goal_thing_below.update({"b1": "b0", "b2": "b3"})
+    # one failure case:
+    max_levels = 3
+    num_blocks = 5
+    num_bases = 5
+    thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
+    goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
 
-    env = BlocksWorldEnv()    
+    env = BlocksWorldEnv(show=True)
     env.load_blocks(thing_below, num_bases)
     am = make_abstract_machine(env, num_bases, max_levels)
 
@@ -638,19 +691,15 @@ if __name__ == "__main__":
     for key, val in goal_thing_above.items():
         if val == "none": goal_thing_above[key] = "nil"
     memorize_env(am, goal_thing_above)
-    
-    # # rin test
-    # am.reset({
-    #     "r0": "b0",
-    #     "r1": "nil",
-    #     "jnt": "rest",
-    # })
 
     # restack test
     am.reset({
         "jnt": "rest",
-    })
+    })    
+    num_ticks = am.run(dbg=True)
     
-    am.run(dbg=True)
+    input('...')
+    env.close()
+    print("ticks:", num_ticks)
 
 
