@@ -65,8 +65,8 @@ if __name__ == "__main__":
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
     num_repetitions = 1
-    num_episodes = 2
-    num_epochs = 2
+    num_episodes = 30
+    num_epochs = 100
     
     run_exp = True
     showresults = False
@@ -110,7 +110,7 @@ if __name__ == "__main__":
             trainable = ["ik"]
             conn_params = {name: init_conns[name] for name in trainable}
             for p in conn_params.values(): p.requires_grad_()
-            opt = tr.optim.Adam(conn_params.values(), lr=0.000005)
+            opt = tr.optim.Adam(conn_params.values(), lr=0.0001)
             
             # save original values for comparison
             orig_conns = {name: init_conns[name].detach().clone() for name in trainable}
