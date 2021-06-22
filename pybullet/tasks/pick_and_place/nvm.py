@@ -52,7 +52,8 @@ class NVMRegister:
         return self.decode_tokens[self.decode_matrix.mv(content).argmax()]
 
 def FSER(W, x, y):
-    dW = tr.outer(y - W.mv(x), x) / float(W.shape[1])
+    # dW = tr.outer(y - W.mv(x), x) / float(W.shape[1])
+    dW = (y - W.mv(x)).reshape(-1,1) * x / float(W.shape[1]) # backwards compatible
     return dW
 
 class NVMConnection:
