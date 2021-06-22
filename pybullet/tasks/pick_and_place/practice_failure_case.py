@@ -10,12 +10,22 @@ from nvm import virtualize
 
 def calc_reward(sym_reward, spa_reward):
     # reward = sym_reward + 0.1*spa_reward
-    # reward = sym_reward
-    reward = spa_reward
+    reward = sym_reward
+    # reward = spa_reward
     return reward
 
-def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, sigma=0):
+class PenaltyTracker:
+    def __init__(self):
+        self.penalty = 0
+    def reset(self):
+        self.penalty = 0
+    def step_hook(self, env, action):
+        mp = env.movement_penalty()
+        self.penalty += mp
+        # print("penalty: %.5f" % mp)
 
+def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0):
+    
     # reload blocks
     env.reset()
     env.load_blocks(thing_below)
@@ -26,10 +36,11 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
     nvm.mount("main")
 
     log_prob = 0.0 # accumulate over episode
+    log_probs, rewards = [], []
 
     dbg = False
     if dbg: nvm.dbg()
-    target_changed = True
+    target_changed = False
     while True:
         done = nvm.tick() # reliable if core is not trained
         if dbg: nvm.dbg()
@@ -39,26 +50,34 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
             if sigma > 0:
                 dist = tr.distributions.normal.Normal(mu, sigma)
                 position = dist.sample()
-                log_probs = dist.log_prob(position)
-                log_prob += log_probs.sum() # multivariate white noise
+                log_probs.append(dist.log_prob(position).sum()) # multivariate white noise
+                log_prob += log_probs[-1]
             else:
                 position = mu
+
+            penalty_tracker.reset()
             nvm.env.goto_position(position.detach().numpy())
-            penalty = nvm.env.movement_penalty()
-            print("penalty: %f" % penalty)
+            rewards.append(-penalty_tracker.penalty)
+            # print("net penalty: %.5f" % penalty_tracker.penalty)
+            # input('...')
+
         tar = nvm.registers["tar"]
         # decode has some robustness to noise even if tar connections are trained
         target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
         if done: break
     
-    # print("last position:")
-    # print(position)
+    if len(rewards) == 0: # target never changed
+        mu = nvm.registers["jnt"].content
+        dist = tr.distributions.normal.Normal(mu, 0.001)
+        log_probs.append(dist.log_prob(mu).sum()) # multivariate white noise
+        rewards = [-10]
     
     sym_reward = compute_symbolic_reward(nvm.env, goal_thing_below)
     spa_reward = compute_spatial_reward(nvm.env, goal_thing_below)
-    reward = calc_reward(sym_reward, spa_reward)
+    end_reward = calc_reward(sym_reward, spa_reward)
+    rewards[-1] += end_reward
     
-    return reward, log_prob
+    return end_reward, log_prob, rewards, log_probs
 
 if __name__ == "__main__":
     
@@ -71,6 +90,8 @@ if __name__ == "__main__":
     run_exp = True
     showresults = False
     # tr.autograd.set_detect_anomaly(True)
+    
+    use_penalties = True
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
@@ -85,13 +106,15 @@ if __name__ == "__main__":
         if val == "none": goal_thing_above[key] = "nil"
 
     if run_exp:
+        
+        penalty_tracker = PenaltyTracker()
 
         results = []
         for rep in range(num_repetitions):
             start_rep = time.perf_counter()
             results.append([])
         
-            env = BlocksWorldEnv(show=True)
+            env = BlocksWorldEnv(show=True, step_hook = penalty_tracker.step_hook)
             env.load_blocks(thing_below)
         
             # set up rvm and virtualize
@@ -129,17 +152,30 @@ if __name__ == "__main__":
                     baseline = 0
 
                     if episode == 0: # noiseless first episode
-                        reward, log_prob = run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, sigma=0)
+                        reward, log_prob, rewards, log_probs = run_episode(
+                            env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0)
+                        rewards_to_go = [sum(rewards)]
                     else:                    
-                        reward, log_prob = run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, sigma)
-                        loss = - (reward - baseline) * log_prob
-                        loss.backward()
-    
+                        reward, log_prob, rewards, log_probs = run_episode(
+                            env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma)
+                        
+                        if use_penalties:
+                            rewards = np.array(rewards)
+                            rewards_to_go = np.cumsum(rewards)
+                            rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
+                            for t in range(len(rewards)):
+                                loss = - (rewards_to_go[t] * log_probs[t])
+                                loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
+                        else:
+                            rewards_to_go = [0]
+                            loss = - (reward - baseline) * log_prob
+                            loss.backward()
+                                            
                     epoch_rewards.append(reward)
                     epoch_baselines.append(baseline)
                     episode_time = time.perf_counter() - start_episode
-                    print("    %d,%d,%d: r = %f, b = %f, lp= %f, took %fs" % (
-                        rep, epoch, episode, reward, baseline, log_prob, episode_time))
+                    print("    %d,%d,%d: r = %f[%f], b = %f, lp= %f, took %fs" % (
+                        rep, epoch, episode, reward, rewards_to_go[0], baseline, log_prob, episode_time))
     
                 # update params based on episodes
                 opt.step()
