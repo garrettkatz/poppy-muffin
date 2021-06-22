@@ -135,6 +135,19 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
             coords_of[thing] = (row, col)
 
         return rgba, view, proj, coords_of
+    
+    def movement_penalty(self):
+        penalty = 0
+        s_5, s_7 = pb.getLinkStates(self.robot_id, [5, 7])
+        xyz_5, xyz_7 = s_5[0], s_7[0]
+        p_grip = np.array([xyz_5, xyz_7]).mean(axis=0)
+        for bid in self.block_id.values():
+            p_block, _ = pb.getBasePositionAndOrientation(bid)
+            v_block, _ = pb.getBaseVelocity(bid)
+            speed = np.sum(np.array(v_block)**2)**.5
+            delta = np.sum((np.array(p_block) - p_grip)**2)**.5
+            penalty = max(speed * delta, penalty)
+        return penalty
 
 def random_thing_below(num_blocks, max_levels, num_bases=None):
     # make a random thing_below dictionary

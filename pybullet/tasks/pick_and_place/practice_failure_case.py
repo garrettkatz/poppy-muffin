@@ -44,6 +44,8 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
             else:
                 position = mu
             nvm.env.goto_position(position.detach().numpy())
+            penalty = nvm.env.movement_penalty()
+            print("penalty: %f" % penalty)
         tar = nvm.registers["tar"]
         # decode has some robustness to noise even if tar connections are trained
         target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
@@ -89,7 +91,7 @@ if __name__ == "__main__":
             start_rep = time.perf_counter()
             results.append([])
         
-            env = BlocksWorldEnv(show=False)
+            env = BlocksWorldEnv(show=True)
             env.load_blocks(thing_below)
         
             # set up rvm and virtualize

@@ -19,7 +19,11 @@ angles = env.inverse_kinematics(link_indices, target_positions)
 
 env.set_position(angles)
 
-# input('.')
+ans = pb.getLinkStates(env.robot_id, [5, 7])
+print(len(ans))
+for a in ans: print(a)
+
+input('.')
 
 while True: env.step(angles)
 
