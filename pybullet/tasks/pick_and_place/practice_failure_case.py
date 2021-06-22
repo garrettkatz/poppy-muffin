@@ -33,7 +33,7 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
     while True:
         done = nvm.tick() # reliable if core is not trained
         if dbg: nvm.dbg()
-        if nvm.tick_counter % 100 == 0: print("     tick %d" % nvm.tick_counter)
+        # if nvm.tick_counter % 100 == 0: print("     tick %d" % nvm.tick_counter)
         if target_changed:
             mu = nvm.registers["jnt"].content
             if sigma > 0:
@@ -49,6 +49,9 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
         target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
         if done: break
     
+    # print("last position:")
+    # print(position)
+    
     sym_reward = compute_symbolic_reward(nvm.env, goal_thing_below)
     spa_reward = compute_spatial_reward(nvm.env, goal_thing_below)
     reward = calc_reward(sym_reward, spa_reward)
@@ -56,13 +59,15 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
     return reward, log_prob
 
 if __name__ == "__main__":
-
+    
+    tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
+    
     num_repetitions = 1
     num_episodes = 2
-    num_epochs = 3
+    num_epochs = 2
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     # tr.autograd.set_detect_anomaly(True)
 
     sigma = 0.001 # stdev in random angular sampling (radians)
@@ -112,6 +117,9 @@ if __name__ == "__main__":
                 start_epoch = time.perf_counter()
                 epoch_rewards = []
                 epoch_baselines = []
+
+                # print("Wik:")
+                # print(conn_params["ik"][:,:8])
         
                 for episode in range(num_episodes):
                     start_episode = time.perf_counter()
@@ -134,7 +142,7 @@ if __name__ == "__main__":
                 # update params based on episodes
                 opt.step()
                 opt.zero_grad()
-                
+                                
                 delta = max((orig_conns[name] - conn_params[name]).abs().max() for name in trainable).item()
                 avg_reward = np.mean(epoch_rewards)
                 std_reward = np.std(epoch_rewards)
@@ -159,8 +167,8 @@ if __name__ == "__main__":
             epoch_rewards, epoch_baselines, deltas = zip(*results[rep])
             num_epochs = len(results[rep])
         
-            print("rep %d LC:" % rep)
-            for r,rewards in enumerate(epoch_rewards): print(r, rewards)
+            # print("rep %d LC:" % rep)
+            # for r,rewards in enumerate(epoch_rewards): print(r, rewards)
             
             pt.subplot(num_repetitions, 1, rep+1)
             pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k-')

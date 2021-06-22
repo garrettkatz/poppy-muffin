@@ -20,6 +20,11 @@ class NVMRegister:
         self.content = tr.zeros(self.size)
         self.old_content = tr.zeros(self.size)
         self.new_content = tr.zeros(self.size)
+        
+        # faster decoding
+        self.decode_tokens = list(codec.keys())
+        self.decode_matrix = tr.stack([codec[token] for token in self.decode_tokens])
+        
     def __str__(self):
         return "reg %s: %s, %s, %s" % (self.name,
             self.decode(self.old_content),
@@ -41,13 +46,13 @@ class NVMRegister:
             raise KeyError("%s not in %s codec" % (token, self.name))
         return self.codec[token]
     def decode(self, content):
-        for token, pattern in self.codec.items():
-            if (pattern*content > 0).all(): return token
-        return None
+        # for token, pattern in self.codec.items():
+        #     if (pattern*content > 0).all(): return token
+        # return None
+        return self.decode_tokens[self.decode_matrix.mv(content).argmax()]
 
 def FSER(W, x, y):
-    x, y = x.reshape(-1,1), y.reshape(-1,1)
-    dW = (y - W.mm(x)) * x.t() / float(W.shape[1])
+    dW = tr.outer(y - W.mv(x), x) / float(W.shape[1])
     return dW
 
 class NVMConnection:
@@ -89,16 +94,19 @@ class NeuralVirtualMachine:
         for register in self.registers.values(): print(" ", register)
         # for connection in self.connections.values(): print(" ", connection)
 
-    def tick(self):
+    def tick(self, diff_gates=False):
         
         # apply current gates
         gates = self.registers["gts"].content
         split = int(len(gates)/2)
         gs, gr = gates[:split], gates[split:] # store, recall
-        for c, name in enumerate(self.connection_names): self.connections[name].store(gs[c])
+        for c, name in enumerate(self.connection_names):
+            if diff_gates or gs[c] > 0.5: self.connections[name].store(gs[c])
 
         for register in self.registers.values(): register.new_content = register.content.clone() # clone important since gr is a view, don't want to update gates
-        for c, name in enumerate(self.connection_names): self.connections[name].recall(gr[c])
+        for c, name in enumerate(self.connection_names):
+            if diff_gates or gr[c] > 0.5:
+                self.connections[name].recall(gr[c])
         for register in self.registers.values(): register.update()
 
         self.tick_counter += 1
@@ -210,6 +218,14 @@ def virtualize(am):
     return nvm
     
 if __name__ == "__main__":
+    
+    x = tr.tensor([1., 1., -1.])
+    y = tr.tensor([-1., 1., 1.])
+    W = tr.zeros(3,3)
+    FSER(W, x, y)
+    input('.')
+
+
         
     import sys
     sys.path.append('../../envs')
