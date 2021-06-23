@@ -83,15 +83,22 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    num_repetitions = 1
+    num_repetitions = 3
     num_episodes = 30
     num_epochs = 100
     
-    run_exp = True
-    showresults = False
+    run_exp = False
+    showresults = True
+    showenv = False
+    showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
+
+    # trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
+    # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
+    trainable = ["ik", "to", "tc", "pc", "pc"]
+    # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
@@ -105,16 +112,16 @@ if __name__ == "__main__":
     for key, val in goal_thing_above.items():
         if val == "none": goal_thing_above[key] = "nil"
 
+    penalty_tracker = PenaltyTracker()
+
     if run_exp:
-        
-        penalty_tracker = PenaltyTracker()
 
         results = []
         for rep in range(num_repetitions):
             start_rep = time.perf_counter()
             results.append([])
         
-            env = BlocksWorldEnv(show=False, step_hook = penalty_tracker.step_hook)
+            env = BlocksWorldEnv(show=showenv, step_hook = penalty_tracker.step_hook)
             env.load_blocks(thing_below)
         
             # set up rvm and virtualize
@@ -128,9 +135,6 @@ if __name__ == "__main__":
             init_regs["jnt"] = tr.tensor(rvm.ik["rest"]).float()
 
             # set up trainable connections
-            # trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
-            # trainable = ["ik", "to", "tc", "pc", "pc"]
-            trainable = ["ik"]
             conn_params = {name: init_conns[name] for name in trainable}
             for p in conn_params.values(): p.requires_grad_()
             opt = tr.optim.Adam(conn_params.values(), lr=0.0001)
@@ -197,7 +201,7 @@ if __name__ == "__main__":
             rep_time = time.perf_counter() - start_rep
             print("%d took %fs" % (rep, rep_time))        
             # save trained model
-            with open("pfc_state_%d.pkl","wb") as f: pk.dump((init_regs, init_conns), f)
+            with open("pfc_state_%d.pkl" % rep,"wb") as f: pk.dump((init_regs, init_conns), f)
     
     if showresults:
         import matplotlib.pyplot as pt
@@ -206,17 +210,18 @@ if __name__ == "__main__":
 
         num_repetitions = len(results)
         for rep in range(num_repetitions):
-            epoch_rewards, epoch_baselines, deltas = zip(*results[rep])
+            epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
             num_epochs = len(results[rep])
         
             # print("rep %d LC:" % rep)
             # for r,rewards in enumerate(epoch_rewards): print(r, rewards)
             
             pt.subplot(num_repetitions, 1, rep+1)
-            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k-')
-            pt.plot([rewards[0] for rewards in epoch_rewards], 'b-')
+            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
+            pt.plot([rewards[0] for rewards in epoch_rtgs], 'b-')
+            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
             # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
-            x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rewards[r]])
+            x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r]])
             pt.plot(x, y, 'k.')
             # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
             # pt.plot(np.array(x)+.5, y, 'b.')
@@ -226,7 +231,7 @@ if __name__ == "__main__":
             
             # trend line
             window = 10
-            avg_rewards = np.mean(epoch_rewards, axis=1)
+            avg_rewards = np.mean(epoch_rtgs, axis=1)
             trend = np.zeros(len(avg_rewards) - window+1)
             for w in range(window):
                 trend += avg_rewards[w:w+len(trend)]
@@ -240,3 +245,22 @@ if __name__ == "__main__":
 
         pt.show()
     
+    if showtrained:
+
+        rep = 0
+        with open("pfc_state_%d.pkl" % rep, "rb") as f: (init_regs, init_conns) = pk.load(f)
+
+        env = BlocksWorldEnv(show=True, step_hook = penalty_tracker.step_hook)
+        env.load_blocks(thing_below)
+    
+        # set up rvm and virtualize
+        rvm = make_abstract_machine(env, num_bases, max_levels)
+        memorize_env(rvm, goal_thing_above)
+        rvm.reset({"jnt": "rest"})
+        rvm.mount("main")
+    
+        nvm = virtualize(rvm)
+        nvm.reset_state(init_regs, init_conns)
+        reward, log_prob, rewards, log_probs = run_episode(
+            env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0)
+
