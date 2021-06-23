@@ -201,7 +201,6 @@ if __name__ == "__main__":
                     delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
                     results[-1].append((epoch_rewards, epoch_baselines, epoch_rtgs, delta))
                     with open("pfc_%f.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
-                    with open("pfc_%f_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((init_regs, init_conns), f)
     
                     avg_reward = np.mean(epoch_rtgs)
                     std_reward = np.std(epoch_rtgs)
@@ -212,6 +211,8 @@ if __name__ == "__main__":
                 env.close()
                 rep_time = time.perf_counter() - start_rep
                 print("%d took %fs" % (rep, rep_time))
+                # save model (pkl might need outside epoch loop??)
+                with open("pfc_%f_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((init_regs, init_conns), f)
     
     if showresults:
         import matplotlib.pyplot as pt
