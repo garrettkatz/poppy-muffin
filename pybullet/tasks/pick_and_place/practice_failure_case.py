@@ -89,7 +89,10 @@ if __name__ == "__main__":
     
     num_repetitions = 5
     num_episodes = 30
-    num_epochs = 75
+    num_epochs = 100
+    # num_repetitions = 2
+    # num_episodes = 2
+    # num_epochs = 2
     
     run_exp = True
     showresults = False
@@ -98,10 +101,12 @@ if __name__ == "__main__":
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
-    learning_rates=[0.00005, 0.00001]
+    learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
+    # learning_rates = [0.0001] # ik/motor layrs only
 
-    # trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
-    trainable = ["ik", "to", "tc", "pc", "pc", "base"]
+    trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
+    # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
     # trainable = ["ik", "to", "tc", "pc", "pc"]
     # trainable = ["ik"]
 
@@ -124,11 +129,12 @@ if __name__ == "__main__":
     # def σ(v): return v
 
     if run_exp:
-
-        for learning_rate in learning_rates:
         
-            results = []
-            for rep in range(num_repetitions):
+        lr_results = {lr: list() for lr in learning_rates}
+        for rep in range(num_repetitions):
+            for learning_rate in learning_rates:
+        
+                results = lr_results[learning_rate]
                 start_rep = time.perf_counter()
                 results.append([])
                 
@@ -215,12 +221,15 @@ if __name__ == "__main__":
                 with open("pfc_%f_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((init_regs, init_conns), f)
     
     if showresults:
+        import os
         import matplotlib.pyplot as pt
         
         for lr, learning_rate in enumerate(learning_rates):
 
             # with open("pfc.pkl","rb") as f: results = pk.load(f)
-            with open("pfc_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
+            fname = "pfc_%f.pkl" % learning_rate
+            if os.path.exists(fname):
+                with open(fname,"rb") as f: results = pk.load(f)
     
             num_repetitions = len(results)
             for rep in range(num_repetitions):
@@ -231,6 +240,7 @@ if __name__ == "__main__":
                 # for r,rewards in enumerate(epoch_rewards): print(r, rewards)
                 
                 pt.subplot(num_repetitions, 2, 2*rep+lr+1)
+                if rep == 0: pt.title(str(learning_rate))
                 pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
                 pt.plot([rewards[0] for rewards in epoch_rtgs], 'b-')
                 pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
@@ -256,6 +266,9 @@ if __name__ == "__main__":
                 # pt.plot(np.arange(window//2, len(avg_rewards)-(window//2)), avg_rewards, 'ro-')
                 pt.plot(np.arange(len(trend)) + window//2, trend, 'ro-')
                 # pt.ylim([-2, 0])
+                
+                # constant line
+                pt.plot([0, len(avg_rewards)], avg_rewards[[0, 0]],'g-')
 
         pt.show()
     

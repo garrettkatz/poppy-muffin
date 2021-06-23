@@ -111,14 +111,18 @@ class NeuralVirtualMachine:
         
         # storage
         for c, name in enumerate(self.connection_names):
-            if diff_gates or gs[c] > 0.5: self.connections[name].store(gs[c])
+            # if diff_gates or gs[c] > 0.5: self.connections[name].store(gs[c])
+            if diff_gates: self.connections[name].store(gs[c])
+            elif gs[c] > 0.5: self.connections[name].store()
 
         # recall
         for register in self.registers.values():
             register.new_content = register.content.clone() # clone important since gr is a view, don't want to update gates
         for c, name in enumerate(self.connection_names):
-            if diff_gates or gr[c] > 0.5:
-                self.connections[name].recall(gr[c])
+            # if diff_gates or gr[c] > 0.5:
+            #     self.connections[name].recall(gr[c])
+            if diff_gates: self.connections[name].recall(gr[c])
+            elif gr[c] > 0.5: self.connections[name].recall()
 
         # shift buffers and apply activation function
         for register in self.registers.values():
