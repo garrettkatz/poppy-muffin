@@ -13,10 +13,14 @@ def hadamard_matrix(N):
     return H
 
 class NVMRegister:
-    def __init__(self, name, size, codec):
+    def __init__(self, name, size, codec, σ=None):
+        if σ is None: σ = lambda v: v
+
         self.name = name
         self.size = size
         self.codec = codec
+        self.σ = σ
+
         self.content = tr.zeros(self.size)
         self.old_content = tr.zeros(self.size)
         self.new_content = tr.zeros(self.size)
@@ -35,8 +39,9 @@ class NVMRegister:
         self.content = content
         self.new_content = tr.zeros(self.size)
         self.old_content = tr.zeros(self.size)
+    def activate(self):
+        self.content = self.σ(self.content)        
     def update(self):
-        # activation?
         # shift buffers
         self.old_content = self.content
         self.content = self.new_content
@@ -92,7 +97,9 @@ class NeuralVirtualMachine:
     def dbg(self):
         print("****************** dbg: tick %d **********************" % self.tick_counter)
         print(self.inst_at.get(self.registers["ipt"].decode(self.registers["ipt"].content), "internal"))
-        for register in self.registers.values(): print(" ", register)
+        for register in self.registers.values():
+            print(" ", register)
+            print(register.content.detach().numpy())
         # for connection in self.connections.values(): print(" ", connection)
 
     def tick(self, diff_gates=False):
@@ -101,14 +108,22 @@ class NeuralVirtualMachine:
         gates = self.registers["gts"].content
         split = int(len(gates)/2)
         gs, gr = gates[:split], gates[split:] # store, recall
+        
+        # storage
         for c, name in enumerate(self.connection_names):
             if diff_gates or gs[c] > 0.5: self.connections[name].store(gs[c])
 
-        for register in self.registers.values(): register.new_content = register.content.clone() # clone important since gr is a view, don't want to update gates
+        # recall
+        for register in self.registers.values():
+            register.new_content = register.content.clone() # clone important since gr is a view, don't want to update gates
         for c, name in enumerate(self.connection_names):
             if diff_gates or gr[c] > 0.5:
                 self.connections[name].recall(gr[c])
-        for register in self.registers.values(): register.update()
+
+        # shift buffers and apply activation function
+        for register in self.registers.values():
+            register.update()
+            register.activate()
 
         self.tick_counter += 1
 
@@ -171,7 +186,7 @@ def hadamard_codec(tokens):
     H = hadamard_matrix(N)
     return H.shape[0], {token: H[t] for t, token in enumerate(tokens)}
 
-def virtualize(am):
+def virtualize(am, σ=None):
     
     registers = {}
     
@@ -187,7 +202,7 @@ def virtualize(am):
 
     for name in tokens:
         size, codec = hadamard_codec(tokens[name])
-        registers[name] = NVMRegister(name, size, codec)
+        registers[name] = NVMRegister(name, size, codec, σ=σ)
 
     jnt_codec = {key: tr.tensor(val).float() for key, val in am.ik.items()}
     registers["jnt"] = NVMRegister("jnt", am.env.num_joints, jnt_codec)

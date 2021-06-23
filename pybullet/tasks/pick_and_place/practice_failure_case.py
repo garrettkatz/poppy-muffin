@@ -8,6 +8,8 @@ from abstract_machine import make_abstract_machine, memorize_env
 from restack import invert, compute_spatial_reward, compute_symbolic_reward
 from nvm import virtualize
 
+np.set_printoptions(linewidth=1000)
+
 def calc_reward(sym_reward, spa_reward):
     # reward = sym_reward + 0.1*spa_reward
     reward = sym_reward
@@ -56,6 +58,8 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
                 position = mu
 
             penalty_tracker.reset()
+            # nvm.dbg()
+            # print("       pos:", position.detach().numpy())
             nvm.env.goto_position(position.detach().numpy())
             rewards.append(-penalty_tracker.penalty)
             # print("net penalty: %.5f" % penalty_tracker.penalty)
@@ -83,20 +87,20 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    num_repetitions = 3
-    num_episodes = 30
-    num_epochs = 100
+    num_repetitions = 1
+    num_episodes = 2
+    num_epochs = 10
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
 
-    # trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
-    trainable = ["ik", "to", "tc", "pc", "pc", "base"]
+    trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
+    # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
     # trainable = ["ik", "to", "tc", "pc", "pc"]
     # trainable = ["ik"]
 
@@ -114,6 +118,10 @@ if __name__ == "__main__":
 
     penalty_tracker = PenaltyTracker()
 
+    σ1 = tr.tensor(1.).tanh()
+    def σ(v): return tr.tanh(v) / σ1
+    # def σ(v): return v
+
     if run_exp:
 
         results = []
@@ -129,8 +137,8 @@ if __name__ == "__main__":
             memorize_env(rvm, goal_thing_above)
             rvm.reset({"jnt": "rest"})
             rvm.mount("main")
-        
-            nvm = virtualize(rvm)
+
+            nvm = virtualize(rvm, σ)
             init_regs, init_conns = nvm.get_state()
             init_regs["jnt"] = tr.tensor(rvm.ik["rest"]).float()
 
@@ -187,14 +195,14 @@ if __name__ == "__main__":
                 opt.step()
                 opt.zero_grad()
 
-                delta = max((orig_conns[name] - conn_params[name]).abs().max() for name in trainable).item()
+                delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
                 results[-1].append((epoch_rewards, epoch_baselines, epoch_rtgs, delta))
                 with open("pfc.pkl","wb") as f: pk.dump(results, f)
                 with open("pfc_state_%d.pkl" % rep,"wb") as f: pk.dump((init_regs, init_conns), f)
 
                 avg_reward = np.mean(epoch_rtgs)
                 std_reward = np.std(epoch_rtgs)
-                print(" %d,%d: R = %f (+/- %f), dW = %f" % (rep, epoch, avg_reward, std_reward, delta))
+                print(" %d,%d: R = %f (+/- %f), dW: %s" % (rep, epoch, avg_reward, std_reward, delta))
                 epoch_time = time.perf_counter() - start_epoch
                 print(" %d,%d took %fs" % (rep, epoch, epoch_time))
 
@@ -257,8 +265,8 @@ if __name__ == "__main__":
         memorize_env(rvm, goal_thing_above)
         rvm.reset({"jnt": "rest"})
         rvm.mount("main")
-    
-        nvm = virtualize(rvm)
+
+        nvm = virtualize(rvm, σ)
         nvm.reset_state(init_regs, init_conns)
         reward, log_prob, rewards, log_probs = run_episode(
             env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0)
