@@ -83,7 +83,7 @@ class NVMConnection:
         # self.W += gate * dW # bad if self.W is a leaf variable requiring grad
         self.W = self.W + gate * dW
     def recall(self, gate = 1.0):
-        self.dst.new_content = self.dst.new_content * (1. - gate)
+        # self.dst.new_content = self.dst.new_content * (1. - gate)
         self.dst.new_content = self.dst.new_content + self.W.mv(self.src.content) * gate
 
 class NeuralVirtualMachine:
@@ -115,14 +115,36 @@ class NeuralVirtualMachine:
             if diff_gates: self.connections[name].store(gs[c])
             elif gs[c] > 0.5: self.connections[name].store()
 
+        # # recall
+        # for register in self.registers.values():
+        #     register.new_content = register.content.clone() # clone important since gr is a view, don't want to update gates
+        # recalled = set() # track if each register is recall target
+        # for c, name in enumerate(self.connection_names):
+        #     # if diff_gates or gr[c] > 0.5:
+        #     #     self.connections[name].recall(gr[c])
+        #     dst = self.connections[name].dst
+        #     if diff_gates:
+        #         if dst.name not in recalled: dst.new_content = dst.new_content * (1 - gr[c])
+        #         self.connections[name].recall(gr[c])
+        #     elif gr[c] > 0.5:
+        #         if dst.name not in recalled: dst.new_content = tr.zeros(dst.size)
+        #         self.connections[name].recall()
+        #     recalled.add(dst.name)
+
         # recall
+        recalled = set()
         for register in self.registers.values():
-            register.new_content = register.content.clone() # clone important since gr is a view, don't want to update gates
+            register.new_content = tr.zeros(register.size)
         for c, name in enumerate(self.connection_names):
-            # if diff_gates or gr[c] > 0.5:
-            #     self.connections[name].recall(gr[c])
-            if diff_gates: self.connections[name].recall(gr[c])
-            elif gr[c] > 0.5: self.connections[name].recall()
+            if diff_gates:
+                self.connections[name].recall(gr[c])
+                recalled.add(self.connections[name].dst.name)
+            elif gr[c] > 0.5:
+                self.connections[name].recall()
+                recalled.add(self.connections[name].dst.name)
+
+        for register in self.registers.values():
+            if register.name not in recalled: register.new_content = register.content
 
         # shift buffers and apply activation function
         for register in self.registers.values():

@@ -5,7 +5,7 @@ import sys, time
 sys.path.append('../../envs')
 from blocks_world import BlocksWorldEnv
 from abstract_machine import make_abstract_machine, memorize_env
-from restack import invert, compute_spatial_reward, compute_symbolic_reward
+from restack import invert, compute_spatial_reward, compute_symbolic_reward, random_problem_instance
 from nvm import virtualize
 
 np.set_printoptions(linewidth=1000)
@@ -31,6 +31,11 @@ def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, 
     # reload blocks
     env.reset()
     env.load_blocks(thing_below)
+
+    # invert goals for nvm
+    goal_thing_above = invert(goal_thing_below, num_blocks=len(thing_below), num_bases=len(env.bases))
+    for key, val in goal_thing_above.items():
+        if val == "none": goal_thing_above[key] = "nil"
 
     # reset nvm, input new env, mount main program
     nvm.reset_state(init_regs, init_conns)
@@ -87,12 +92,12 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    # num_repetitions = 5
-    # num_episodes = 30
-    # num_epochs = 100
-    num_repetitions = 2
+    num_repetitions = 5
     num_episodes = 30
-    num_epochs = 30
+    num_epochs = 100
+    # num_repetitions = 2
+    # num_episodes = 2
+    # num_epochs = 2
     
     run_exp = True
     showresults = False
@@ -103,24 +108,19 @@ if __name__ == "__main__":
     use_penalties = True
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
-    learning_rates = [0.00005] # ik/motor layrs only
+    learning_rates = [0.0001] # ik/motor layrs only
 
     # trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
     # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
-    trainable = ["ik", "to", "tc", "pc", "pc"]
-    # trainable = ["ik"]
+    # trainable = ["ik", "to", "tc", "pc", "pc"]
+    trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
-    # one failure case:
+    # problem size:
     max_levels = 3
-    num_blocks = 5
-    num_bases = 5
-    thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
-    goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
-    goal_thing_above = invert(goal_thing_below, num_blocks, num_bases)
-    for key, val in goal_thing_above.items():
-        if val == "none": goal_thing_above[key] = "nil"
+    num_blocks = 7
+    num_bases = 7
 
     penalty_tracker = PenaltyTracker()
 
@@ -139,11 +139,10 @@ if __name__ == "__main__":
                 results.append([])
                 
                 env = BlocksWorldEnv(show=showenv, step_hook = penalty_tracker.step_hook)
-                env.load_blocks(thing_below)
+                env.load_blocks({"b%d"%n: "t%d"%n for n in range(num_bases)}) # placeholder for rvm construction
             
                 # set up rvm and virtualize
                 rvm = make_abstract_machine(env, num_bases, max_levels)
-                memorize_env(rvm, goal_thing_above)
                 rvm.reset({"jnt": "rest"})
                 rvm.mount("main")
     
@@ -165,33 +164,29 @@ if __name__ == "__main__":
                     epoch_baselines = []
                     epoch_rtgs = []
     
-                    # print("Wik:")
-                    # print(conn_params["ik"][:,:8])
-            
                     for episode in range(num_episodes):
                         start_episode = time.perf_counter()
+                        
+                        # random problem instance
+                        env.reset()
+                        thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)
                 
                         baseline = 0
     
-                        if episode == 0: # noiseless first episode
-                            reward, log_prob, rewards, log_probs = run_episode(
-                                env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0)
-                            rewards_to_go = [sum(rewards)]
-                        else:                    
-                            reward, log_prob, rewards, log_probs = run_episode(
-                                env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma)
-                            
-                            if use_penalties:
-                                rewards = np.array(rewards)
-                                rewards_to_go = np.cumsum(rewards)
-                                rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
-                                for t in range(len(rewards)):
-                                    loss = - (rewards_to_go[t] * log_probs[t])
-                                    loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
-                            else:
-                                rewards_to_go = [0]
-                                loss = - (reward - baseline) * log_prob
-                                loss.backward()
+                        reward, log_prob, rewards, log_probs = run_episode(
+                            env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma)
+                        
+                        if use_penalties:
+                            rewards = np.array(rewards)
+                            rewards_to_go = np.cumsum(rewards)
+                            rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
+                            for t in range(len(rewards)):
+                                loss = - (rewards_to_go[t] * log_probs[t])
+                                loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
+                        else:
+                            rewards_to_go = [0]
+                            loss = - (reward - baseline) * log_prob
+                            loss.backward()
                                                 
                         epoch_rewards.append(reward)
                         epoch_baselines.append(baseline)
@@ -206,7 +201,7 @@ if __name__ == "__main__":
     
                     delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
                     results[-1].append((epoch_rewards, epoch_baselines, epoch_rtgs, delta))
-                    with open("pfc_%f.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
+                    with open("pac_%f.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
     
                     avg_reward = np.mean(epoch_rtgs)
                     std_reward = np.std(epoch_rtgs)
@@ -218,7 +213,7 @@ if __name__ == "__main__":
                 rep_time = time.perf_counter() - start_rep
                 print("%d took %fs" % (rep, rep_time))
                 # save model (pkl might need outside epoch loop??)
-                with open("pfc_%f_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((init_regs, init_conns), f)
+                with open("pac_%f_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((init_regs, init_conns), f)
     
     if showresults:
         import os
@@ -226,8 +221,8 @@ if __name__ == "__main__":
         
         for lr, learning_rate in enumerate(learning_rates):
 
-            # with open("pfc.pkl","rb") as f: results = pk.load(f)
-            fname = "pfc_%f.pkl" % learning_rate
+            # with open("pac.pkl","rb") as f: results = pk.load(f)
+            fname = "pac_%f.pkl" % learning_rate
             if os.path.exists(fname):
                 with open(fname,"rb") as f: results = pk.load(f)
     
@@ -235,16 +230,11 @@ if __name__ == "__main__":
             for rep in range(num_repetitions):
                 epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
                 num_epochs = len(results[rep])
-            
-                # print("rep %d LC:" % rep)
-                # for r,rewards in enumerate(epoch_rewards): print(r, rewards)
                 
                 pt.subplot(num_repetitions, len(learning_rates), len(learning_rates)*rep+lr+1)
                 if rep == 0: pt.title(str(learning_rate))
                 pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
-                pt.plot([rewards[0] for rewards in epoch_rtgs], 'b-')
                 pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
-                # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
                 x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r]])
                 pt.plot(x, y, 'k.')
                 # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
@@ -275,7 +265,7 @@ if __name__ == "__main__":
     if showtrained:
 
         rep = 0
-        with open("pfc_state_%d.pkl" % rep, "rb") as f: (init_regs, init_conns) = pk.load(f)
+        with open("pac_state_%d.pkl" % rep, "rb") as f: (init_regs, init_conns) = pk.load(f)
 
         env = BlocksWorldEnv(show=True, step_hook = penalty_tracker.step_hook)
         env.load_blocks(thing_below)
@@ -290,4 +280,6 @@ if __name__ == "__main__":
         nvm.reset_state(init_regs, init_conns)
         reward, log_prob, rewards, log_probs = run_episode(
             env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0)
+
+
 

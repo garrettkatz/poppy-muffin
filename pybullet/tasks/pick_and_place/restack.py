@@ -5,7 +5,6 @@ import matplotlib.pyplot as pt
 sys.path.append('../../envs')    
 from blocks_world import BlocksWorldEnv, random_thing_below
     
-
 def compute_symbolic_reward(env, goal_thing_below):
     env.update_relations()
     reward = 0
