@@ -96,8 +96,8 @@ if __name__ == "__main__":
     use_penalties = True
 
     # trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
-    # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
-    trainable = ["ik", "to", "tc", "pc", "pc"]
+    trainable = ["ik", "to", "tc", "pc", "pc", "base"]
+    # trainable = ["ik", "to", "tc", "pc", "pc"]
     # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
@@ -186,22 +186,21 @@ if __name__ == "__main__":
                 # update params based on episodes
                 opt.step()
                 opt.zero_grad()
-                                
+
                 delta = max((orig_conns[name] - conn_params[name]).abs().max() for name in trainable).item()
-                avg_reward = np.mean(epoch_rtgs)
-                std_reward = np.std(epoch_rtgs)
-                
                 results[-1].append((epoch_rewards, epoch_baselines, epoch_rtgs, delta))
                 with open("pfc.pkl","wb") as f: pk.dump(results, f)
-                epoch_time = time.perf_counter() - start_epoch
+                with open("pfc_state_%d.pkl" % rep,"wb") as f: pk.dump((init_regs, init_conns), f)
+
+                avg_reward = np.mean(epoch_rtgs)
+                std_reward = np.std(epoch_rtgs)
                 print(" %d,%d: R = %f (+/- %f), dW = %f" % (rep, epoch, avg_reward, std_reward, delta))
+                epoch_time = time.perf_counter() - start_epoch
                 print(" %d,%d took %fs" % (rep, epoch, epoch_time))
 
             env.close()
             rep_time = time.perf_counter() - start_rep
             print("%d took %fs" % (rep, rep_time))        
-            # save trained model
-            with open("pfc_state_%d.pkl" % rep,"wb") as f: pk.dump((init_regs, init_conns), f)
     
     if showresults:
         import matplotlib.pyplot as pt
