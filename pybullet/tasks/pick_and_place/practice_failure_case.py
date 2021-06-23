@@ -87,9 +87,9 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    num_repetitions = 1
-    num_episodes = 2
-    num_epochs = 10
+    num_repetitions = 5
+    num_episodes = 30
+    num_epochs = 75
     
     run_exp = True
     showresults = False
@@ -98,9 +98,10 @@ if __name__ == "__main__":
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
+    learning_rates=[0.00005, 0.00001]
 
-    trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
-    # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
+    # trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
+    trainable = ["ik", "to", "tc", "pc", "pc", "base"]
     # trainable = ["ik", "to", "tc", "pc", "pc"]
     # trainable = ["ik"]
 
@@ -124,131 +125,136 @@ if __name__ == "__main__":
 
     if run_exp:
 
-        results = []
-        for rep in range(num_repetitions):
-            start_rep = time.perf_counter()
-            results.append([])
+        for learning_rate in learning_rates:
         
-            env = BlocksWorldEnv(show=showenv, step_hook = penalty_tracker.step_hook)
-            env.load_blocks(thing_below)
-        
-            # set up rvm and virtualize
-            rvm = make_abstract_machine(env, num_bases, max_levels)
-            memorize_env(rvm, goal_thing_above)
-            rvm.reset({"jnt": "rest"})
-            rvm.mount("main")
-
-            nvm = virtualize(rvm, σ)
-            init_regs, init_conns = nvm.get_state()
-            init_regs["jnt"] = tr.tensor(rvm.ik["rest"]).float()
-
-            # set up trainable connections
-            conn_params = {name: init_conns[name] for name in trainable}
-            for p in conn_params.values(): p.requires_grad_()
-            opt = tr.optim.Adam(conn_params.values(), lr=0.0001)
+            results = []
+            for rep in range(num_repetitions):
+                start_rep = time.perf_counter()
+                results.append([])
+                
+                env = BlocksWorldEnv(show=showenv, step_hook = penalty_tracker.step_hook)
+                env.load_blocks(thing_below)
             
-            # save original values for comparison
-            orig_conns = {name: init_conns[name].detach().clone() for name in trainable}
-            
-            for epoch in range(num_epochs):
-                start_epoch = time.perf_counter()
-                epoch_rewards = []
-                epoch_baselines = []
-                epoch_rtgs = []
-
-                # print("Wik:")
-                # print(conn_params["ik"][:,:8])
-        
-                for episode in range(num_episodes):
-                    start_episode = time.perf_counter()
-            
-                    baseline = 0
-
-                    if episode == 0: # noiseless first episode
-                        reward, log_prob, rewards, log_probs = run_episode(
-                            env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0)
-                        rewards_to_go = [sum(rewards)]
-                    else:                    
-                        reward, log_prob, rewards, log_probs = run_episode(
-                            env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma)
-                        
-                        if use_penalties:
-                            rewards = np.array(rewards)
-                            rewards_to_go = np.cumsum(rewards)
-                            rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
-                            for t in range(len(rewards)):
-                                loss = - (rewards_to_go[t] * log_probs[t])
-                                loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
-                        else:
-                            rewards_to_go = [0]
-                            loss = - (reward - baseline) * log_prob
-                            loss.backward()
-                                            
-                    epoch_rewards.append(reward)
-                    epoch_baselines.append(baseline)
-                    epoch_rtgs.append(rewards_to_go[0])
-                    episode_time = time.perf_counter() - start_episode
-                    print("    %d,%d,%d: r = %f[%f], b = %f, lp= %f, took %fs" % (
-                        rep, epoch, episode, reward, rewards_to_go[0], baseline, log_prob, episode_time))
+                # set up rvm and virtualize
+                rvm = make_abstract_machine(env, num_bases, max_levels)
+                memorize_env(rvm, goal_thing_above)
+                rvm.reset({"jnt": "rest"})
+                rvm.mount("main")
     
-                # update params based on episodes
-                opt.step()
-                opt.zero_grad()
-
-                delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
-                results[-1].append((epoch_rewards, epoch_baselines, epoch_rtgs, delta))
-                with open("pfc.pkl","wb") as f: pk.dump(results, f)
-                with open("pfc_state_%d.pkl" % rep,"wb") as f: pk.dump((init_regs, init_conns), f)
-
-                avg_reward = np.mean(epoch_rtgs)
-                std_reward = np.std(epoch_rtgs)
-                print(" %d,%d: R = %f (+/- %f), dW: %s" % (rep, epoch, avg_reward, std_reward, delta))
-                epoch_time = time.perf_counter() - start_epoch
-                print(" %d,%d took %fs" % (rep, epoch, epoch_time))
-
-            env.close()
-            rep_time = time.perf_counter() - start_rep
-            print("%d took %fs" % (rep, rep_time))        
+                nvm = virtualize(rvm, σ)
+                init_regs, init_conns = nvm.get_state()
+                init_regs["jnt"] = tr.tensor(rvm.ik["rest"]).float()
+    
+                # set up trainable connections
+                conn_params = {name: init_conns[name] for name in trainable}
+                for p in conn_params.values(): p.requires_grad_()
+                opt = tr.optim.Adam(conn_params.values(), lr=learning_rate)
+                
+                # save original values for comparison
+                orig_conns = {name: init_conns[name].detach().clone() for name in trainable}
+                
+                for epoch in range(num_epochs):
+                    start_epoch = time.perf_counter()
+                    epoch_rewards = []
+                    epoch_baselines = []
+                    epoch_rtgs = []
+    
+                    # print("Wik:")
+                    # print(conn_params["ik"][:,:8])
+            
+                    for episode in range(num_episodes):
+                        start_episode = time.perf_counter()
+                
+                        baseline = 0
+    
+                        if episode == 0: # noiseless first episode
+                            reward, log_prob, rewards, log_probs = run_episode(
+                                env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0)
+                            rewards_to_go = [sum(rewards)]
+                        else:                    
+                            reward, log_prob, rewards, log_probs = run_episode(
+                                env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma)
+                            
+                            if use_penalties:
+                                rewards = np.array(rewards)
+                                rewards_to_go = np.cumsum(rewards)
+                                rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
+                                for t in range(len(rewards)):
+                                    loss = - (rewards_to_go[t] * log_probs[t])
+                                    loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
+                            else:
+                                rewards_to_go = [0]
+                                loss = - (reward - baseline) * log_prob
+                                loss.backward()
+                                                
+                        epoch_rewards.append(reward)
+                        epoch_baselines.append(baseline)
+                        epoch_rtgs.append(rewards_to_go[0])
+                        episode_time = time.perf_counter() - start_episode
+                        print("    %d,%d,%d: r = %f[%f], b = %f, lp= %f, took %fs" % (
+                            rep, epoch, episode, reward, rewards_to_go[0], baseline, log_prob, episode_time))
+        
+                    # update params based on episodes
+                    opt.step()
+                    opt.zero_grad()
+    
+                    delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
+                    results[-1].append((epoch_rewards, epoch_baselines, epoch_rtgs, delta))
+                    with open("pfc_%f.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
+                    with open("pfc_%f_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((init_regs, init_conns), f)
+    
+                    avg_reward = np.mean(epoch_rtgs)
+                    std_reward = np.std(epoch_rtgs)
+                    print(" %d,%d: R = %f (+/- %f), dW: %s" % (rep, epoch, avg_reward, std_reward, delta))
+                    epoch_time = time.perf_counter() - start_epoch
+                    print(" %d,%d took %fs" % (rep, epoch, epoch_time))
+    
+                env.close()
+                rep_time = time.perf_counter() - start_rep
+                print("%d took %fs" % (rep, rep_time))
     
     if showresults:
         import matplotlib.pyplot as pt
-
-        with open("pfc.pkl","rb") as f: results = pk.load(f)
-
-        num_repetitions = len(results)
-        for rep in range(num_repetitions):
-            epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
-            num_epochs = len(results[rep])
         
-            # print("rep %d LC:" % rep)
-            # for r,rewards in enumerate(epoch_rewards): print(r, rewards)
-            
-            pt.subplot(num_repetitions, 1, rep+1)
-            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
-            pt.plot([rewards[0] for rewards in epoch_rtgs], 'b-')
-            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
-            # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
-            x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r]])
-            pt.plot(x, y, 'k.')
-            # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
-            # pt.plot(np.array(x)+.5, y, 'b.')
+        for lr, learning_rate in enumerate(learning_rates):
+
+            # with open("pfc.pkl","rb") as f: results = pk.load(f)
+            with open("pfc_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
     
-            # pt.plot(np.log(-np.array(rewards)))
-            # pt.ylabel("log(-R)")
+            num_repetitions = len(results)
+            for rep in range(num_repetitions):
+                epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
+                num_epochs = len(results[rep])
             
-            # trend line
-            window = 10
-            avg_rewards = np.mean(epoch_rtgs, axis=1)
-            trend = np.zeros(len(avg_rewards) - window+1)
-            for w in range(window):
-                trend += avg_rewards[w:w+len(trend)]
-            trend /= window
-            # for r in range(len(avg_rewards)-window):
-            #     avg_rewards[r] += avg_rewards[r+1:r+window].sum()
-            #     avg_rewards[r] /= window
-            # pt.plot(np.arange(window//2, len(avg_rewards)-(window//2)), avg_rewards, 'ro-')
-            pt.plot(np.arange(len(trend)) + window//2, trend, 'ro-')
-            # pt.ylim([-2, 0])
+                # print("rep %d LC:" % rep)
+                # for r,rewards in enumerate(epoch_rewards): print(r, rewards)
+                
+                pt.subplot(num_repetitions, 2, 2*rep+lr+1)
+                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
+                pt.plot([rewards[0] for rewards in epoch_rtgs], 'b-')
+                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
+                # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
+                x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r]])
+                pt.plot(x, y, 'k.')
+                # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
+                # pt.plot(np.array(x)+.5, y, 'b.')
+        
+                # pt.plot(np.log(-np.array(rewards)))
+                # pt.ylabel("log(-R)")
+                
+                # trend line
+                avg_rewards = np.mean(epoch_rtgs, axis=1)
+                window = min(10, len(avg_rewards))
+                trend = np.zeros(len(avg_rewards) - window+1)
+                for w in range(window):
+                    trend += avg_rewards[w:w+len(trend)]
+                trend /= window
+                # for r in range(len(avg_rewards)-window):
+                #     avg_rewards[r] += avg_rewards[r+1:r+window].sum()
+                #     avg_rewards[r] /= window
+                # pt.plot(np.arange(window//2, len(avg_rewards)-(window//2)), avg_rewards, 'ro-')
+                pt.plot(np.arange(len(trend)) + window//2, trend, 'ro-')
+                # pt.ylim([-2, 0])
 
         pt.show()
     
