@@ -89,19 +89,20 @@ if __name__ == "__main__":
     
     num_repetitions = 5
     num_episodes = 30
-    num_epochs = 100
+    num_epochs = 150
     # num_repetitions = 2
     # num_episodes = 30
     # num_epochs = 30
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
-    learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    # learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    learning_rates=[0.000075] # all stack layers trainable
     trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
@@ -110,7 +111,6 @@ if __name__ == "__main__":
     # learning_rates = [0.00005] # ik/motor layrs only
     # trainable = ["ik", "to", "tc", "pc", "pc"]
     # trainable = ["ik"]
-
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
@@ -229,7 +229,8 @@ if __name__ == "__main__":
         for lr, learning_rate in enumerate(learning_rates):
 
             # with open("pfc.pkl","rb") as f: results = pk.load(f)
-            fname = "pfc_%f.pkl" % learning_rate
+            # fname = "pfc_%f.pkl" % learning_rate
+            fname = "stack_trained/pfc_%f.pkl" % learning_rate
             if os.path.exists(fname):
                 with open(fname,"rb") as f: results = pk.load(f)
     
