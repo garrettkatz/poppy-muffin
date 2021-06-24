@@ -99,19 +99,22 @@ if __name__ == "__main__":
     # num_episodes = 2
     # num_epochs = 2
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
-    learning_rates=[0.0001, 0.00005] # all stack layers trainable
-    # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
-    # learning_rates = [0.0001] # ik/motor layrs only
 
+    # learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    learning_rates=[0.001, .0005] # all stack layers trainable
     trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
+
+    # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
+
+    # learning_rates = [0.0001] # ik/motor layrs only
     # trainable = ["ik", "to", "tc", "pc", "pc"]
     # trainable = ["ik"]
 

@@ -94,8 +94,8 @@ if __name__ == "__main__":
     # num_episodes = 30
     # num_epochs = 30
     
-    run_exp = True
-    showresults = False
+    run_exp = False
+    showresults = True
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
@@ -229,8 +229,8 @@ if __name__ == "__main__":
         for lr, learning_rate in enumerate(learning_rates):
 
             # with open("pfc.pkl","rb") as f: results = pk.load(f)
-            # fname = "pfc_%f.pkl" % learning_rate
-            fname = "stack_trained/pfc_%f.pkl" % learning_rate
+            # fname = "stack_trained/pfc_%f.pkl" % learning_rate
+            fname = "pfc_%f.pkl" % learning_rate
             if os.path.exists(fname):
                 with open(fname,"rb") as f: results = pk.load(f)
     
