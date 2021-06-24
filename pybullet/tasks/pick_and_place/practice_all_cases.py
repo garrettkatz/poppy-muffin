@@ -123,8 +123,8 @@ if __name__ == "__main__":
 
     # problem size:
     max_levels = 3
-    num_blocks = 7
-    num_bases = 7
+    num_blocks = 5
+    num_bases = 5
 
     penalty_tracker = PenaltyTracker()
 
