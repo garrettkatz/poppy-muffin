@@ -94,8 +94,8 @@ if __name__ == "__main__":
     # num_episodes = 30
     # num_epochs = 30
     
-    run_exp = True
-    showresults = False
+    run_exp = False
+    showresults = True
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
@@ -227,7 +227,7 @@ if __name__ == "__main__":
         import matplotlib.pyplot as pt
         
         # one representative run
-        if True:
+        if False:
             learning_rate = .000075
             with open("stack_trained/pfc_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
             rep = 4
@@ -280,38 +280,36 @@ if __name__ == "__main__":
             pt.savefig("deltas.eps")
             pt.savefig("deltas.png")
             pt.show()
-            
         
-        # different learning rates
-        pt.figure(figsize=(5,4))
-        for lr, learning_rate in enumerate(learning_rates):
-            fname = "stack_trained/pfc_%f.pkl" % learning_rate
-            with open(fname,"rb") as f: results = pk.load(f)    
-            num_repetitions = len(results)
-            pt.subplot(len(learning_rates), 1, lr+1)
-            num_epochs = len(results[0])
-            syms = np.empty((num_repetitions, num_epochs))
-            for rep in range(num_repetitions):
-                epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
-                syms[rep,:num_epochs] = np.array([np.mean(rewards[1:]) for rewards in epoch_rewards])
-            pt.plot(syms.T, '-', color=(.75, .75, .75))
-            pt.plot(syms.mean(axis=0), 'k-')
-            pt.xlim([0, 150])
-            # pt.ylabel("LR = %s" % str(learning_rate))
-            pt.ylabel("%.1e" % learning_rate)
-            if lr == 0: pt.title("Symbolic performance with different learning rates")
-            if lr+1 == len(learning_rates): pt.xlabel("Training epoch")
-        pt.tight_layout()
-        pt.savefig("fail_train_many.png")
-        pt.savefig("fail_train_many.eps")
-        pt.show()
+            # different learning rates
+            pt.figure(figsize=(5,4))
+            for lr, learning_rate in enumerate(learning_rates):
+                fname = "stack_trained/pfc_%f.pkl" % learning_rate
+                with open(fname,"rb") as f: results = pk.load(f)    
+                num_repetitions = len(results)
+                pt.subplot(len(learning_rates), 1, lr+1)
+                num_epochs = len(results[0])
+                syms = np.empty((num_repetitions, num_epochs))
+                for rep in range(num_repetitions):
+                    epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
+                    syms[rep,:num_epochs] = np.array([np.mean(rewards[1:]) for rewards in epoch_rewards])
+                pt.plot(syms.T, '-', color=(.75, .75, .75))
+                pt.plot(syms.mean(axis=0), 'k-')
+                pt.xlim([0, 150])
+                # pt.ylabel("LR = %s" % str(learning_rate))
+                pt.ylabel("%.1e" % learning_rate)
+                if lr == 0: pt.title("Symbolic performance with different learning rates")
+                if lr+1 == len(learning_rates): pt.xlabel("Training epoch")
+            pt.tight_layout()
+            pt.savefig("fail_train_many.png")
+            pt.savefig("fail_train_many.eps")
+            pt.show()
 
         for lr, learning_rate in enumerate(learning_rates):
-            break
 
             # with open("pfc.pkl","rb") as f: results = pk.load(f)
-            fname = "stack_trained/pfc_%f.pkl" % learning_rate
-            # fname = "pfc_%f.pkl" % learning_rate
+            # fname = "stack_trained/pfc_%f.pkl" % learning_rate
+            fname = "pfc_%f.pkl" % learning_rate
             if os.path.exists(fname):
                 with open(fname,"rb") as f: results = pk.load(f)
     
