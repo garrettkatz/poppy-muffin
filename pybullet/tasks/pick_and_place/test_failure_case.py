@@ -106,3 +106,4 @@ if __name__ == "__main__":
         print("sym (init, trained): %f[%f], %f[%f]" % (init_sym, sum(init_rewards), trained_sym, sum(trained_rewards)))
         
         env.close()
+

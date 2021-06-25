@@ -93,21 +93,22 @@ if __name__ == "__main__":
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
     num_repetitions = 5
-    num_episodes = 30
-    num_epochs = 150
+    num_episodes = 100
+    num_epochs = 50
     # num_repetitions = 2
     # num_episodes = 2
     # num_epochs = 2
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
 
-    learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
+    learning_rates=[0.00005] # all stack layers trainable
+    # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.001, .0005] # all stack layers trainable
     # learning_rates=[0.00001] # all stack layers trainable
@@ -147,7 +148,7 @@ if __name__ == "__main__":
                 env.load_blocks({"b%d"%n: "t%d"%n for n in range(num_bases)}) # placeholder for rvm construction
             
                 # set up rvm and virtualize
-                rvm = make_abstract_machine(env, num_bases, max_levels)
+                rvm = make_abstract_machine(env, num_bases, max_levels, gen_regs=["r0","r1"])
                 rvm.reset({"jnt": "rest"})
                 rvm.mount("main")
     

@@ -164,7 +164,7 @@ class Compiler:
         self.machine.message_at[self.cur_ipt] = message
 
 class AbstractMachine:
-    def __init__(self, env, num_bases, max_levels, spt_range=32):
+    def __init__(self, env, num_bases, max_levels, spt_range=32, gen_regs=None):
         self.env = env
         self.num_blocks = num_bases
         self.max_levels = max_levels
@@ -249,7 +249,7 @@ class AbstractMachine:
         # general purpose registers and jmp
         self.blocks = ["b%d" % b for b in range(num_bases)]
         self.objs = self.env.bases + self.blocks
-        gen_regs = ["r0", "r1", "r2"]
+        if gen_regs is None: gen_regs = ["r0", "r1", "r2"]
         for name in gen_regs:
             self.registers[name] = AbstractRegister(name)
         for src, dst in it.permutations(gen_regs + ["jmp"], 2):
@@ -356,9 +356,9 @@ class AbstractMachine:
             if done: break
         return self.tick_counter
 
-def setup_abstract_machine(env, num_bases, max_levels):
+def setup_abstract_machine(env, num_bases, max_levels, gen_regs=None):
 
-    am = AbstractMachine(env, num_bases, max_levels)
+    am = AbstractMachine(env, num_bases, max_levels, gen_regs=gen_regs)
     compiler = Compiler(am)
     
     # special firmware routines for return-if-nil
@@ -649,9 +649,9 @@ def main(comp):
     # comp.put((0,1), "loc")
     # comp.call("free_spot")
 
-def make_abstract_machine(env, num_bases, max_levels):
+def make_abstract_machine(env, num_bases, max_levels, gen_regs=None):
 
-    am, compiler = setup_abstract_machine(env, num_bases, max_levels)
+    am, compiler = setup_abstract_machine(env, num_bases, max_levels, gen_regs=gen_regs)
 
     # # tests
     # compiler.flash(test_rin)
