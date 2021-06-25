@@ -240,12 +240,12 @@ if __name__ == "__main__":
                 
                 pt.subplot(num_repetitions, len(learning_rates), len(learning_rates)*rep+lr+1)
                 if rep == 0: pt.title(str(learning_rate))
-                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
-                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
                 x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r]])
                 pt.plot(x, y, 'k.')
                 # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
                 # pt.plot(np.array(x)+.5, y, 'b.')
+                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'b-')
+                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'b--')
         
                 # pt.plot(np.log(-np.array(rewards)))
                 # pt.ylabel("log(-R)")
