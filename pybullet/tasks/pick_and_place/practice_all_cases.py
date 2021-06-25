@@ -94,7 +94,7 @@ if __name__ == "__main__":
     
     num_repetitions = 5
     num_episodes = 30
-    num_epochs = 100
+    num_epochs = 150
     # num_repetitions = 2
     # num_episodes = 2
     # num_epochs = 2
@@ -107,16 +107,17 @@ if __name__ == "__main__":
     
     use_penalties = True
 
+    learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.001, .0005] # all stack layers trainable
-    learning_rates=[0.00001] # all stack layers trainable
-    trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
+    # learning_rates=[0.00001] # all stack layers trainable
+    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
-    # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
+    # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
     # learning_rates = [0.0001] # ik/motor layrs only
-    # trainable = ["ik", "to", "tc", "pc", "pc"]
+    # trainable = ["ik", "to", "tc", "po", "pc"]
     # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
@@ -228,6 +229,7 @@ if __name__ == "__main__":
             # with open("pac.pkl","rb") as f: results = pk.load(f)
             # fname = "pac_%f.pkl" % learning_rate
             fname = "stack_trained/pac_%f.pkl" % learning_rate
+            # fname = "all_case5/pac_%f.pkl" % learning_rate
             if os.path.exists(fname):
                 with open(fname,"rb") as f: results = pk.load(f)
     

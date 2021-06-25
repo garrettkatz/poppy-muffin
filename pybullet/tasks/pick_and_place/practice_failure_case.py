@@ -94,8 +94,8 @@ if __name__ == "__main__":
     # num_episodes = 30
     # num_epochs = 30
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
@@ -103,13 +103,13 @@ if __name__ == "__main__":
     use_penalties = True
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
-    trainable = ["ik", "to", "tc", "pc", "pc", "right", "above", "base"]
+    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
-    # trainable = ["ik", "to", "tc", "pc", "pc", "base"]
+    # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
     # learning_rates = [0.00005] # ik/motor layrs only
-    # trainable = ["ik", "to", "tc", "pc", "pc"]
+    # trainable = ["ik", "to", "tc", "po", "pc"]
     # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
@@ -226,7 +226,88 @@ if __name__ == "__main__":
         import os
         import matplotlib.pyplot as pt
         
+        # one representative run
+        if True:
+            learning_rate = .000075
+            with open("stack_trained/pfc_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
+            rep = 4
+            num_epochs = len(results[rep])
+            epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
+            pt.figure(figsize=(5,1.75))
+            # x, y = zip(*[(r+.5,reward) for r in range(num_epochs) for reward in epoch_rewards[r][1:]])
+            # pt.plot(x, y, '.', c=(.75, .75, .75))
+            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
+            # y = [np.mean(rewards[1:]) for rewards in epoch_rtgs]
+            # ye = [np.std(rewards[1:]) for rewards in epoch_rtgs]
+            # pt.errorbar(np.arange(len(y)), y, yerr=ye, fmt='k-')
+            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
+            pt.legend(["avg. reward", "avg. symbolic"], framealpha=1)
+            x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r][1:]])
+            pt.plot(x, y, '.', c=(.75, .75, .75), zorder=-1)
+            pt.xlabel("Training epoch")
+            pt.ylabel("Performance")
+            pt.tight_layout()
+            pt.savefig("fail_train_one.eps")
+            pt.savefig("fail_train_one.png")
+            pt.show()
+
+            pt.figure(figsize=(5,1.75))
+            # pt.plot([d["ik"] for d in deltas], color=(0,)*3, label="ik")
+            # pt.plot([d["to"] for d in deltas], color=(.25,)*3, label="to,tc,pc")
+            # pt.plot([d["pc"] for d in deltas], color=(.25,)*3)
+            # pt.plot([d["tc"] for d in deltas], color=(.25,)*3)
+            # pt.plot([d["right"] for d in deltas], color=(.5,)*3, label="right,above,next")
+            # pt.plot([d["above"] for d in deltas], color=(.5,)*3)
+            # pt.plot([d["base"] for d in deltas], color=(.5,)*3)
+            pt.plot([d["ik"] for d in deltas], 'k-', label="ik")
+            pt.plot([d["to"] for d in deltas], 'k--', label="to,tc,pc")
+            pt.plot([d["pc"] for d in deltas], 'k--')
+            pt.plot([d["tc"] for d in deltas], 'k--')
+            pt.plot([d["right"] for d in deltas], 'k:', label="right,above,next")
+            pt.plot([d["above"] for d in deltas], 'k:')
+            pt.plot([d["base"] for d in deltas], 'k:')
+            # c = np.linspace(0, .5, len(deltas[0]))
+            # # for n,name in enumerate(deltas[0].keys()):
+            # for n,name in enumerate(reversed(["right","base","above","ik","to","tc","pc"])):
+            # # for n,name in enumerate(["right","base","above","ik","to","tc","po","pc"]):
+            #     delt = [d[name] for d in deltas]
+            #     pt.plot(delt, label=name, color=(c[n],)*3)
+            #     # pt.plot(delt, label=name)
+            pt.xlabel("Training epoch")
+            pt.ylabel("Weight changes")
+            pt.legend(framealpha=1)
+            pt.tight_layout()
+            pt.savefig("deltas.eps")
+            pt.savefig("deltas.png")
+            pt.show()
+            
+        
+        # different learning rates
+        pt.figure(figsize=(5,4))
         for lr, learning_rate in enumerate(learning_rates):
+            fname = "stack_trained/pfc_%f.pkl" % learning_rate
+            with open(fname,"rb") as f: results = pk.load(f)    
+            num_repetitions = len(results)
+            pt.subplot(len(learning_rates), 1, lr+1)
+            num_epochs = len(results[0])
+            syms = np.empty((num_repetitions, num_epochs))
+            for rep in range(num_repetitions):
+                epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
+                syms[rep,:num_epochs] = np.array([np.mean(rewards[1:]) for rewards in epoch_rewards])
+            pt.plot(syms.T, '-', color=(.75, .75, .75))
+            pt.plot(syms.mean(axis=0), 'k-')
+            pt.xlim([0, 150])
+            # pt.ylabel("LR = %s" % str(learning_rate))
+            pt.ylabel("%.1e" % learning_rate)
+            if lr == 0: pt.title("Symbolic performance with different learning rates")
+            if lr+1 == len(learning_rates): pt.xlabel("Training epoch")
+        pt.tight_layout()
+        pt.savefig("fail_train_many.png")
+        pt.savefig("fail_train_many.eps")
+        pt.show()
+
+        for lr, learning_rate in enumerate(learning_rates):
+            break
 
             # with open("pfc.pkl","rb") as f: results = pk.load(f)
             fname = "stack_trained/pfc_%f.pkl" % learning_rate
