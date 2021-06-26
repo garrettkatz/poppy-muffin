@@ -95,8 +95,8 @@ if __name__ == "__main__":
     # num_episodes = 2
     # num_epochs = 2
     
-    run_exp = True
-    showresults = False
+    run_exp = False
+    showresults = True
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)

@@ -93,33 +93,34 @@ if __name__ == "__main__":
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
     num_repetitions = 5
-    num_episodes = 100
+    num_episodes = 30
     num_epochs = 50
     # num_repetitions = 2
     # num_episodes = 2
     # num_epochs = 2
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
+    reject_above = 0
 
-    learning_rates=[0.00005] # all stack layers trainable
+    # learning_rates=[0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.001, .0005] # all stack layers trainable
     # learning_rates=[0.00001] # all stack layers trainable
-    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
+    # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    # learning_rates = [0.0001] # ik/motor layrs only
+    learning_rates = [0.01] # ik/motor layrs only
     # trainable = ["ik", "to", "tc", "po", "pc"]
-    # trainable = ["ik"]
+    trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
@@ -164,6 +165,9 @@ if __name__ == "__main__":
                 # save original values for comparison
                 orig_conns = {name: init_conns[name].detach().clone() for name in trainable}
                 
+                # cleanup
+                env.close()
+
                 for epoch in range(num_epochs):
                     start_epoch = time.perf_counter()
                     epoch_rewards = []
@@ -174,25 +178,30 @@ if __name__ == "__main__":
                         start_episode = time.perf_counter()
                         
                         # random problem instance
-                        env.reset()
+                        env = BlocksWorldEnv(show=showenv, step_hook = penalty_tracker.step_hook)
                         thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)
+                        nvm.env = env
                 
                         baseline = 0
     
                         reward, log_prob, rewards, log_probs = run_episode(
                             env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma)
                         
+                        env.close()
+
                         if use_penalties:
                             rewards = np.array(rewards)
                             rewards_to_go = np.cumsum(rewards)
                             rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
-                            for t in range(len(rewards)):
-                                loss = - (rewards_to_go[t] * log_probs[t])
-                                loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
+                            if reward <= reject_above:
+                                for t in range(len(rewards)):
+                                    loss = - (rewards_to_go[t] * log_probs[t])
+                                    loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
                         else:
                             rewards_to_go = [0]
-                            loss = - (reward - baseline) * log_prob
-                            loss.backward()
+                            if reward <= reject_above:
+                                loss = - (reward - baseline) * log_prob
+                                loss.backward()
                                                 
                         epoch_rewards.append(reward)
                         epoch_baselines.append(baseline)
@@ -215,7 +224,6 @@ if __name__ == "__main__":
                     epoch_time = time.perf_counter() - start_epoch
                     print(" %d,%d took %fs" % (rep, epoch, epoch_time))
     
-                env.close()
                 rep_time = time.perf_counter() - start_rep
                 print("%d took %fs" % (rep, rep_time))
                 # save model (pkl might need outside epoch loop??)
