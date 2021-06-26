@@ -241,14 +241,18 @@ if __name__ == "__main__":
             # ye = [np.std(rewards[1:]) for rewards in epoch_rtgs]
             # pt.errorbar(np.arange(len(y)), y, yerr=ye, fmt='k-')
             pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
-            pt.legend(["avg. reward", "avg. symbolic"], framealpha=1)
+            from matplotlib.lines import Line2D
+            h1 = Line2D([], [], linestyle="-", color="k")
+            h2 = Line2D([], [], linestyle="-", color="k")
+            pt.legend([h1, h2], ["avg. reward", "avg. symbolic"], framealpha=1)
             x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r][1:]])
             pt.plot(x, y, '.', c=(.75, .75, .75), zorder=-1)
             pt.xlabel("Training epoch")
             pt.ylabel("Performance")
             pt.tight_layout()
-            pt.savefig("fail_train_one.eps")
-            pt.savefig("fail_train_one.png")
+            pt.savefig("fail_train_one.pdf")
+            # pt.savefig("fail_train_one.eps")
+            # pt.savefig("fail_train_one.png")
             pt.show()
 
             pt.figure(figsize=(5,1.75))
@@ -277,8 +281,9 @@ if __name__ == "__main__":
             pt.ylabel("Weight changes")
             pt.legend(framealpha=1)
             pt.tight_layout()
-            pt.savefig("deltas.eps")
-            pt.savefig("deltas.png")
+            pt.savefig("deltas.pdf")
+            # pt.savefig("deltas.eps")
+            # pt.savefig("deltas.png")
             pt.show()
         
             # different learning rates
@@ -301,8 +306,9 @@ if __name__ == "__main__":
                 if lr == 0: pt.title("Symbolic performance with different learning rates")
                 if lr+1 == len(learning_rates): pt.xlabel("Training epoch")
             pt.tight_layout()
-            pt.savefig("fail_train_many.png")
-            pt.savefig("fail_train_many.eps")
+            pt.savefig("fail_train_many.pdf")
+            # pt.savefig("fail_train_many.png")
+            # pt.savefig("fail_train_many.eps")
             pt.show()
 
         for lr, learning_rate in enumerate(learning_rates):

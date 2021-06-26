@@ -88,15 +88,15 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    # num_repetitions = 5
-    # num_episodes = 30
-    # num_epochs = 150
-    num_repetitions = 2
-    num_episodes = 2
-    num_epochs = 2
+    num_repetitions = 5
+    num_episodes = 30
+    num_epochs = 100
+    # num_repetitions = 2
+    # num_episodes = 2
+    # num_epochs = 2
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)

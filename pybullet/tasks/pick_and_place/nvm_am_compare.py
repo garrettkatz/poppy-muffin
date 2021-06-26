@@ -200,7 +200,8 @@ if __name__ == "__main__":
         
         pt.tight_layout()
         # pt.savefig("sym_compare.eps")
-        pt.savefig("sym_compare.png")
+        # pt.savefig("sym_compare.png")
+        pt.savefig("sym_compare.pdf")
         # pt.show()
         pt.close()
 
