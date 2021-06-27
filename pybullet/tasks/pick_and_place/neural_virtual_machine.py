@@ -15,15 +15,19 @@ class NeuralVirtualMachine:
         connectivity, plastic_connections=None):
         
         # set up registers
-        self.register_sizes = dict(register_sizes)
         self.gate_register_name = gate_register_name
+        self.register_sizes = dict(register_sizes)
         self.register_sizes[gate_register_name] = len(connectivity) + len(plastic_connections)
         self.register_names = tuple(self.register_sizes.keys())
-        self.activators = {r: activators.get(r, default_activator) for r in self.register_names}
+        
+        # set up activator functions
+        self.activators = {
+            r: activators.get(r, default_activator)
+            for r in self.register_names}
         
         # set up connectivity
         self.connectivity = dict(connectivity)
-        self.plastic_connections = list(plastic_connections)
+        self.plastic_connections = tuple(plastic_connections)
         self.incoming_connections_to = {r: () for r in self.register_names}
         for c, (q, r) in connectivity.items():
             self.incoming_connections_to[r] += ((c, q),)
@@ -31,14 +35,12 @@ class NeuralVirtualMachine:
         # set up gate layer indexing
         self.storage_index = {c:i for i,c in enumerate(plastic_connections)}
         self.recall_index = {}
-        i = len(plastic_connections)
         for r in self.register_names:
             for c, q in self.incoming_connections_to[r]:
-                self.recall_index[c] = i
-                i += 1
+                self.recall_index[c] = len(self.recall_index) + len(plastic_connections)
         
+        # set up state sequence buffers
         self.tick_counter = 0
-
         self.activities = {
             r: {0: tr.zeros(size)}
             for r,size in self.register_sizes.items()}
@@ -74,6 +76,10 @@ class NeuralVirtualMachine:
             for c, q in self.incoming_connections_to[r]:
                 v[r][t+1] += u[c] * W[c][t].mv(v[q][t])
             v[r][t+1] = σ[r](v[r][t+1])
+        
+        for r in self.register_names:
+            v[r][t+1] = σ[r](
+                u[r].mv(tr.stack([W[c][t].mv(v[q][t]) for c, q in self.incoming_connections_to[r]])))
 
         # storage
         for c, (q, r) in self.connectivity.items():
