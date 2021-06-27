@@ -1,5 +1,5 @@
 import pybullet as pb
-import os
+import os, time
 import numpy as np
 from poppy_env import PoppyEnv
 
@@ -25,8 +25,33 @@ class PoppyHumanoidEnv(PoppyEnv):
             if name[:2] == "l_": mirror_name = "r_" + name[2:]
             if name[:2] == "r_": mirror_name = "l_" + name[2:]
             mirrored[self.joint_index[mirror_name]] = position[i] * sign        
-        return mirrored        
-            
+        return mirrored
+    
+    # override step and goto for humanoid walking
+    def step(self, action, sleep=None):
+        if sleep is None: sleep = self.show
+        pb.setJointMotorControlArray(
+            self.robot_id,
+            jointIndices = range(len(self.joint_index)),
+            controlMode = self.control_mode,
+            targetPositions = action,
+        )
+        pb.stepSimulation()
+        if sleep: time.sleep(self.timestep)
+    def goto_position(self, target, duration, hang=False):
+        current = self.get_position()
+        num_steps = int(duration / self.timestep + 1)
+        weights = np.linspace(0, 1, num_steps).reshape(-1,1)
+        trajectory = weights * target + (1 - weights) * current
+
+        positions = np.empty((num_steps, self.num_joints))
+        for a, action in enumerate(trajectory):
+            self.step(action)
+            positions[a] = self.get_position()
+            if hang: input('..')
+
+        return positions
+
 # convert from physical robot angles to pybullet angles
 # degrees are converted to radians
 # other conversions are automatic from poppy_humanoid.pybullet.urdf

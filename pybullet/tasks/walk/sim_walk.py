@@ -93,12 +93,16 @@ def run_policy(policy, num_steps):
     env.set_position(stand)
     env.goto_position(stand, 1)
     
-    input("ready...")
+    # input("ready...")
     time.sleep(1)
     t = 0
     while True:
     
         target, duration = trajectory[t]
+        # current = env.get_position()
+        # distance = np.sum((target - current)**2)**.5
+        # speed = distance / duration
+        # env.goto_position(target, speed)
         env.goto_position(target, duration)
         
         t += 1
