@@ -99,8 +99,8 @@ if __name__ == "__main__":
     # num_episodes = 2
     # num_epochs = 2
     
-    run_exp = True
-    showresults = False
+    run_exp = False
+    showresults = True
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
@@ -119,7 +119,7 @@ if __name__ == "__main__":
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.0001] # ik/motor layrs only
+    learning_rates = [0.0001, 0.00005] # ik/motor layrs only
     trainable = ["ik", "to", "tc", "po", "pc"]
     # trainable = ["ik"]
 
