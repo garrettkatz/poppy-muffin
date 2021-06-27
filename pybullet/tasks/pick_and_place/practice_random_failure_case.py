@@ -190,11 +190,11 @@ if __name__ == "__main__":
                                 rewards_to_go = np.cumsum(rewards)
                                 rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
                                 for t in range(len(rewards)):
-                                    loss = - (rewards_to_go[t] * log_probs[t])
+                                    loss = - (rewards_to_go[t] * log_probs[t]) / num_episodes
                                     loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
                             else:
                                 rewards_to_go = [0]
-                                loss = - (reward - baseline) * log_prob
+                                loss = - (reward - baseline) * log_prob / num_episodes
                                 loss.backward()
                                                 
                         epoch_rewards.append(reward)

@@ -106,7 +106,7 @@ if __name__ == "__main__":
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
-    reject_above = 0
+    reject_above = -1
 
     # learning_rates=[0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
@@ -118,7 +118,7 @@ if __name__ == "__main__":
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.01] # ik/motor layrs only
+    learning_rates = [0.00005] # ik/motor layrs only
     # trainable = ["ik", "to", "tc", "po", "pc"]
     trainable = ["ik"]
 
@@ -185,7 +185,9 @@ if __name__ == "__main__":
                         baseline = 0
     
                         reward, log_prob, rewards, log_probs = run_episode(
-                            env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma)
+                            env, thing_below, goal_thing_below,
+                            nvm, init_regs, init_conns,
+                            penalty_tracker, sigma)
                         
                         env.close()
 
@@ -195,12 +197,12 @@ if __name__ == "__main__":
                             rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
                             if reward <= reject_above:
                                 for t in range(len(rewards)):
-                                    loss = - (rewards_to_go[t] * log_probs[t])
+                                    loss = - (rewards_to_go[t] * log_probs[t]) / num_episodes
                                     loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
                         else:
                             rewards_to_go = [0]
                             if reward <= reject_above:
-                                loss = - (reward - baseline) * log_prob
+                                loss = - (reward - baseline) * log_prob / num_episodes
                                 loss.backward()
                                                 
                         epoch_rewards.append(reward)
@@ -253,8 +255,8 @@ if __name__ == "__main__":
                 pt.plot(x, y, 'k.')
                 # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
                 # pt.plot(np.array(x)+.5, y, 'b.')
-                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'b-')
-                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'b--')
+                pt.plot([np.mean(rewards) for rewards in epoch_rtgs], 'b-')
+                pt.plot([np.mean(rewards) for rewards in epoch_rewards], 'b--')
         
                 # pt.plot(np.log(-np.array(rewards)))
                 # pt.ylabel("log(-R)")
