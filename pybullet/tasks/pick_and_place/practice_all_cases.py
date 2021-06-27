@@ -94,7 +94,7 @@ if __name__ == "__main__":
     
     num_repetitions = 5
     num_episodes = 50
-    num_epochs = 50
+    num_epochs = 100
     # num_repetitions = 2
     # num_episodes = 2
     # num_epochs = 2
@@ -120,8 +120,8 @@ if __name__ == "__main__":
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
     learning_rates = [0.0001] # ik/motor layrs only
-    # trainable = ["ik", "to", "tc", "po", "pc"]
-    trainable = ["ik"]
+    trainable = ["ik", "to", "tc", "po", "pc"]
+    # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
