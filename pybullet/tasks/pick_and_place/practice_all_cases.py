@@ -93,7 +93,7 @@ if __name__ == "__main__":
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
     num_repetitions = 5
-    num_episodes = 100
+    num_episodes = 50
     num_epochs = 50
     # num_repetitions = 2
     # num_episodes = 2
@@ -105,6 +105,7 @@ if __name__ == "__main__":
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
+    use_baselines = True
     use_penalties = True
     reject_above = 0
 
@@ -167,6 +168,9 @@ if __name__ == "__main__":
                 
                 # cleanup
                 env.close()
+                
+                # init baseline
+                baseline = 0
 
                 for epoch in range(num_epochs):
                     start_epoch = time.perf_counter()
@@ -182,8 +186,6 @@ if __name__ == "__main__":
                         thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)
                         nvm.env = env
                 
-                        baseline = 0
-    
                         reward, log_prob, rewards, log_probs = run_episode(
                             env, thing_below, goal_thing_below,
                             nvm, init_regs, init_conns,
@@ -197,7 +199,8 @@ if __name__ == "__main__":
                             rewards_to_go = rewards_to_go[-1] - rewards_to_go + rewards
                             if reward <= reject_above:
                                 for t in range(len(rewards)):
-                                    loss = - (rewards_to_go[t] * log_probs[t]) / num_episodes
+                                    baselined = rewards_to_go[t] - baseline
+                                    loss = - (baselined * log_probs[t]) / num_episodes
                                     loss.backward(retain_graph=(t+1 < len(rewards))) # each log_prob[t] shares the graph
                         else:
                             rewards_to_go = [0]
@@ -215,7 +218,7 @@ if __name__ == "__main__":
                     # update params based on episodes
                     opt.step()
                     opt.zero_grad()
-    
+
                     delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
                     results[-1].append((epoch_rewards, epoch_baselines, epoch_rtgs, delta))
                     with open("pac_%f.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
@@ -223,6 +226,10 @@ if __name__ == "__main__":
                     avg_reward = np.mean(epoch_rtgs)
                     std_reward = np.std(epoch_rtgs)
                     print(" %d,%d: R = %f (+/- %f), dW: %s" % (rep, epoch, avg_reward, std_reward, delta))
+
+                    # update baseline to previous epoch's average reward
+                    if use_baselines: baseline = avg_reward
+
                     epoch_time = time.perf_counter() - start_epoch
                     print(" %d,%d took %fs" % (rep, epoch, epoch_time))
     
