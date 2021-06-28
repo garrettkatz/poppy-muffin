@@ -28,30 +28,36 @@ class NeuralVirtualMachine:
         # set up connectivity
         self.connectivity = dict(connectivity)
         self.plastic_connections = tuple(plastic_connections)
-        self.incoming_connections_to = {r: () for r in self.register_names}
+        self.connections_to = {r: () for r in self.register_names}
         for c, (q, r) in connectivity.items():
-            self.incoming_connections_to[r] += ((c, q),)
+            self.connections_to[r] += ((c, q),)
         
         # set up gate layer indexing
-        self.storage_index = {c:i for i,c in enumerate(plastic_connections)}
         self.recall_index = {}
+        self.recall_slice_for = {}
         for r in self.register_names:
-            for c, q in self.incoming_connections_to[r]:
-                self.recall_index[c] = len(self.recall_index) + len(plastic_connections)
+            self.recall_slice_for[r] = slice(
+                len(self.recall_index),
+                len(self.recall_index) + len(self.connections_to[r]))
+            for c, q in self.connections_to[r]:
+                self.recall_index[c] = len(self.recall_index)
+        self.storage_index = {
+            c: len(self.recall_index) + i for i,c in enumerate(plastic_connections)}
         
         # set up state sequence buffers
         self.tick_counter = 0
         self.activities = {
-            r: {0: tr.zeros(size)}
+            r: {0: tr.zeros(1,size,1)}
             for r,size in self.register_sizes.items()}
         self.weights = {
-            c: {0: tr.zeros((self.register_sizes[r], self.register_sizes[q]))}
+            c: {0: tr.zeros((1,self.register_sizes[r], self.register_sizes[q]))}
             for c, (q, r) in self.connectivity.items()}
     
     def unpack(self, g):
-        u = {c: g[self.recall_index[c]] for c in self.connectivity} # g[:,idx] for batch mode?
-        ℓ = {c: g[self.storage_index[c]] for c in self.plastic_connections}
-        return u, ℓ
+        u = {c: g[:, self.recall_index[c]] for c in self.connectivity} #
+        ρ = {r: g[:, self.recall_slice_for[r]] for r in self.register_names}
+        ℓ = {c: g[:, self.storage_index[c]] for c in self.plastic_connections}
+        return u, ρ, ℓ
 
     def tick(self, W_in={}, v_in={}):
         # setup variables
@@ -68,18 +74,20 @@ class NeuralVirtualMachine:
             if t in v_in[r]: v[r][t] = v_in[r][t]
 
         # unpack gate values
-        u, ℓ = self.unpack(v[self.gate_register_name][t])
+        u, ρ, ℓ = self.unpack(v[self.gate_register_name][t])
 
         # recall
         for r in self.register_names:
             v[r][t+1] = tr.zeros_like(v[r][t])
-            for c, q in self.incoming_connections_to[r]:
-                v[r][t+1] += u[c] * W[c][t].mv(v[q][t])
+            for c, q in self.connections_to[r]:
+                v[r][t+1] += u[c] * (W[c][t] @ v[q][t])
             v[r][t+1] = σ[r](v[r][t+1])
-        
         for r in self.register_names:
-            v[r][t+1] = σ[r](
-                u[r].mv(tr.stack([W[c][t].mv(v[q][t]) for c, q in self.incoming_connections_to[r]])))
+            if len(self.connections_to[r]) == 0:
+                v[r][t+1] = tr.zeros_like(v[r][t])
+            else:
+                Wv = [W[c][t] @ v[q][t] for c, q in self.connections_to[r]]
+                v[r][t+1] = σ[r](tr.cat(Wv, dim=-1) @ ρ[r])
 
         # storage
         for c, (q, r) in self.connectivity.items():
@@ -104,10 +112,10 @@ if __name__ == "__main__":
         "r0>r1": ("r0", "r1"),
         "ipt": ("ipt", "ipt"),
         "gts": ("ipt", "gts")}
-    plastic_connections = ["r0>r1"]
+    plastic_connections = [] #["r0>r1"]
 
-    W0 = tr.ones((register_sizes["r1"], register_sizes["r0"]), requires_grad=True)
-    v0 = tr.ones((register_sizes["r0"],))
+    W0 = tr.ones((1,register_sizes["r1"], register_sizes["r0"]), requires_grad=True)
+    v0 = tr.ones((1,register_sizes["r0"],1))
 
     nvm = NeuralVirtualMachine(
         register_sizes, activators, gate_register_name,
