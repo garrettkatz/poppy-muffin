@@ -11,8 +11,12 @@ def fast_store_erase_rule(W, x, aσy):
 
 class NeuralVirtualMachine:
     def __init__(self,
-        register_sizes, activators, gate_register_name,
-        connectivity, plastic_connections=None):
+        register_sizes, gate_register_name,
+        connectivity, activators=None, plastic_connections=None):
+
+        # Defaults
+        if activators is None: activators = {}
+        if plastic_connections is None: plastic_connections = []
         
         # set up registers
         self.gate_register_name = gate_register_name
@@ -33,22 +37,32 @@ class NeuralVirtualMachine:
             self.connections_to[r] += ((c, q),)
         
         # set up gate layer indexing
-        self.recall_slice_for = {}
-        recall_offset = 0
+        self.recall_index = {}
         for r in self.register_names:
-            self.recall_slice_for[r] = slice(
-                recall_offset,
-                recall_offset + len(self.connections_to[r]))
-            recall_offset += len(self.connections_to[r])
-        self.storage_index = {c: recall_offset + i for i,c in enumerate(plastic_connections)}
+            for c, q in self.connections_to[r]:
+                self.recall_index[c] = len(self.recall_index)
+        self.storage_index = {}
+        for i, c in enumerate(plastic_connections):
+            self.storage_index[c] = len(self.recall_index) + i
+
+        # set up recall gate slicing
+        self.recall_slice = {}
+        stop = 0
+        for r in self.register_names:
+            start = stop
+            stop = start + len(self.connections_to[r])
+            self.recall_slice[r] = slice(start, stop)
         
-        # set up state sequence buffers
+        # initialize tick counter and state buffers
+        self.clear_ticks()
+
+    def clear_ticks(self):
         self.tick_counter = 0
         self.activities = {
-            r: {0: tr.zeros(1,size,1)}
+            r: {0: tr.zeros(1, size, 1)}
             for r,size in self.register_sizes.items()}
         self.weights = {
-            c: {0: tr.zeros((1,self.register_sizes[r], self.register_sizes[q]))}
+            c: {0: tr.zeros((1, self.register_sizes[r], self.register_sizes[q]))}
             for c, (q, r) in self.connectivity.items()}
     
     def batchify_weights(self, W):
@@ -62,7 +76,7 @@ class NeuralVirtualMachine:
         raise ValueError("v should be 1 or 3 dimensional, not %d dimensional" % len(v.shape))
     
     def unpack(self, g):
-        u = {r: g[:, self.recall_slice_for[r]] for r in self.register_names}
+        u = {r: g[:, self.recall_slice[r]] for r in self.register_names}
         ℓ = {c: g[:, [self.storage_index[c]]] for c in self.plastic_connections}
         return u, ℓ
     
@@ -103,8 +117,65 @@ class NeuralVirtualMachine:
         for step in range(num_time_steps): self.tick(W_in, v_in)
         return self.weights, self.activities
 
+def test_batching():
+    register_sizes = {"r": 3}
+    nvm = NeuralVirtualMachine(register_sizes,
+        gate_register_name="g",
+        connectivity={"r>g": ("r", "g")},
+        plastic_connections=["r>g"])
+
+    assert nvm.activities["g"][0].numel() == 2 # one connection x2 gates
+    assert nvm.activities["g"][0].shape == (1,2,1)
+
+    # no batching
+    r0 = tr.ones(3)
+    W0 = tr.ones((2,3))
+    W, v = nvm.run(v_in = {"r": {0: r0}}, W_in = {"r>g": {0: W0}}, num_time_steps=1)
+    assert v["r"][1].shape == (1,3,1)
+    assert v["g"][1].shape == (1,2,1)
+    assert W["r>g"][1].shape == (1,2,3)
+
+    # batching v
+    r0 = tr.ones(2,3,1)
+    W0 = tr.ones((2,3))
+    nvm.clear_ticks()
+    W, v = nvm.run(v_in = {"r": {0: r0}}, W_in = {"r>g": {0: W0}}, num_time_steps=1)
+    assert v["r"][1].shape == (2,3,1)
+    assert v["g"][1].shape == (2,2,1)
+    assert W["r>g"][1].shape == (2,2,3)
+
+    # batching W
+    r0 = tr.ones(3)
+    W0 = tr.ones((4,2,3))
+    nvm.clear_ticks()
+    W, v = nvm.run(v_in = {"r": {0: r0}}, W_in = {"r>g": {0: W0}}, num_time_steps=1)
+    assert v["r"][1].shape == (1,3,1)
+    assert v["g"][1].shape == (4,2,1)
+    assert W["r>g"][1].shape == (4,2,3)
+
+    # batching v without plastic
+    nvm = NeuralVirtualMachine(register_sizes,
+        gate_register_name="g",
+        connectivity={"r>g": ("r", "g")},
+        plastic_connections=[])
+    r0 = tr.ones(2,3,1)
+    W0 = tr.ones((1,2,3))
+    W, v = nvm.run(v_in = {"r": {0: r0}}, W_in = {"r>g": {0: W0}}, num_time_steps=1)
+    assert v["r"][1].shape == (2,3,1)
+    assert v["g"][1].shape == (2,2,1)
+    assert W["r>g"][1].shape == (1,2,3)
+
+    # batching v without plastic for multiple time-steps
+    nvm.clear_ticks()
+    W, v = nvm.run(v_in = {"r": {0: r0}}, W_in = {"r>g": {0: W0}}, num_time_steps=3)
+    assert v["r"][3].shape == (2,3,1)
+    assert v["g"][3].shape == (2,2,1)
+    assert W["r>g"][3].shape == (1,2,3)
+
 if __name__ == "__main__":
     
+    test_batching()
+
     register_sizes = {"r0": 4, "r1": 4, "ipt": 8}
     activators = {"gts": lambda v: v}
     gate_register_name = "gts"
@@ -120,8 +191,8 @@ if __name__ == "__main__":
     v0 = tr.ones((register_sizes["r0"],))
 
     nvm = NeuralVirtualMachine(
-        register_sizes, activators, gate_register_name,
-        connectivity, plastic_connections)
+        register_sizes, gate_register_name, connectivity,
+        activators, plastic_connections)
     
     W, v = nvm.run(v_in = {"r0": {0: v0, 1: v0}}, W_in = {"r0>r1": {0: W0}}, num_time_steps=2)
     print(nvm.tick_counter)
