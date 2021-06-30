@@ -78,7 +78,8 @@ class NeuralVirtualMachine:
         if len(v.shape) == 1: return v.reshape(1, len(v), 1)
         raise ValueError("v should be 1, 2, or 3 dimensional, not %d dimensional" % len(v.shape))
     
-    def unpack(self, g):
+    def unpack(self, g, detach=True):
+        if detach: g = g.detach()
         u = {r: g[:, self.recall_slice[r]] for r in self.register_names}
         ℓ = {c: g[:, [self.storage_index[c]]] for c in self.plastic_connections}
         return u, ℓ
@@ -104,8 +105,10 @@ class NeuralVirtualMachine:
         for r in self.register_names:
             v[r][t+1] = v[r][t]
             if len(self.connections_to[r]) > 0:
-                Wv = [W[c][t] @ v[q][t] for c, q in self.connections_to[r]]
-                v[r][t+1] = σ[r](tr.cat(Wv, dim=2) @ u[r])
+                recalls = [W[c][t] @ v[q][t] for c, q in self.connections_to[r]]
+                batch_size = max([wv.shape[0] for wv in recalls])
+                WV = tr.cat([wv.expand(batch_size, -1, -1) for wv in recalls], dim=2)
+                v[r][t+1] = σ[r](WV @ u[r])
 
         # storage
         for c, (q, r) in self.connectivity.items():

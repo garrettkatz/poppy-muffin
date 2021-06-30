@@ -250,7 +250,7 @@ class AbstractMachine:
         # general purpose registers and jmp
         self.blocks = ["b%d" % b for b in range(num_bases)]
         self.objs = self.env.bases + self.blocks
-        if gen_regs is None: gen_regs = ["r0", "r1", "r2"]
+        if gen_regs is None: gen_regs = ["r0", "r1"]
         for name in gen_regs:
             self.registers[name] = AbstractRegister(name)
         for src, dst in it.permutations(gen_regs + ["jmp"], 2):
@@ -395,6 +395,23 @@ def memorize_env(machine, goal_thing_above={}):
         machine.connections["obj"][loc] = block
         machine.connections["loc"][block] = loc
     for thing, block in goal_thing_above.items():
+        machine.connections["goal"][thing] = block
+
+def memorize_problem(machine, problem):
+    # reset input connections
+    machine.connections["obj"].reset()
+    machine.connections["loc"].reset()
+    machine.connections["goal"].reset()
+    # start with all locations empty    
+    for loc in machine.locs:
+        machine.connections["obj"][loc] = "nil"
+    # overwrite non-empty occupancies
+    for block in problem.blocks():
+        base, level = problem.base_and_level_of(block)
+        loc = (problem.bases().index(base), level)
+        machine.connections["obj"][loc] = block
+        machine.connections["loc"][block] = loc
+    for thing, block in problem.goal_thing_above.items():
         machine.connections["goal"][thing] = block
 
 # testing routines

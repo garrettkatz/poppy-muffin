@@ -95,7 +95,13 @@ class NeuralVirtualMachine:
         self.connection_names = list(sorted(connections.keys()))
         self.env = env
         self.tick_counter = 0
-    
+
+    def pullback(self, t):
+        for name in self.net.activities:
+            self.tick_counter = self.net.tick_counter
+            self.registers[name].content = self.net.activities[name][t].squeeze()
+            if t > 0: self.registers[name].old_content = self.net.activities[name][t-1].squeeze()
+
     def dbg(self):
         print("****************** dbg: tick %d **********************" % self.tick_counter)
         print(self.inst_at.get(self.registers["ipt"].decode(self.registers["ipt"].content), "internal"))
@@ -207,6 +213,11 @@ class NeuralVirtualMachine:
             self.registers[name].reset(content)
         for name, W in connections.items():
             self.connections[name].reset(W)
+    
+    def decode(self, register_name, time_step, batch_index):
+        v = self.net.activities[register_name][time_step]
+        batch_index = min(batch_index, v.shape[0]-1) # common state across batch may not be broadcasted
+        return self.registers[register_name].decode(v[batch_index,:,0])
         
 
 def hadamard_codec(tokens):
