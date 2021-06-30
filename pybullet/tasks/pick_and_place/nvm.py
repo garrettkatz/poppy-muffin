@@ -1,6 +1,8 @@
+import numpy as np
 import torch as tr
 import itertools as it
 from abstract_machine import make_abstract_machine, memorize_env
+from neural_virtual_machine import NeuralVirtualMachine as NVMNet
 
 def hadamard_matrix(N):
     H = tr.tensor([[1.]])
@@ -223,7 +225,7 @@ def virtualize(am, σ=None):
         "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])) + ["rest"],
         "obj": am.objs + ["nil"]
     }
-    for name in ["r0", "r1", "r2", "jmp"]:
+    for name in ["r0", "r1", "jmp"]:
         tokens[name] = am.objs + am.locs + ["nil"]
 
     for name in tokens:
@@ -232,22 +234,47 @@ def virtualize(am, σ=None):
 
     jnt_codec = {key: tr.tensor(val).float() for key, val in am.ik.items()}
     registers["jnt"] = NVMRegister("jnt", am.env.num_joints, jnt_codec)
+    
+    # use nvm net to setup gate index
+    plastic = ("obj", "loc", "spt", "spt > r0", "spt > r1")
+    persistent = ["spt", "jmp", "r0", "r1", "obj", "loc", "tar", "jnt"]
+    connectivity = {c.name: (c.src.name, c.dst.name) for c in am.connections.values()}
+    connectivity.update({"%s <" % name: (name, name) for name in persistent})
+    net = NVMNet(
+        register_sizes = {name: reg.size for name, reg in registers.items()},
+        gate_register_name = "gts",
+        connectivity = connectivity,
+        activators={name: (lambda v: v) for name in ["jnt", "gts"]},
+        plastic_connections = plastic)
 
+    # set up gate register
     gts_codec = {}
-    connection_names = list(sorted(am.connections.keys()))
     for store, recall in am.connections["gts"].memory.values():
-        gs = tr.tensor([1. if name in store else 0. for name in connection_names])
-        gr = tr.tensor([1. if name in recall else 0. for name in connection_names])
-        gts_codec[store, recall] = tr.cat((gs, gr))
-    registers["gts"] = NVMRegister("gts", 2*len(connection_names), gts_codec)
-
+        # add persistence to recall
+        persist = tuple(recall)
+        for name in registers:
+            if name not in [am.connections[rec].dst.name for rec in recall]:
+                persist += ("%s <" % name,)
+        # set gate values
+        g = tr.zeros(net.register_sizes["gts"])
+        for name in persist: g[net.recall_index[name]] = 1.
+        for name in store: g[net.storage_index[name]] = 1.
+        gts_codec[store, recall] = g
+    registers["gts"] = NVMRegister("gts", net.register_sizes["gts"], gts_codec)
+    
+    # setup VM connections
     connections = {}
     for name, am_conn in am.connections.items():
         src, dst = registers[am_conn.src.name], registers[am_conn.dst.name]
         connections[name] = NVMConnection(name, src, dst)
         for key, val in am_conn.memory.items(): connections[name][key] = val
-        
+    # setup persistence connections
+    for name in persistent:
+        connections["%s <" % name] = NVMConnection("%s <" % name, registers[name], registers[name])
+        connections["%s <" % name].W = tr.eye(registers[name].size)
+
     nvm = NeuralVirtualMachine(am.env, registers, connections)
+    nvm.net = net
     
     nvm.ipt_of = {
         routine: registers["ipt"].encode(ipt)
@@ -261,13 +288,13 @@ def virtualize(am, σ=None):
     
 if __name__ == "__main__":
     
-    x = tr.tensor([1., 1., -1.])
-    y = tr.tensor([-1., 1., 1.])
-    W = tr.zeros(3,3)
-    FSER(W, x, y)
-    input('.')
-
-
+    # x = tr.tensor([1., 1., -1.])
+    # y = tr.tensor([-1., 1., 1.])
+    # W = tr.zeros(3,3)
+    # FSER(W, x, y)
+    # input('.')
+    
+    np.set_printoptions(linewidth=5000)
         
     import sys
     sys.path.append('../../envs')
@@ -286,10 +313,11 @@ if __name__ == "__main__":
     # goal_thing_below = {"b%d" % n: "t%d" % n for n in range(num_blocks)}
     # goal_thing_below.update({"b1": "b0", "b2": "b3"})
 
-    env = BlocksWorldEnv()    
+    env = BlocksWorldEnv(show=True)
     env.load_blocks(thing_below, num_bases)
-    am = make_abstract_machine(env, num_bases, max_levels)
+    am = make_abstract_machine(env, num_bases, max_levels, gen_regs=["r0","r1"])
     nvm = virtualize(am)
+    net = nvm.net
 
     goal_thing_above = env.invert(goal_thing_below)
     for key, val in goal_thing_above.items():
@@ -309,11 +337,42 @@ if __name__ == "__main__":
         "r1": nvm.registers["r1"].encode("b1"),
         "jnt": tr.tensor(am.ik["rest"]).float()
     })
+    nvm.mount("main")
     
     # _, _, total = nvm.size()
     # input("%d weights total!" % total)
 
-    nvm.run(dbg=True)
+    # nvm.run(dbg=True)
+
+    W_in = {name: {0: net.batchify_weights(conn.W)} for name, conn in nvm.connections.items()}
+    v_in = {name: {0: net.batchify_activities(reg.content)} for name, reg in nvm.registers.items()}
+    # W, v = net.run(W_in, v_in, num_time_steps)
+    net.weights = W_in
+    net.activities = v_in
+
+    def putback(t):
+        for name in net.activities:
+            nvm.tick_counter = net.tick_counter
+            nvm.registers[name].content = net.activities[name][t].squeeze()
+            nvm.registers[name].old_content = net.activities[name][t-1].squeeze()
+    
+    nvm.dbg()
+    ipt = nvm.registers["ipt"]
+    tar = nvm.registers["tar"]
+    jnt = nvm.registers["jnt"]
+    target_changed = True
+    while True:
+        net.tick()
+        putback(net.tick_counter)
+        nvm.dbg()
+        if target_changed:
+            position = jnt.content.detach().numpy()
+            nvm.env.goto_position(position)
+        target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
+
+        # self-loop indicates end-of-program
+        if ipt.decode(ipt.content) == ipt.decode(ipt.old_content): break # program done
+        # input('.')
 
     env.close()    
 

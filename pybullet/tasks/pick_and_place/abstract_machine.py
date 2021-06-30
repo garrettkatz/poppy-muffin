@@ -192,6 +192,7 @@ class AbstractMachine:
         }
         
         self.connections = {
+            # core
             "ipt": AbstractConnection("ipt", src=self.registers["ipt"], dst=self.registers["ipt"]),
             "call": AbstractConnection("call", src=self.registers["ipt"], dst=self.registers["ipt"]),
             "spt": AbstractConnection("spt", src=self.registers["spt"], dst=self.registers["ipt"]),

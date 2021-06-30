@@ -22,7 +22,7 @@ class NeuralVirtualMachine:
         self.gate_register_name = gate_register_name
         self.register_sizes = dict(register_sizes)
         self.register_sizes[gate_register_name] = len(connectivity) + len(plastic_connections)
-        self.register_names = tuple(self.register_sizes.keys())
+        self.register_names = tuple(sorted(self.register_sizes.keys()))
         
         # set up activator functions
         self.activators = {
@@ -31,10 +31,12 @@ class NeuralVirtualMachine:
         
         # set up connectivity
         self.connectivity = dict(connectivity)
-        self.plastic_connections = tuple(plastic_connections)
+        self.plastic_connections = tuple(sorted(plastic_connections))
         self.connections_to = {r: () for r in self.register_names}
         for c, (q, r) in connectivity.items():
             self.connections_to[r] += ((c, q),)
+        for r in self.register_names:
+            self.connections_to[r] = tuple(sorted(self.connections_to[r]))
         
         # set up gate layer indexing
         self.recall_index = {}
@@ -183,8 +185,8 @@ def test_dynamics():
     g0 = tr.tensor([1, 0]).float()
     W0 = tr.tensor([[1, 0, 0], [0, 1, 0]]).float()
     W, v = nvm.run(
-        v_in = {"r": {0: r0}, "g": {0: g0}},
         W_in = {"r>g": {0: W0}},
+        v_in = {"r": {0: r0}, "g": {0: g0}},
         num_time_steps=2)
     assert tr.allclose(v["g"][1], nvm.batchify_activities(
         tr.tensor([[1, 1], [0, 1], [0, 0]]).float()))
@@ -208,13 +210,13 @@ def test_dynamics():
         connectivity={"q>r": ("q", "r"), "q>g": ("q", "g")},
         plastic_connections=["q>r"])
     W, v = nvm.run(
+        W_in = {
+            "q>r": {0: tr.tensor([[1, -1],[1, -1]]).float()},
+        },
         v_in = {
             "q": {0: tr.tensor([1,  1]).float()},
             "r": {0: tr.tensor([1, -1]).float()},
             "g": {0: tr.tensor([[0, 0, 1], [0, 0, 0]]).float()},
-        },
-        W_in = {
-            "q>r": {0: tr.tensor([[1, -1],[1, -1]]).float()},
         },
         num_time_steps=1)
     assert tr.allclose(W["q>r"][1], nvm.batchify_activities(tr.tensor([
@@ -245,7 +247,7 @@ if __name__ == "__main__":
         register_sizes, gate_register_name, connectivity,
         activators, plastic_connections)
     
-    W, v = nvm.run(v_in = {"r0": {0: v0, 1: v0}}, W_in = {"r0>r1": {0: W0}}, num_time_steps=2)
+    W, v = nvm.run(W_in = {"r0>r1": {0: W0}}, v_in = {"r0": {0: v0, 1: v0}}, num_time_steps=2)
     print(nvm.tick_counter)
     print(W)
     print(v)
