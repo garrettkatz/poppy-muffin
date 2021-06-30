@@ -4,10 +4,10 @@ def default_activator(v):
     tanh1 = tr.tanh(tr.tensor(1.))
     return tr.tanh(v) / tanh1
 
-def fast_store_erase_rule(W, x, aσy):
+def fast_store_erase_rule(W, x, y):
     # W: (batch, x size, y size)
-    # x, aσy: (batch, size, 1)
-    return (aσy - W @ x) * x.transpose(1, 2) / float(x.shape[1])
+    # x, y: (batch, size, 1)
+    return (y - W @ x) * x.transpose(1, 2) / float(x.shape[1])
 
 class NeuralVirtualMachine:
     def __init__(self,
@@ -72,8 +72,9 @@ class NeuralVirtualMachine:
 
     def batchify_activities(self, v):
         if len(v.shape) == 3: return v
+        if len(v.shape) == 2: return v.unsqueeze(dim=2)
         if len(v.shape) == 1: return v.reshape(1, len(v), 1)
-        raise ValueError("v should be 1 or 3 dimensional, not %d dimensional" % len(v.shape))
+        raise ValueError("v should be 1, 2, or 3 dimensional, not %d dimensional" % len(v.shape))
     
     def unpack(self, g):
         u = {r: g[:, self.recall_slice[r]] for r in self.register_names}
@@ -172,9 +173,39 @@ def test_batching():
     assert v["g"][3].shape == (2,2,1)
     assert W["r>g"][3].shape == (1,2,3)
 
+def test_dynamics():
+    register_sizes = {"r": 3}
+    nvm = NeuralVirtualMachine(register_sizes,
+        gate_register_name="g",
+        connectivity={"r>g": ("r", "g")},
+        plastic_connections=["r>g"])
+    r0 = tr.tensor([[1, 1, 0], [0, 1, 1], [0, 0, 0]]).float()
+    g0 = tr.tensor([1, 0]).float()
+    W0 = tr.tensor([[1, 0, 0], [0, 1, 0]]).float()
+    W, v = nvm.run(
+        v_in = {"r": {0: r0}, "g": {0: g0}},
+        W_in = {"r>g": {0: W0}},
+        num_time_steps=2)
+    assert tr.allclose(v["g"][1], nvm.batchify_activities(
+        tr.tensor([[1, 1], [0, 1], [0, 0]]).float()))
+    assert tr.allclose(v["g"][2], nvm.batchify_activities(
+        tr.tensor([[1, 1], [0, 0], [0, 0]]).float()))
+    assert tr.allclose(W["r>g"][1], nvm.batchify_activities(tr.tensor([
+        [[1, 0, 0], [0, 1, 0]],
+        [[1, 0, 0], [0, 1, 0]],
+        [[1, 0, 0], [0, 1, 0]],
+        ]).float()))
+    # y = g, x = r, so y - Wx = 0
+    assert tr.allclose(W["r>g"][2], nvm.batchify_activities(tr.tensor([
+        [[1, 0, 0], [0, 1, 0]],
+        [[1, 0, 0], [0, 1, 0]],
+        [[1, 0, 0], [0, 1, 0]],
+        ]).float()))
+
 if __name__ == "__main__":
     
     test_batching()
+    test_dynamics()
 
     register_sizes = {"r0": 4, "r1": 4, "ipt": 8}
     activators = {"gts": lambda v: v}

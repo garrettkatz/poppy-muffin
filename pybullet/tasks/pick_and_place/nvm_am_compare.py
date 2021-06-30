@@ -173,8 +173,68 @@ if __name__ == "__main__":
         pt.savefig("time_compare.eps")
         # pt.show()
         pt.close()
+        
+        # combined computation performance figure
+        # tick scatterplot
+        fig = pt.figure(figsize=(10,2.35))
+        gs = fig.add_gridspec(1,4)
+        # pt.subplot(1,2,1)
+        fig.add_subplot(gs[0,0])
+        # for n,num_blocks in enumerate(metrics["ticks"].keys()):
+        for n,num_blocks in enumerate(reversed(sorted(metrics["ticks"].keys()))):
+            x = metrics["ticks"][num_blocks]["rvm"]
+            y = metrics["ticks"][num_blocks]["nvm"]
+            shade = np.linspace(0, .7, 5)[n]
+            # shade = 0
+            pt.scatter(x, y, fc=(shade,)*3, ec="none", marker="o", label=str(num_blocks))
+            # pt.scatter(x, y, ec=(shade,)*3, marker="+", label=str(num_blocks))
+        pt.xticks([600, 900, 1200],["6k", "9k", "12k"])
+        pt.yticks([600, 900, 1200],["6k", "9k", "12k"])
+        # pt.xlim([400, 1800])
+        pt.xlabel("RVM ticks", fontsize=16)
+        pt.ylabel("NVM ticks", fontsize=16)
+        pt.legend()
 
-        # sym box plot
+        # tick boxplot
+        fig.add_subplot(gs[0,1])
+        # pt.subplot(1,2,2)
+        x = [metrics["ticks"][num_blocks]["nvm"] for num_blocks in metrics["ticks"]]
+        positions = list(sorted(metrics["ticks"].keys()))
+        pt.boxplot(x, positions=positions, medianprops={"c": "k"})
+        pt.ylabel("Ticks", fontsize=16)
+        pt.yticks([600, 900, 1200],["6k", "9k", "12k"])
+        # pt.yticks([])
+        pt.xlabel("Blocks", fontsize=16)
+
+        fig.add_subplot(gs[0,2])
+        for n,num_blocks in enumerate(reversed(sorted(metrics["time"].keys()))):
+            x = metrics["time"][num_blocks]["rvm"]
+            y = metrics["time"][num_blocks]["nvm"]
+            shade = np.linspace(0, .7, 5)[n]
+            # shade = 0
+            pt.scatter(x, y, fc=(shade,)*3, ec="none", marker="o", label=str(num_blocks))
+        # pt.xticks([600, 900, 1200])
+        # pt.yticks([600, 900, 1200])
+        pt.legend()
+        pt.xlabel("RVM runtime (s)", fontsize=16)
+        pt.ylabel("NVM runtime (s)", fontsize=16)
+
+        fig.add_subplot(gs[0,3:])
+        for m,mach in enumerate(["rvm","nvm"]):
+            x = [rep for num_blocks in metrics["time"]
+                    for rep in metrics["time"][num_blocks][mach]]
+            pt.hist(x, ec="k", fc=["w",(.5,)*3][m], bins=np.linspace(0,10,12), label=mach.upper())
+        pt.yticks([0, 500, 1000], ["0","5k","10k"])
+        pt.ylabel("Frequency", fontsize=16)
+        pt.xlabel("Runtime (s)", fontsize=16)
+        pt.legend()
+        
+        pt.tight_layout()
+        pt.savefig("comp_perf.pdf")
+        pt.show()
+        pt.close()
+
+        # sym violin plot
         fig = pt.figure(figsize=(6,2.35))
         block_counts = list(sorted(metrics["sym"].keys()))
         positions = np.arange(len(block_counts))
@@ -256,7 +316,7 @@ if __name__ == "__main__":
         pt.tight_layout()
         pt.savefig("spa_compare.eps")
         pt.savefig("spa_compare.png")
-        pt.show()
+        # pt.show()
         pt.close()
 
         # # scatter plots
