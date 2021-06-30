@@ -202,6 +202,26 @@ def test_dynamics():
         [[1, 0, 0], [0, 1, 0]],
         ]).float()))
 
+    register_sizes = {"q": 2, "r": 2}
+    nvm = NeuralVirtualMachine(register_sizes,
+        gate_register_name="g",
+        connectivity={"q>r": ("q", "r"), "q>g": ("q", "g")},
+        plastic_connections=["q>r"])
+    W, v = nvm.run(
+        v_in = {
+            "q": {0: tr.tensor([1,  1]).float()},
+            "r": {0: tr.tensor([1, -1]).float()},
+            "g": {0: tr.tensor([[0, 0, 1], [0, 0, 0]]).float()},
+        },
+        W_in = {
+            "q>r": {0: tr.tensor([[1, -1],[1, -1]]).float()},
+        },
+        num_time_steps=1)
+    assert tr.allclose(W["q>r"][1], nvm.batchify_activities(tr.tensor([
+        [[1.5, -.5], [.5, -1.5]],
+        [[1, -1], [1, -1]],
+        ]).float()))
+
 if __name__ == "__main__":
     
     test_batching()
