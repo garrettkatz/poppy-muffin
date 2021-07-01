@@ -28,63 +28,6 @@ class PenaltyTracker:
         self.penalty += mp
         # print("penalty: %.5f" % mp)
 
-def run_episode(env, thing_below, goal_thing_below, nvm, init_regs, init_conns, penalty_tracker, sigma=0):
-    
-    # reload blocks
-    env.reset()
-    env.load_blocks(thing_below)
-
-    # reset nvm, input new env, mount main program
-    nvm.reset_state(init_regs, init_conns)
-    memorize_env(nvm, goal_thing_above)
-    nvm.mount("main")
-
-    log_prob = 0.0 # accumulate over episode
-    log_probs, rewards = [], []
-
-    dbg = False
-    if dbg: nvm.dbg()
-    target_changed = False
-    while True:
-        done = nvm.tick() # reliable if core is not trained
-        if dbg: nvm.dbg()
-        # if nvm.tick_counter % 100 == 0: print("     tick %d" % nvm.tick_counter)
-        if target_changed:
-            mu = nvm.registers["jnt"].content
-            if sigma > 0:
-                dist = tr.distributions.normal.Normal(mu, sigma)
-                position = dist.sample()
-                log_probs.append(dist.log_prob(position).sum()) # multivariate white noise
-                log_prob += log_probs[-1]
-            else:
-                position = mu
-
-            penalty_tracker.reset()
-            # nvm.dbg()
-            # print("       pos:", position.detach().numpy())
-            nvm.env.goto_position(position.detach().numpy())
-            rewards.append(-penalty_tracker.penalty)
-            # print("net penalty: %.5f" % penalty_tracker.penalty)
-            # input('...')
-
-        tar = nvm.registers["tar"]
-        # decode has some robustness to noise even if tar connections are trained
-        target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
-        if done: break
-    
-    if len(rewards) == 0: # target never changed
-        mu = nvm.registers["jnt"].content
-        dist = tr.distributions.normal.Normal(mu, 0.001)
-        log_probs.append(dist.log_prob(mu).sum()) # multivariate white noise
-        rewards = [-10]
-    
-    sym_reward = compute_symbolic_reward(nvm.env, goal_thing_below)
-    spa_reward = compute_spatial_reward(nvm.env, goal_thing_below)
-    end_reward = calc_reward(sym_reward, spa_reward)
-    rewards[-1] += end_reward
-    
-    return end_reward, log_prob, rewards, log_probs
-
 def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma):
 
     memorize_problem(nvm, problem)
@@ -114,7 +57,16 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
                 position = dist.sample() if b > 0 else mu # first episode noiseless
                 positions[b].append(position)
                 log_probs[b].append(dist.log_prob(position).sum()) # multivariate white noise
-    print("    log probs took %fs" % (time.perf_counter() - perf_counter))
+            if len(positions[b]) > len(positions[0]): break # avoid devolution into moving every step
+        if any([tr.isnan(lp) for lp in log_probs[b]]) or len(positions[b]) != len(positions[0]):
+            print(" "*6, log_probs[b])
+            print(len(positions[b]), len(positions[0]))
+            for t in range(2, num_time_steps):
+                if nvm.decode("tar", t-2, b) != nvm.decode("tar", t-1, b):
+                    nvm.pullback(t, b)
+                    nvm.dbg()
+                    input('.')
+    print("    log probs took %fs" % (time.perf_counter() - perf_counter))    
 
     perf_counter = time.perf_counter()
     env = BlocksWorldEnv(show=False, step_hook=penalty_tracker.step_hook)
@@ -144,8 +96,9 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
         rewards_to_go.append(rtg)
     baseline = np.mean([rtg[0] for rtg in rewards_to_go])
     loss = tr.tensor(0.)
-    for b in range(num_episodes):
+    for b in range(1,num_episodes): # exclude noiseless
         loss -= (rewards_to_go[b] * tr.stack(log_probs[b])).sum() / num_episodes
+        # loss = - (rewards_to_go[b] * tr.stack(log_probs[b])).sum() / num_episodes
         # loss.backward(retain_graph=(b+1 < len(rewards)))
     loss.backward()
     print("    backprop took %fs" % (time.perf_counter() - perf_counter))
@@ -160,7 +113,7 @@ if __name__ == "__main__":
     # num_episodes = 30
     # num_epochs = 150
     num_repetitions = 2
-    num_episodes = 2
+    num_episodes = 3
     num_epochs = 5
     
     run_exp = True
@@ -170,16 +123,16 @@ if __name__ == "__main__":
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
-    # # learning_rates=[0.0001, 0.00005] # all stack layers trainable
-    # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
-    # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
+    # learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
+    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.00005] # ik/motor layrs only
-    trainable = ["ik", "to", "tc", "po", "pc"]
-    # trainable = ["ik"]
+    # learning_rates = [0.00005] # ik/motor layrs only
+    # trainable = ["ik", "to", "tc", "po", "pc"]
+    # # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 

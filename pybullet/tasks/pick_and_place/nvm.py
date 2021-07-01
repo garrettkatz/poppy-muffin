@@ -96,11 +96,11 @@ class NeuralVirtualMachine:
         self.env = env
         self.tick_counter = 0
 
-    def pullback(self, t):
+    def pullback(self, t, b=0):
+        self.tick_counter = t
         for name in self.net.activities:
-            self.tick_counter = self.net.tick_counter
-            self.registers[name].content = self.net.activities[name][t].squeeze()
-            if t > 0: self.registers[name].old_content = self.net.activities[name][t-1].squeeze()
+            self.registers[name].content = self.net.activities[name][t][b].squeeze()
+            if t > 0: self.registers[name].old_content = self.net.activities[name][t-1][b].squeeze()
 
     def dbg(self):
         print("****************** dbg: tick %d **********************" % self.tick_counter)
@@ -255,7 +255,8 @@ def virtualize(am, σ=None):
         register_sizes = {name: reg.size for name, reg in registers.items()},
         gate_register_name = "gts",
         connectivity = connectivity,
-        activators={name: (lambda v: v) for name in ["jnt", "gts"]},
+        # activators={name: (lambda v: v) for name in ["jnt", "gts"]},
+        activators={name: (lambda v: v) for name in ["jnt"]},
         plastic_connections = plastic)
 
     # set up gate register

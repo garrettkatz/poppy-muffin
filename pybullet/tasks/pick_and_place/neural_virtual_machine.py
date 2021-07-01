@@ -4,6 +4,9 @@ def default_activator(v):
     tanh1 = tr.tanh(tr.tensor(1.))
     return tr.tanh(v) / tanh1
 
+def gate_activator(v):
+    return (default_activator(2.*v - 1.) + 1.)/2.
+
 def fast_store_erase_rule(W, x, y):
     # W: (batch, x size, y size)
     # x, y: (batch, size, 1)
@@ -12,7 +15,8 @@ def fast_store_erase_rule(W, x, y):
 class NeuralVirtualMachine:
     def __init__(self,
         register_sizes, gate_register_name,
-        connectivity, activators=None, plastic_connections=None):
+        connectivity, activators=None, plastic_connections=None,
+        detach_gates=True):
 
         # Defaults
         if activators is None: activators = {}
@@ -28,7 +32,8 @@ class NeuralVirtualMachine:
         self.activators = {
             r: activators.get(r, default_activator)
             for r in self.register_names}
-        
+        if gate_register_name not in activators: self.activators[gate_register_name] = gate_activator
+
         # set up connectivity
         self.connectivity = dict(connectivity)
         self.plastic_connections = tuple(sorted(plastic_connections))
@@ -55,6 +60,9 @@ class NeuralVirtualMachine:
             stop = start + len(self.connections_to[r])
             self.recall_slice[r] = slice(start, stop)
         
+        # save gate detach flag
+        self.detach_gates = detach_gates
+        
         # initialize tick counter and state buffers
         self.clear_ticks()
 
@@ -78,8 +86,8 @@ class NeuralVirtualMachine:
         if len(v.shape) == 1: return v.reshape(1, len(v), 1)
         raise ValueError("v should be 1, 2, or 3 dimensional, not %d dimensional" % len(v.shape))
     
-    def unpack(self, g, detach=True):
-        if detach: g = g.detach()
+    def unpack(self, g):
+        if self.detach_gates: g = g.detach()
         u = {r: g[:, self.recall_slice[r]] for r in self.register_names}
         ℓ = {c: g[:, [self.storage_index[c]]] for c in self.plastic_connections}
         return u, ℓ
