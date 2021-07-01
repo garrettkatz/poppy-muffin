@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     num_bases, num_blocks, max_levels = 5, 5, 3
     
-    find_new = True
+    find_new = False
     if find_new:
         thing_below, goal_thing_below, _ = find_failure_case(num_bases, num_blocks, max_levels)    
         print(thing_below)
@@ -72,7 +72,7 @@ if __name__ == "__main__":
         # save
         with open("fcase_data.pkl", "wb") as f: pk.dump((tracker.mp, tracker.sym), f)
 
-    plot_case = False
+    plot_case = True
     if plot_case:
     
         with open("fcase_data.pkl", "rb") as f: (mp, sym) = pk.load(f)

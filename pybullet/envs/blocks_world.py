@@ -144,9 +144,9 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         for bid in self.block_id.values():
             p_block, _ = pb.getBasePositionAndOrientation(bid)
             v_block, _ = pb.getBaseVelocity(bid)
-            speed = np.sum(np.array(v_block)**2)**.5
-            delta = np.sum((np.array(p_block) - p_grip)**2)**.5
-            penalty = max(speed * delta, penalty)
+            speed = np.sum(np.array(v_block)**2)
+            delta = np.sum((np.array(p_block) - p_grip)**2)
+            penalty = max((speed * delta)**.5, penalty)
         return penalty
 
 def random_thing_below(num_blocks, max_levels, num_bases=None):

@@ -19,14 +19,18 @@ def calc_reward(sym_reward, spa_reward):
     return reward
 
 class PenaltyTracker:
-    def __init__(self):
-        self.penalty = 0
+    def __init__(self, period):
+        self.period = period
+        self.reset()
     def reset(self):
         self.penalty = 0
+        self.counter = 0
     def step_hook(self, env, action):
-        mp = env.movement_penalty()
-        self.penalty += mp
-        # print("penalty: %.5f" % mp)
+        if self.counter % self.period == 0:
+            mp = env.movement_penalty()
+            self.penalty += mp * self.period
+            # print("penalty: %.5f" % mp)
+        self.counter += 1
 
 def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma):
 
@@ -80,9 +84,10 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
             env.goto_position(position.detach().numpy())
             rewards[b].append(-penalty_tracker.penalty)
         sym_reward = compute_symbolic_reward(env, problem.goal_thing_below)
-        spa_reward = compute_spatial_reward(env, problem.goal_thing_below)
-        end_reward = calc_reward(sym_reward, spa_reward)
-        rewards[b][-1] += end_reward
+        # spa_reward = compute_spatial_reward(env, problem.goal_thing_below)
+        # end_reward = calc_reward(sym_reward, spa_reward)
+        # rewards[b][-1] += end_reward
+        rewards[b][-1] += sym_reward
         sym.append(sym_reward)
         env.reset()
     env.close()
@@ -126,16 +131,17 @@ if __name__ == "__main__":
     # tr.autograd.set_detect_anomaly(True)
     
     use_penalties = True
-    # learning_rates=[0.0001, 0.00005] # all stack layers trainable
-    learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
-    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
+    # # learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
+    # # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
+    # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    # learning_rates = [0.00005] # ik/motor layrs only
-    # trainable = ["ik", "to", "tc", "po", "pc"]
-    # # trainable = ["ik"]
+    learning_rates = [0.000005] # ik/motor layrs only
+    trainable = ["ik", "to", "tc", "po", "pc"]
+    # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
@@ -151,13 +157,14 @@ if __name__ == "__main__":
     domain = bp.BlockStackingDomain(num_blocks, num_bases, max_levels)
     problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
 
-    penalty_tracker = PenaltyTracker()
+    penalty_tracker = PenaltyTracker(period=5)
 
     if run_exp:
         
         lr_results = {lr: list() for lr in learning_rates}
         for rep in range(num_repetitions):
             for learning_rate in learning_rates:
+                print("Starting lr=%f" % learning_rate)
         
                 results = lr_results[learning_rate]
                 start_rep = time.perf_counter()
@@ -237,7 +244,7 @@ if __name__ == "__main__":
         import matplotlib.pyplot as pt
         
         # one representative run
-        if True:
+        if False:
             learning_rate = .000075
             # with open("stack_trained/pfcb_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
             with open("pfcb_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
