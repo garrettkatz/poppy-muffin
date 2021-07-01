@@ -104,11 +104,12 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
         rtg = rtg[-1] - rtg + rewards[b]
         rewards_to_go.append(rtg)
     baselines = tr.stack(rewards_to_go[1:]).mean(dim=0) # exclude noiseless
+    baselines *= (num_episodes-1) / (num_episodes-2) # de-bias
     baseline = baselines[0]
     loss = tr.tensor(0.)
     for b in range(1,num_episodes): # exclude noiseless
-        loss -= ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1)
-        # loss = - ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1)
+        loss -= ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1) / len(positions[0])
+        # loss = - ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1) / len(positions[0])
         # loss.backward(retain_graph=(b+1 < len(rewards)))
     loss.backward()
     print("    backprop took %fs" % (time.perf_counter() - perf_counter))
@@ -119,14 +120,14 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    # num_repetitions = 5
-    # num_episodes = 5
-    # num_minibatches = 6
-    # num_epochs = 100
-    num_repetitions = 1
-    num_episodes = 3
-    num_minibatches = 2
-    num_epochs = 2
+    num_repetitions = 5
+    num_episodes = 5
+    num_minibatches = 6
+    num_epochs = 100
+    # num_repetitions = 1
+    # num_episodes = 3
+    # num_minibatches = 2
+    # num_epochs = 2
     
     # run_exp = False
     # showresults = True
@@ -148,7 +149,7 @@ if __name__ == "__main__":
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.0001] # ik/motor layrs only
+    learning_rates = [0.00001] # ik/motor layrs only
     trainable = ["ik", "to", "tc", "po", "pc"]
     # trainable = ["ik"]
 

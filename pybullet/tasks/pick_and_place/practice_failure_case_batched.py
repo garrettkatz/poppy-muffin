@@ -103,6 +103,7 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
         rtg = rtg[-1] - rtg + rewards[b]
         rewards_to_go.append(rtg)
     baselines = tr.stack(rewards_to_go[1:]).mean(dim=0) # exclude noiseless
+    baselines *= (num_episodes-1) / (num_episodes-2) # de-bias
     baseline = baselines[0]
     loss = tr.tensor(0.)
     for b in range(1,num_episodes): # exclude noiseless
