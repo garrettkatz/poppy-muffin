@@ -35,7 +35,7 @@ if __name__ == "__main__":
         thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
         goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
     
-    run_case = False
+    run_case = True
     if run_case:
         class Tracker:
             def __init__(self, goal_thing_below):
@@ -50,7 +50,7 @@ if __name__ == "__main__":
                 self.sym.append(compute_symbolic_reward(env, self.goal_thing_below))
         # load
         tracker = Tracker(goal_thing_below)
-        env = BlocksWorldEnv(show=True, step_hook = tracker.step_hook)
+        env = BlocksWorldEnv(show=True, step_hook = tracker.step_hook, timestep=1./200)
         env.load_blocks(thing_below)    
         # run rvm
         rvm = make_abstract_machine(env, num_bases, max_levels)
@@ -65,7 +65,7 @@ if __name__ == "__main__":
             done = rvm.tick()
             if rvm.registers["jnt"].content != rvm.registers["jnt"].old_content:
                 position = rvm.ik[rvm.registers["jnt"].content]
-                input('.')
+                # input('.')
                 rvm.env.goto_position(position)
             if done: break
         # run_machine(rvm, goal_thing_below, reset_dict={"jnt": "rest"})

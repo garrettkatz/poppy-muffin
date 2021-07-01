@@ -100,11 +100,12 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
         rtg = tr.cumsum(rewards[b], dim=0)
         rtg = rtg[-1] - rtg + rewards[b]
         rewards_to_go.append(rtg)
-    baseline = np.mean([rtg[0] for rtg in rewards_to_go])
+    baselines = tr.stack(rewards_to_go[1:]).mean(dim=0) # exclude noiseless
+    baseline = baselines[0]
     loss = tr.tensor(0.)
     for b in range(1,num_episodes): # exclude noiseless
-        loss -= (rewards_to_go[b] * tr.stack(log_probs[b])).sum() / num_episodes
-        # loss = - (rewards_to_go[b] * tr.stack(log_probs[b])).sum() / num_episodes
+        loss -= ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1)
+        # loss = - ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1)
         # loss.backward(retain_graph=(b+1 < len(rewards)))
     loss.backward()
     print("    backprop took %fs" % (time.perf_counter() - perf_counter))
