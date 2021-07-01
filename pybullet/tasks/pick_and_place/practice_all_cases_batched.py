@@ -121,18 +121,18 @@ if __name__ == "__main__":
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
     num_repetitions = 5
-    num_episodes = 5
-    num_minibatches = 6
+    num_episodes = 15
+    num_minibatches = 2
     num_epochs = 100
     # num_repetitions = 1
     # num_episodes = 3
     # num_minibatches = 2
     # num_epochs = 2
     
-    # run_exp = False
-    # showresults = True
     run_exp = True
     showresults = False
+    # run_exp = True
+    # showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
@@ -140,17 +140,17 @@ if __name__ == "__main__":
     detach_gates = True
     # detach_gates = False
 
-    # # learning_rates=[0.0001, 0.00005] # all stack layers trainable
-    # # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
-    # # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
-    learning_rates=[0.001] # all stack layers trainable
-    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
+    # learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
+    # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
+    # learning_rates=[0.000005] # all stack layers trainable
+    # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    # learning_rates = [0.00001] # ik/motor layrs only
-    # trainable = ["ik", "to", "tc", "po", "pc"]
+    learning_rates = [0.0001] # ik/motor layrs only
+    trainable = ["ik", "to", "tc", "po", "pc"]
     # # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
@@ -219,11 +219,13 @@ if __name__ == "__main__":
     
                     # print("Wik:")
                     # print(conn_params["ik"][:,:8])
+
+                    problem = domain.random_problem_instance() # one random case per gradient update
                     
                     for minibatch in range(num_minibatches):
                         start_minibatch = time.perf_counter()
                         
-                        problem = domain.random_problem_instance()
+                        # problem = domain.random_problem_instance()
                     
                         sym, rewards_to_go, baseline = run_episodes(
                             problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma)
@@ -258,7 +260,58 @@ if __name__ == "__main__":
     if showresults:
         import os
         import matplotlib.pyplot as pt
+
+        for lr, learning_rate in enumerate(learning_rates):
+
+            # with open("pacb.pkl","rb") as f: results = pk.load(f)
+            # fname = "stack_trained/pacb_%.2g.pkl" % learning_rate
+            fname = "pacb_%.2g.pkl" % learning_rate
+            if os.path.exists(fname):
+                with open(fname,"rb") as f: results = pk.load(f)
+    
+            num_repetitions = len(results)
+            for rep in range(num_repetitions):
+                epoch_syms, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
+                num_epochs = len(results[rep])
+            
+                # print("rep %d LC:" % rep)
+                # for r,rewards in enumerate(epoch_syms): print(r, rewards)
+                
+                pt.subplot(num_repetitions, len(learning_rates), len(learning_rates)*rep+lr+1)
+                if rep == 0: pt.title(str(learning_rate))
+                baselines = [rewards[::num_episodes] for rewards in epoch_rtgs]
+                signals = [[rewards[b*num_episodes+e] for b in range(num_minibatches) for e in range(1,num_episodes)] for rewards in epoch_rtgs]
+                pt.plot([np.mean(rewards) for rewards in signals], 'k-')
+                pt.plot([np.mean(rewards) for rewards in baselines], 'b-')
+                pt.plot([np.mean(rewards) for rewards in epoch_syms], 'k--')
+                # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
+                x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in signals[r]])
+                pt.plot(x, y, 'k.')
+                # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
+                # pt.plot(np.array(x)+.5, y, 'b.')
         
+                # pt.plot(np.log(-np.array(rewards)))
+                # pt.ylabel("log(-R)")
+                
+                # trend line
+                avg_rewards = np.mean(signals, axis=1)
+                window = min(10, len(avg_rewards))
+                trend = np.zeros(len(avg_rewards) - window+1)
+                for w in range(window):
+                    trend += avg_rewards[w:w+len(trend)]
+                trend /= window
+                # for r in range(len(avg_rewards)-window):
+                #     avg_rewards[r] += avg_rewards[r+1:r+window].sum()
+                #     avg_rewards[r] /= window
+                # pt.plot(np.arange(window//2, len(avg_rewards)-(window//2)), avg_rewards, 'ro-')
+                pt.plot(np.arange(len(trend)) + window//2, trend, 'ro-')
+                # pt.ylim([-2, 0])
+                
+                # constant line
+                pt.plot([0, len(avg_rewards)], avg_rewards[[0, 0]],'g-')
+
+        pt.show()
+
         # one representative run
         if False:
             learning_rate = .000075
@@ -321,55 +374,6 @@ if __name__ == "__main__":
             pt.savefig("pabc_many.pdf")
             pt.show()
 
-        for lr, learning_rate in enumerate(learning_rates):
-
-            # with open("pacb.pkl","rb") as f: results = pk.load(f)
-            # fname = "stack_trained/pacb_%.2g.pkl" % learning_rate
-            fname = "pacb_%.2g.pkl" % learning_rate
-            if os.path.exists(fname):
-                with open(fname,"rb") as f: results = pk.load(f)
-    
-            num_repetitions = len(results)
-            for rep in range(num_repetitions):
-                epoch_syms, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
-                num_epochs = len(results[rep])
-            
-                # print("rep %d LC:" % rep)
-                # for r,rewards in enumerate(epoch_syms): print(r, rewards)
-                
-                pt.subplot(num_repetitions, len(learning_rates), len(learning_rates)*rep+lr+1)
-                if rep == 0: pt.title(str(learning_rate))
-                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
-                pt.plot([rewards[0] for rewards in epoch_rtgs], 'b-')
-                pt.plot([np.mean(rewards[1:]) for rewards in epoch_syms], 'k--')
-                # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
-                x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r]])
-                pt.plot(x, y, 'k.')
-                # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
-                # pt.plot(np.array(x)+.5, y, 'b.')
-        
-                # pt.plot(np.log(-np.array(rewards)))
-                # pt.ylabel("log(-R)")
-                
-                # trend line
-                avg_rewards = np.mean(epoch_rtgs, axis=1)
-                window = min(10, len(avg_rewards))
-                trend = np.zeros(len(avg_rewards) - window+1)
-                for w in range(window):
-                    trend += avg_rewards[w:w+len(trend)]
-                trend /= window
-                # for r in range(len(avg_rewards)-window):
-                #     avg_rewards[r] += avg_rewards[r+1:r+window].sum()
-                #     avg_rewards[r] /= window
-                # pt.plot(np.arange(window//2, len(avg_rewards)-(window//2)), avg_rewards, 'ro-')
-                pt.plot(np.arange(len(trend)) + window//2, trend, 'ro-')
-                # pt.ylim([-2, 0])
-                
-                # constant line
-                pt.plot([0, len(avg_rewards)], avg_rewards[[0, 0]],'g-')
-
-        pt.show()
-    
     if showtrained:
 
         rep = 0
