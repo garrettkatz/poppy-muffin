@@ -143,15 +143,15 @@ if __name__ == "__main__":
     # # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
     # # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
-    # learning_rates=[0.00005] # all stack layers trainable
-    # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
+    learning_rates=[0.001] # all stack layers trainable
+    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.00001] # ik/motor layrs only
-    trainable = ["ik", "to", "tc", "po", "pc"]
-    # trainable = ["ik"]
+    # learning_rates = [0.00001] # ik/motor layrs only
+    # trainable = ["ik", "to", "tc", "po", "pc"]
+    # # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
