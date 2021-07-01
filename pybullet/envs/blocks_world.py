@@ -40,9 +40,16 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
         self.thing_below = dict(thing_below) # copy
         self.block_above = self.invert(thing_below)
 
-        # cube urdf path
-        fpath = os.path.dirname(os.path.abspath(__file__)) + '/../../urdfs/objects'
-        pb.setAdditionalSearchPath(fpath)
+        # # cube urdf path
+        # fpath = os.path.dirname(os.path.abspath(__file__)) + '/../../urdfs/objects'
+        # pb.setAdditionalSearchPath(fpath)
+
+        # re-usable collision shape
+        cube_mass = 2
+        cube_side = .02
+        half_exts = (cube_side*.5,)*3
+        if not hasattr(self, "cube_collision"):
+            self.cube_collision = pb.createCollisionShape(pb.GEOM_BOX, halfExtents=half_exts)
         
         colors = list(it.product([0,1], repeat=3))
         self.block_id = {}
@@ -52,14 +59,19 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
             pos, quat = self.placement_of(base)
             pos = (pos[0], pos[1], height)
             rgba = colors[b % len(colors)] + (1,)
-            self.block_id[block] = pb.loadURDF(
-                'cube.urdf', basePosition=pos, baseOrientation=quat, useFixedBase=False)
-            pb.changeVisualShape(self.block_id[block], linkIndex=-1, rgbaColor=rgba)
+            # self.block_id[block] = pb.loadURDF(
+            #     'cube.urdf', basePosition=pos, baseOrientation=quat, useFixedBase=False)
+            # pb.changeVisualShape(self.block_id[block], linkIndex=-1, rgbaColor=rgba)
+            cube_visual = pb.createVisualShape(pb.GEOM_BOX, halfExtents=half_exts, rgbaColor=rgba)
+            self.block_id[block] = pb.createMultiBody(
+                cube_mass, self.cube_collision, cube_visual,
+                basePosition=pos, baseOrientation=quat)
         
         self.step() # let blocks settle
 
     def reset(self):
-        for block in self.blocks: pb.removeBody(self.block_id[block])
+        if hasattr(self, "block_id"):
+            for block in self.blocks: pb.removeBody(self.block_id[block])
         super().reset()
     
     def is_above(self, thing1, thing2):

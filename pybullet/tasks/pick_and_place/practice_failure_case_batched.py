@@ -74,14 +74,16 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
     print("    log probs took %fs" % (time.perf_counter() - perf_counter))    
 
     perf_counter = time.perf_counter()
-    env = BlocksWorldEnv(show=False, step_hook=penalty_tracker.step_hook)
+    # env = BlocksWorldEnv(show=False, step_hook=penalty_tracker.step_hook)
+    env = nvm.env
     rewards, sym = [], []
     for b in range(num_episodes):
         rewards.append([])
+        env.reset()
         env.load_blocks(problem.thing_below)
         for position in positions[b]:
             penalty_tracker.reset()
-            env.goto_position(position.detach().numpy())
+            env.goto_position(position.detach().numpy(), speed=1.5)
             rewards[b].append(-penalty_tracker.penalty)
         sym_reward = compute_symbolic_reward(env, problem.goal_thing_below)
         # spa_reward = compute_spatial_reward(env, problem.goal_thing_below)
@@ -89,14 +91,14 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
         # rewards[b][-1] += end_reward
         rewards[b][-1] += sym_reward
         sym.append(sym_reward)
-        env.reset()
-    env.close()
+        # env.reset()
+    # env.close()
     print("    simulation rewards took %fs" % (time.perf_counter() - perf_counter))
             
     perf_counter = time.perf_counter()
     rewards_to_go = []
     for b in range(num_episodes):
-        rewards[b] = tr.tensor(rewards[b])
+        rewards[b] = tr.tensor(rewards[b]).float()
         rtg = tr.cumsum(rewards[b], dim=0)
         rtg = rtg[-1] - rtg + rewards[b]
         rewards_to_go.append(rtg)
@@ -140,7 +142,7 @@ if __name__ == "__main__":
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.000005] # ik/motor layrs only
+    learning_rates = [0.0001] # ik/motor layrs only
     trainable = ["ik", "to", "tc", "po", "pc"]
     # trainable = ["ik"]
 
@@ -198,7 +200,7 @@ if __name__ == "__main__":
                 # run nvm for time-steps
                 memorize_env(rvm, goal_thing_above)
                 num_time_steps = rvm.run()
-                env.close()
+                # env.close()
                 
                 for epoch in range(num_epochs):
                     start_epoch = time.perf_counter()
@@ -240,6 +242,8 @@ if __name__ == "__main__":
                 # save model (pkl might need outside epoch loop??)
                 with open("pfcb_%f_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((W_init, v_init), f)
     
+                env.close()
+
     if showresults:
         import os
         import matplotlib.pyplot as pt

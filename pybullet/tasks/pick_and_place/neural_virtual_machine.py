@@ -1,11 +1,11 @@
 import torch as tr
 
+_tanh1 = tr.tanh(tr.tensor(1.))
 def default_activator(v):
-    tanh1 = tr.tanh(tr.tensor(1.))
-    return tr.tanh(v) / tanh1
+    return tr.tanh(v) / _tanh1
 
 def gate_activator(v):
-    return (default_activator(2.*v - 1.) + 1.)/2.
+    return (default_activator(2.*v - 1.) + 1.)*.5
 
 def fast_store_erase_rule(W, x, y):
     # W: (batch, x size, y size)

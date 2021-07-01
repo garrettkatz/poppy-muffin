@@ -66,7 +66,7 @@ if __name__ == "__main__":
             if rvm.registers["jnt"].content != rvm.registers["jnt"].old_content:
                 position = rvm.ik[rvm.registers["jnt"].content]
                 # input('.')
-                rvm.env.goto_position(position)
+                rvm.env.goto_position(position, speed=1.5)
             if done: break
         # run_machine(rvm, goal_thing_below, reset_dict={"jnt": "rest"})
         # save
