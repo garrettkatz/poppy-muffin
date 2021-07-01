@@ -59,6 +59,7 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
                 mu = v["jnt"][t][b,:,0]
                 dist = tr.distributions.normal.Normal(mu, sigma)
                 position = dist.sample() if b > 0 else mu # first episode noiseless
+                # position = dist.sample()
                 positions[b].append(position)
                 log_probs[b].append(dist.log_prob(position).sum()) # multivariate white noise
             if len(positions[b]) > len(positions[0]): break # avoid devolution into moving every step
@@ -118,52 +119,53 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    num_repetitions = 5
-    num_episodes = 15
+    # num_repetitions = 5
+    # num_episodes = 5
+    # num_minibatches = 6
+    # num_epochs = 100
+    num_repetitions = 1
+    num_episodes = 3
     num_minibatches = 2
-    num_epochs = 100
-    # num_repetitions = 1
-    # num_episodes = 3
-    # num_minibatches = 2
-    # num_epochs = 2
+    num_epochs = 2
     
-    run_exp = False
-    showresults = True
-    # run_exp = True
-    # showresults = False
+    # run_exp = False
+    # showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
-    # detach_gates = True
-    detach_gates = False
+    detach_gates = True
+    # detach_gates = False
 
-    # learning_rates=[0.0001, 0.00005] # all stack layers trainable
-    # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
-    # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
-    learning_rates=[0.00005] # all stack layers trainable
-    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
+    # # learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    # # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
+    # # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
+    # learning_rates=[0.00005] # all stack layers trainable
+    # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    # learning_rates = [0.0001] # ik/motor layrs only
-    # trainable = ["ik", "to", "tc", "po", "pc"]
-    # # trainable = ["ik"]
+    learning_rates = [0.0001] # ik/motor layrs only
+    trainable = ["ik", "to", "tc", "po", "pc"]
+    # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
-    # one failure case:
     max_levels = 3
     num_blocks = 5
     num_bases = 5
-    thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
-    goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
-    goal_thing_above = invert(goal_thing_below, num_blocks, num_bases)
-    for key, val in goal_thing_above.items():
-        if val == "none": goal_thing_above[key] = "nil"
     domain = bp.BlockStackingDomain(num_blocks, num_bases, max_levels)
-    problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
+
+    # # one failure case:
+    # thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
+    # goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
+    # goal_thing_above = invert(goal_thing_below, num_blocks, num_bases)
+    # for key, val in goal_thing_above.items():
+    #     if val == "none": goal_thing_above[key] = "nil"
+    # problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
 
     penalty_tracker = PenaltyTracker(period=5)
 
@@ -178,8 +180,9 @@ if __name__ == "__main__":
                 start_rep = time.perf_counter()
                 results.append([])
                 
+                problem = domain.random_problem_instance()
                 env = BlocksWorldEnv(show=False, step_hook=penalty_tracker.step_hook)
-                env.load_blocks(thing_below)
+                env.load_blocks(problem.thing_below)
             
                 # set up rvm and virtualize
                 rvm = make_abstract_machine(env, num_bases, max_levels)
@@ -203,7 +206,7 @@ if __name__ == "__main__":
                 orig_conns = {name: conn_params[name].detach().clone() for name in trainable}
                 
                 # run nvm for time-steps
-                memorize_env(rvm, goal_thing_above)
+                memorize_env(rvm, problem.goal_thing_above)
                 num_time_steps = rvm.run()
                 # env.close()
                 
@@ -218,6 +221,8 @@ if __name__ == "__main__":
                     
                     for minibatch in range(num_minibatches):
                         start_minibatch = time.perf_counter()
+                        
+                        problem = domain.random_problem_instance()
                     
                         sym, rewards_to_go, baseline = run_episodes(
                             problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma)
@@ -234,7 +239,7 @@ if __name__ == "__main__":
 
                     delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
                     results[-1].append((epoch_syms, epoch_baselines, epoch_rtgs, delta))
-                    with open("pfcb_%f.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
+                    with open("pacb_%.2g.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
 
                     avg_reward = np.mean(epoch_rtgs)
                     std_reward = np.std(epoch_rtgs)
@@ -245,7 +250,7 @@ if __name__ == "__main__":
                 rep_time = time.perf_counter() - start_rep
                 print("%d took %fs" % (rep, rep_time))
                 # save model (pkl might need outside epoch loop??)
-                with open("pfcb_%f_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((W_init, v_init), f)
+                with open("pacb_%.2g_state_%d.pkl" % (learning_rate, rep),"wb") as f: pk.dump((W_init, v_init), f)
     
                 env.close()
 
@@ -256,8 +261,8 @@ if __name__ == "__main__":
         # one representative run
         if False:
             learning_rate = .000075
-            # with open("stack_trained/pfcb_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
-            with open("pfcb_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
+            # with open("stack_trained/pacb_%.2g.pkl" % learning_rate,"rb") as f: results = pk.load(f)
+            with open("pacb_%.2g.pkl" % learning_rate,"rb") as f: results = pk.load(f)
             rep = 0
             num_epochs = len(results[rep])
             epoch_syms, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
@@ -273,7 +278,7 @@ if __name__ == "__main__":
             pt.xlabel("Training epoch")
             pt.ylabel("Performance")
             pt.tight_layout()
-            pt.savefig("pfcb_one.pdf")
+            pt.savefig("pacb_one.pdf")
             pt.show()
 
             pt.figure(figsize=(5,1.75))
@@ -288,14 +293,14 @@ if __name__ == "__main__":
             pt.ylabel("Weight changes")
             pt.legend(framealpha=1)
             pt.tight_layout()
-            pt.savefig("pfcb_deltas.pdf")
+            pt.savefig("pacb_deltas.pdf")
             pt.show()
         
             # different learning rates
             pt.figure(figsize=(5,4))
             for lr, learning_rate in enumerate(learning_rates):
-                # fname = "stack_trained/pfcb_%f.pkl" % learning_rate
-                fname = "pfcb_%f.pkl" % learning_rate
+                # fname = "stack_trained/pacb_%.2g.pkl" % learning_rate
+                fname = "pacb_%.2g.pkl" % learning_rate
                 with open(fname,"rb") as f: results = pk.load(f)    
                 num_repetitions = len(results)
                 pt.subplot(len(learning_rates), 1, lr+1)
@@ -312,14 +317,14 @@ if __name__ == "__main__":
                 if lr == 0: pt.title("Symbolic performance with different learning rates")
                 if lr+1 == len(learning_rates): pt.xlabel("Training epoch")
             pt.tight_layout()
-            pt.savefig("pfbc_many.pdf")
+            pt.savefig("pabc_many.pdf")
             pt.show()
 
         for lr, learning_rate in enumerate(learning_rates):
 
-            # with open("pfcb.pkl","rb") as f: results = pk.load(f)
-            # fname = "stack_trained/pfcb_%f.pkl" % learning_rate
-            fname = "pfcb_%f.pkl" % learning_rate
+            # with open("pacb.pkl","rb") as f: results = pk.load(f)
+            # fname = "stack_trained/pacb_%.2g.pkl" % learning_rate
+            fname = "pacb_%.2g.pkl" % learning_rate
             if os.path.exists(fname):
                 with open(fname,"rb") as f: results = pk.load(f)
     
@@ -367,7 +372,7 @@ if __name__ == "__main__":
     if showtrained:
 
         rep = 0
-        with open("pfcb_state_%d.pkl" % rep, "rb") as f: (init_regs, init_conns) = pk.load(f)
+        with open("pacb_state_%d.pkl" % rep, "rb") as f: (init_regs, init_conns) = pk.load(f)
 
         env = BlocksWorldEnv(show=True, step_hook = penalty_tracker.step_hook)
         env.load_blocks(thing_below)
