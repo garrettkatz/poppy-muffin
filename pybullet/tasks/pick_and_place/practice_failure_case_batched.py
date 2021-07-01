@@ -65,7 +65,8 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
                 if nvm.decode("tar", t-2, b) != nvm.decode("tar", t-1, b):
                     nvm.pullback(t, b)
                     nvm.dbg()
-                    input('.')
+            #         input('.')
+            # input('.')
     print("    log probs took %fs" % (time.perf_counter() - perf_counter))    
 
     perf_counter = time.perf_counter()
@@ -109,12 +110,14 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    # num_repetitions = 5
-    # num_episodes = 30
-    # num_epochs = 150
-    num_repetitions = 2
-    num_episodes = 3
-    num_epochs = 5
+    num_repetitions = 5
+    num_episodes = 15
+    num_minibatches = 2
+    num_epochs = 100
+    # num_repetitions = 1
+    # num_episodes = 3
+    # num_minibatches = 2
+    # num_epochs = 2
     
     run_exp = True
     showresults = False
@@ -177,7 +180,9 @@ if __name__ == "__main__":
                 # set up trainable connections
                 conn_params = {name: W_init[name][0] for name in trainable}
                 for p in conn_params.values(): p.requires_grad_()
-                opt = tr.optim.Adam(conn_params.values(), lr=learning_rate)
+                
+                # set up optimizer, lump minibatch denominator into learning rate
+                opt = tr.optim.Adam(conn_params.values(), lr=learning_rate / num_minibatches)
                 
                 # save original values for comparison
                 orig_conns = {name: conn_params[name].detach().clone() for name in trainable}
@@ -189,20 +194,31 @@ if __name__ == "__main__":
                 
                 for epoch in range(num_epochs):
                     start_epoch = time.perf_counter()
+                    epoch_syms = []
+                    epoch_baselines = []
+                    epoch_rtgs = []
     
                     # print("Wik:")
                     # print(conn_params["ik"][:,:8])
                     
-                    sym, rewards_to_go, baseline = run_episodes(
-                        problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma)
-                    epoch_rtgs = [rtg[0].item() for rtg in rewards_to_go]
+                    for minibatch in range(num_minibatches):
+                        start_minibatch = time.perf_counter()
+                    
+                        sym, rewards_to_go, baseline = run_episodes(
+                            problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma)
+                        epoch_rtgs.extend([rtg[0].item() for rtg in rewards_to_go])
+                        epoch_syms.extend(sym)
+                        epoch_baselines.append(baseline)
+                        
+                        minibatch_time = time.perf_counter() - start_minibatch
+                        print("  %d,%d,%d took %fs" % (rep, epoch, minibatch, minibatch_time))
         
                     # update params based on episodes
                     opt.step()
                     opt.zero_grad()
 
                     delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
-                    results[-1].append((sym, baseline, epoch_rtgs, delta))
+                    results[-1].append((epoch_syms, epoch_baselines, epoch_rtgs, delta))
                     with open("pfcb_%f.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
 
                     avg_reward = np.mean(epoch_rtgs)
@@ -221,15 +237,16 @@ if __name__ == "__main__":
         import matplotlib.pyplot as pt
         
         # one representative run
-        if False:
+        if True:
             learning_rate = .000075
-            with open("stack_trained/pfcb_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
-            rep = 4
+            # with open("stack_trained/pfcb_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
+            with open("pfcb_%f.pkl" % learning_rate,"rb") as f: results = pk.load(f)
+            rep = 0
             num_epochs = len(results[rep])
-            epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
+            epoch_syms, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
             pt.figure(figsize=(5,1.75))
             pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
-            pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
+            pt.plot([np.mean(rewards[1:]) for rewards in epoch_syms], 'k--')
             from matplotlib.lines import Line2D
             h1 = Line2D([], [], linestyle="-", color="k")
             h2 = Line2D([], [], linestyle="-", color="k")
@@ -260,18 +277,19 @@ if __name__ == "__main__":
             # different learning rates
             pt.figure(figsize=(5,4))
             for lr, learning_rate in enumerate(learning_rates):
-                fname = "stack_trained/pfcb_%f.pkl" % learning_rate
+                # fname = "stack_trained/pfcb_%f.pkl" % learning_rate
+                fname = "pfcb_%f.pkl" % learning_rate
                 with open(fname,"rb") as f: results = pk.load(f)    
                 num_repetitions = len(results)
                 pt.subplot(len(learning_rates), 1, lr+1)
                 num_epochs = len(results[0])
                 syms = np.empty((num_repetitions, num_epochs))
                 for rep in range(num_repetitions):
-                    epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
-                    syms[rep,:num_epochs] = np.array([np.mean(rewards[1:]) for rewards in epoch_rewards])
+                    epoch_syms, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
+                    syms[rep,:num_epochs] = np.array([np.mean(rewards[1:]) for rewards in epoch_syms])
                 pt.plot(syms.T, '-', color=(.75, .75, .75))
                 pt.plot(syms.mean(axis=0), 'k-')
-                pt.xlim([0, 150])
+                # pt.xlim([0, 150])
                 # pt.ylabel("LR = %s" % str(learning_rate))
                 pt.ylabel("%.1e" % learning_rate)
                 if lr == 0: pt.title("Symbolic performance with different learning rates")
@@ -290,17 +308,17 @@ if __name__ == "__main__":
     
             num_repetitions = len(results)
             for rep in range(num_repetitions):
-                epoch_rewards, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
+                epoch_syms, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
                 num_epochs = len(results[rep])
             
                 # print("rep %d LC:" % rep)
-                # for r,rewards in enumerate(epoch_rewards): print(r, rewards)
+                # for r,rewards in enumerate(epoch_syms): print(r, rewards)
                 
                 pt.subplot(num_repetitions, len(learning_rates), len(learning_rates)*rep+lr+1)
                 if rep == 0: pt.title(str(learning_rate))
                 pt.plot([np.mean(rewards[1:]) for rewards in epoch_rtgs], 'k-')
                 pt.plot([rewards[0] for rewards in epoch_rtgs], 'b-')
-                pt.plot([np.mean(rewards[1:]) for rewards in epoch_rewards], 'k--')
+                pt.plot([np.mean(rewards[1:]) for rewards in epoch_syms], 'k--')
                 # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
                 x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in epoch_rtgs[r]])
                 pt.plot(x, y, 'k.')
