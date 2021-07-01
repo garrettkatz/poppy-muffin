@@ -9,6 +9,7 @@ from restack import invert, compute_spatial_reward, compute_symbolic_reward
 from nvm import virtualize
 import neural_virtual_machine as nv
 import block_stacking_problem as bp
+from failure_case import find_failure_case
 
 np.set_printoptions(linewidth=1000)
 
@@ -120,9 +121,13 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
+    # num_repetitions = 5
+    # num_episodes = 15
+    # num_minibatches = 2
+    # num_epochs = 100
     num_repetitions = 5
-    num_episodes = 15
-    num_minibatches = 2
+    num_episodes = 5
+    num_minibatches = 6
     num_epochs = 100
     # num_repetitions = 1
     # num_episodes = 3
@@ -220,11 +225,14 @@ if __name__ == "__main__":
                     # print("Wik:")
                     # print(conn_params["ik"][:,:8])
 
-                    problem = domain.random_problem_instance() # one random case per gradient update
+                    # problem = domain.random_problem_instance() # one random case per gradient update
                     
                     for minibatch in range(num_minibatches):
                         start_minibatch = time.perf_counter()
                         
+                        thing_below, goal_thing_below, _ = find_failure_case(num_bases, num_blocks, max_levels)
+                        goal_thing_above = domain.invert(goal_thing_below)
+                        problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
                         # problem = domain.random_problem_instance()
                     
                         sym, rewards_to_go, baseline = run_episodes(
