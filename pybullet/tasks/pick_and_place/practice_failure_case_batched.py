@@ -71,7 +71,7 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
                     nvm.dbg()
             #         input('.')
             # input('.')
-    print("    log probs took %fs" % (time.perf_counter() - perf_counter))    
+    print("    log probs took %fs (%d motions)" % (time.perf_counter() - perf_counter, len(positions[0])))
 
     perf_counter = time.perf_counter()
     # env = BlocksWorldEnv(show=False, step_hook=penalty_tracker.step_hook)
@@ -127,24 +127,26 @@ if __name__ == "__main__":
     # num_minibatches = 2
     # num_epochs = 2
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
-    use_penalties = True
-    # # learning_rates=[0.0001, 0.00005] # all stack layers trainable
+    detach_gates = True
+
+    # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
-    # # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
-    # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
+    # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
+    learning_rates=[0.00005] # all stack layers trainable
+    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.0001] # ik/motor layrs only
-    trainable = ["ik", "to", "tc", "po", "pc"]
-    # trainable = ["ik"]
+    # learning_rates = [0.0001] # ik/motor layrs only
+    # trainable = ["ik", "to", "tc", "po", "pc"]
+    # # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
 
@@ -181,7 +183,7 @@ if __name__ == "__main__":
                 rvm.reset({"jnt": "rest"})
                 rvm.mount("main")
 
-                nvm = virtualize(rvm, σ=nv.default_activator)
+                nvm = virtualize(rvm, σ=nv.default_activator, detach_gates=detach_gates)
                 nvm.mount("main")
                 W_init = {name: {0: nvm.net.batchify_weights(conn.W)} for name, conn in nvm.connections.items()}
                 v_init = {name: {0: nvm.net.batchify_activities(reg.content)} for name, reg in nvm.registers.items()}

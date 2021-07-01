@@ -87,7 +87,8 @@ class NeuralVirtualMachine:
         raise ValueError("v should be 1, 2, or 3 dimensional, not %d dimensional" % len(v.shape))
     
     def unpack(self, g):
-        if self.detach_gates: g = g.detach()
+        # if self.detach_gates: g = g.detach()
+        if self.detach_gates: g = (g.detach() > .5).float()
         u = {r: g[:, self.recall_slice[r]] for r in self.register_names}
         ℓ = {c: g[:, [self.storage_index[c]]] for c in self.plastic_connections}
         return u, ℓ

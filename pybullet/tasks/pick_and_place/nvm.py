@@ -225,7 +225,7 @@ def hadamard_codec(tokens):
     H = hadamard_matrix(N)
     return H.shape[0], {token: H[t] for t, token in enumerate(tokens)}
 
-def virtualize(am, σ=None):
+def virtualize(am, σ=None, detach_gates=True):
     
     registers = {}
     
@@ -257,7 +257,8 @@ def virtualize(am, σ=None):
         connectivity = connectivity,
         # activators={name: (lambda v: v) for name in ["jnt", "gts"]},
         activators={name: (lambda v: v) for name in ["jnt"]},
-        plastic_connections = plastic)
+        plastic_connections = plastic,
+        detach_gates=detach_gates)
 
     # set up gate register
     gts_codec = {}
