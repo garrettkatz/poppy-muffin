@@ -121,29 +121,34 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    # num_repetitions = 5
-    # num_episodes = 15
-    # num_minibatches = 2
-    # num_epochs = 100
-    num_repetitions = 5
-    num_episodes = 5
-    num_minibatches = 6
-    num_epochs = 100
+    one_prob_per_update = False
+
+    if one_prob_per_update:    
+        num_repetitions = 5
+        num_episodes = 15
+        num_minibatches = 2
+        num_epochs = 100
+    else:
+        num_repetitions = 5
+        num_episodes = 5
+        num_minibatches = 6
+        num_epochs = 100
     # num_repetitions = 1
     # num_episodes = 3
     # num_minibatches = 2
     # num_epochs = 2
     
+    # run_exp = False
+    # showresults = True
     run_exp = True
     showresults = False
-    # run_exp = True
-    # showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
     
     detach_gates = True
     # detach_gates = False
+    only_fails = True
 
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
@@ -225,15 +230,16 @@ if __name__ == "__main__":
                     # print("Wik:")
                     # print(conn_params["ik"][:,:8])
 
-                    # problem = domain.random_problem_instance() # one random case per gradient update
+                    if one_prob_per_update:
+                        if only_fails: problem, _ = find_failure_case(env, domain)
+                        else: problem = domain.random_problem_instance() # one random case per gradient update
                     
                     for minibatch in range(num_minibatches):
                         start_minibatch = time.perf_counter()
                         
-                        thing_below, goal_thing_below, _ = find_failure_case(num_bases, num_blocks, max_levels)
-                        goal_thing_above = domain.invert(goal_thing_below)
-                        problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
-                        # problem = domain.random_problem_instance()
+                        if not one_prob_per_update:
+                            if only_fails: problem, _ = find_failure_case(env, domain)
+                            else: problem = domain.random_problem_instance()
                     
                         sym, rewards_to_go, baseline = run_episodes(
                             problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma)
