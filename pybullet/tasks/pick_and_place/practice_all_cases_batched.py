@@ -121,9 +121,9 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    prob_freq = "repetition"
+    # prob_freq = "repetition"
     # prob_freq = "epoch"
-    # prob_freq = "minibatch"
+    prob_freq = "minibatch"
 
     if prob_freq in ["repetition","epoch"]:
         num_repetitions = 5
@@ -132,8 +132,8 @@ if __name__ == "__main__":
         num_epochs = 100
     if prob_freq == "minibatch":
         num_repetitions = 5
-        num_episodes = 10
-        num_minibatches = 10
+        num_episodes = 16
+        num_minibatches = 8
         num_epochs = 100
     # num_repetitions = 1
     # num_episodes = 3
@@ -152,7 +152,8 @@ if __name__ == "__main__":
     
     detach_gates = True
     # detach_gates = False
-    only_fails = True
+    # only_fails = True
+    only_fails = False
 
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
@@ -160,11 +161,11 @@ if __name__ == "__main__":
     # learning_rates=[0.000005] # all stack layers trainable
     # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
-    # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
-    # trainable = ["ik", "to", "tc", "po", "pc", "base"]
+    learning_rates=[0.000001] # base only trainable, 5 works better than 1
+    trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.000001] # ik/motor layrs only
-    trainable = ["ik", "to", "tc", "po", "pc"]
+    # learning_rates = [0.000001] # ik/motor layrs only
+    # trainable = ["ik", "to", "tc", "po", "pc"]
     # # trainable = ["ik"]
 
     sigma = 0.001 # stdev in random angular sampling (radians)
@@ -289,10 +290,10 @@ if __name__ == "__main__":
             # fname = "stack_trained/pacb_%.2g.pkl" % learning_rate
             fname = "pacb_%.2g.pkl" % learning_rate
             if os.path.exists(fname):
-                # with open(fname,"rb") as f: sizing, results = pk.load(f)
-                with open(fname,"rb") as f: results = pk.load(f)
+                with open(fname,"rb") as f: sizing, results = pk.load(f)
+                # with open(fname,"rb") as f: results = pk.load(f)
     
-            # num_repetitions, num_epochs, num_minibatches, num_episodes = sizing
+            num_repetitions, num_epochs, num_minibatches, num_episodes = sizing
             num_repetitions = len(results)
             for rep in range(num_repetitions):
                 epoch_syms, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
