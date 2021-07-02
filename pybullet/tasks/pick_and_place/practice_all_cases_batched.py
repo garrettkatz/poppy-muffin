@@ -121,22 +121,26 @@ if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
-    one_prob_per_update = False
+    prob_freq = "repetition"
+    # prob_freq = "epoch"
+    # prob_freq = "minibatch"
 
-    if one_prob_per_update:    
+    if prob_freq in ["repetition","epoch"]:
         num_repetitions = 5
         num_episodes = 15
         num_minibatches = 2
         num_epochs = 100
-    else:
+    if prob_freq == "minibatch":
         num_repetitions = 5
-        num_episodes = 5
-        num_minibatches = 6
+        num_episodes = 10
+        num_minibatches = 10
         num_epochs = 100
     # num_repetitions = 1
     # num_episodes = 3
     # num_minibatches = 2
     # num_epochs = 2
+    
+    sizing = num_repetitions, num_epochs, num_minibatches, num_episodes
     
     # run_exp = False
     # showresults = True
@@ -159,7 +163,7 @@ if __name__ == "__main__":
     # learning_rates=[0.00005, 0.00001] # base only trainable, 5 works better than 1
     # trainable = ["ik", "to", "tc", "po", "pc", "base"]
 
-    learning_rates = [0.0001] # ik/motor layrs only
+    learning_rates = [0.000001] # ik/motor layrs only
     trainable = ["ik", "to", "tc", "po", "pc"]
     # # trainable = ["ik"]
 
@@ -221,6 +225,10 @@ if __name__ == "__main__":
                 num_time_steps = rvm.run()
                 # env.close()
                 
+                if prob_freq == "repetition":
+                    if only_fails: problem, _ = find_failure_case(env, domain)
+                    else: problem = domain.random_problem_instance()
+                
                 for epoch in range(num_epochs):
                     start_epoch = time.perf_counter()
                     epoch_syms = []
@@ -230,14 +238,14 @@ if __name__ == "__main__":
                     # print("Wik:")
                     # print(conn_params["ik"][:,:8])
 
-                    if one_prob_per_update:
+                    if prob_freq == "epoch":
                         if only_fails: problem, _ = find_failure_case(env, domain)
-                        else: problem = domain.random_problem_instance() # one random case per gradient update
+                        else: problem = domain.random_problem_instance()
                     
                     for minibatch in range(num_minibatches):
                         start_minibatch = time.perf_counter()
                         
-                        if not one_prob_per_update:
+                        if prob_freq == "minibatch":
                             if only_fails: problem, _ = find_failure_case(env, domain)
                             else: problem = domain.random_problem_instance()
                     
@@ -256,7 +264,7 @@ if __name__ == "__main__":
 
                     delta = {name: (orig_conns[name] - conn_params[name]).abs().max().item() for name in trainable}
                     results[-1].append((epoch_syms, epoch_baselines, epoch_rtgs, delta))
-                    with open("pacb_%.2g.pkl" % learning_rate,"wb") as f: pk.dump(results, f)
+                    with open("pacb_%.2g.pkl" % learning_rate,"wb") as f: pk.dump((sizing, results), f)
 
                     avg_reward = np.mean(epoch_rtgs)
                     std_reward = np.std(epoch_rtgs)
@@ -281,8 +289,10 @@ if __name__ == "__main__":
             # fname = "stack_trained/pacb_%.2g.pkl" % learning_rate
             fname = "pacb_%.2g.pkl" % learning_rate
             if os.path.exists(fname):
+                # with open(fname,"rb") as f: sizing, results = pk.load(f)
                 with open(fname,"rb") as f: results = pk.load(f)
     
+            # num_repetitions, num_epochs, num_minibatches, num_episodes = sizing
             num_repetitions = len(results)
             for rep in range(num_repetitions):
                 epoch_syms, epoch_baselines, epoch_rtgs, deltas = zip(*results[rep])
@@ -300,6 +310,8 @@ if __name__ == "__main__":
                 pt.plot([np.mean(rewards) for rewards in epoch_syms], 'k--')
                 # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
                 x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in signals[r]])
+                print(len(signals[0]))
+                print(len(signals[1]))
                 pt.plot(x, y, 'k.')
                 # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
                 # pt.plot(np.array(x)+.5, y, 'b.')
