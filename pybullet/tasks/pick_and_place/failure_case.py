@@ -6,27 +6,34 @@ from blocks_world import BlocksWorldEnv
 from restack import compute_symbolic_reward, random_problem_instance
 from abstract_machine import make_abstract_machine, memorize_env
 from nvm_am_compare import run_trial, run_machine
+import block_stacking_problem as bp
 
-def find_failure_case(num_bases, num_blocks, max_levels):
+def find_failure_case(env, domain, sym_cutoff=-1):
     while True:
         # print("trying..")
-        env = BlocksWorldEnv(show=False)
-        thing_below, goal_thing_below = random_problem_instance(env, num_blocks, max_levels, num_bases)    
-        am = make_abstract_machine(env, num_bases, max_levels)
-        am_results = run_machine(am, goal_thing_below, {"jnt": "rest"})
-        env.close()
+        problem = domain.random_problem_instance()
+        env.reset()
+        env.load_blocks(problem.thing_below)
+        am = make_abstract_machine(env, domain.num_bases, domain.max_levels)
+        am_results = run_machine(am, problem.goal_thing_below, {"jnt": "rest"})
         ticks, running_time, sym_reward, spa_reward = am_results        
-        if sym_reward <= -2: break
+        if sym_reward <= sym_cutoff: break
         # print(sym_reward)
-    return thing_below, goal_thing_below, sym_reward
+    env.reset()
+    return problem, sym_reward
 
 if __name__ == "__main__":
 
     num_bases, num_blocks, max_levels = 5, 5, 3
+    domain = bp.BlockStackingDomain(num_bases, num_blocks, max_levels)
     
-    find_new = False
+    find_new = True
     if find_new:
-        thing_below, goal_thing_below, _ = find_failure_case(num_bases, num_blocks, max_levels)    
+        env = BlocksWorldEnv(show=False)
+        problem, _ = find_failure_case(env, domain)
+        env.close()
+        thing_below = problem.thing_below
+        goal_thing_below = problem.goal_thing_below
         print(thing_below)
         print(goal_thing_below)
     
