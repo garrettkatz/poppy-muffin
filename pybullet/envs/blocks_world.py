@@ -72,6 +72,8 @@ class BlocksWorldEnv(PoppyErgoJrEnv):
     def reset(self):
         if hasattr(self, "block_id"):
             for block in self.blocks: pb.removeBody(self.block_id[block])
+            self.block_id = {}
+            self.blocks = []
         super().reset()
     
     def is_above(self, thing1, thing2):
