@@ -190,13 +190,13 @@ def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pen
 def get_rvm_timesteps(rvm, problem, simulate=False, dbg=False):
     # run nvm for time-steps
     rvm.reset({"jnt": "rest"})
-    rvm.mount("main")
+    rvm.mount("main") # sets tick counter to 0
     memorize_problem(rvm, problem)
     if dbg: rvm.dbg()
     while True:
         done = rvm.tick()
         if dbg: rvm.dbg()
-        if rvm.registers["jnt"].content != rvm.registers["jnt"].old_content:
+        if simulate and rvm.registers["jnt"].content != rvm.registers["jnt"].old_content:
             position = rvm.ik[rvm.registers["jnt"].content]
             rvm.env.goto_position(position)
         if done: break
