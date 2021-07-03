@@ -3,7 +3,8 @@ import numpy as np
 import matplotlib.pyplot as pt
 
 num_bases, max_levels = 7, 3
-result_file = "results_compare_%d_%d.pkl" % (num_bases, max_levels)
+# result_file = "results_compare_%d_%d.pkl" % (num_bases, max_levels)
+result_file = "nvm_rvm_compare_%d_%d.pkl" % (num_bases, max_levels)
 with open(result_file, "rb") as f: all_results = pk.load(f)
 
 block_counts = sorted(all_results.keys())

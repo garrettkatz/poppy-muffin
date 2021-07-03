@@ -113,6 +113,7 @@ if __name__ == "__main__":
                 print(" nvm size: %d" % nvm_size[2])
 
     plt_exp = True
+    plot_show = True
     if plt_exp:
 
         import numpy as np
@@ -174,7 +175,7 @@ if __name__ == "__main__":
         
         pt.tight_layout()
         pt.savefig("tick_compare.eps")
-        # pt.show()
+        if plot_show: pt.show()
         pt.close()
 
         # clock rates
@@ -206,14 +207,14 @@ if __name__ == "__main__":
         for m,mach in enumerate(["rvm","nvm"]):
             x = [rep for num_blocks in metrics["time"]
                     for rep in metrics["time"][num_blocks][mach]]
-            pt.hist(x, ec="k", fc=["w",(.5,)*3][m], bins=np.linspace(0,10,20), label=mach.upper())
+            pt.hist(x, ec="k", fc=["w",(.5,)*3][m], bins=np.linspace(0,5,20), label=mach.upper())
         pt.ylabel("Frequency", fontsize=12)
         pt.xlabel("Runtime (s)", fontsize=12)
         pt.legend()
         
         pt.tight_layout()
         pt.savefig("time_compare.eps")
-        # pt.show()
+        if plot_show: pt.show()
         pt.close()
         
         # combined computation performance figure
@@ -263,9 +264,10 @@ if __name__ == "__main__":
 
         fig.add_subplot(gs[0,3:])
         for m,mach in enumerate(["rvm","nvm"]):
-            x = [rep for num_blocks in metrics["time"]
+            hi, cnt = 5, 20
+            x = [rep+hi/cnt*.5*m for num_blocks in metrics["time"]
                     for rep in metrics["time"][num_blocks][mach]]
-            pt.hist(x, ec="k", fc=["w",(.5,)*3][m], bins=np.linspace(0,10,12), label=mach.upper())
+            pt.hist(x, ec="k", fc=["w",(.5,)*3][m], bins=np.linspace(0,hi,cnt), label=mach.upper())
         pt.yticks([0, 500, 1000], ["0","5k","10k"])
         pt.ylabel("Frequency", fontsize=16)
         pt.xlabel("Runtime (s)", fontsize=16)
@@ -304,7 +306,7 @@ if __name__ == "__main__":
         # pt.savefig("sym_compare.eps")
         # pt.savefig("sym_compare.png")
         pt.savefig("sym_compare.pdf")
-        # pt.show()
+        if plot_show: pt.show()
         pt.close()
 
         # # spa box plot
@@ -334,7 +336,7 @@ if __name__ == "__main__":
         # pt.tight_layout()
         # # pt.savefig("spa_compare.eps")
         # pt.savefig("spa_compare.png")
-        # # pt.show()
+        # if plot_show: pt.show()
         # pt.close()
 
         # spa scatterplot
@@ -358,7 +360,7 @@ if __name__ == "__main__":
         pt.tight_layout()
         pt.savefig("spa_compare.eps")
         pt.savefig("spa_compare.png")
-        # pt.show()
+        if plot_show: pt.show()
         pt.close()
 
         # # scatter plots
@@ -378,4 +380,4 @@ if __name__ == "__main__":
         #     pt.title(metric)
 
         # pt.tight_layout()
-        # pt.show()
+        if plot_show: pt.show()
