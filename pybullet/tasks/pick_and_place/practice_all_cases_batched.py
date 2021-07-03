@@ -3,7 +3,7 @@ import numpy as np
 import torch as tr
 import sys, time
 sys.path.append('../../envs')
-from blocks_world import BlocksWorldEnv
+from blocks_world import BlocksWorldEnv, MovementPenaltyTracker
 from abstract_machine import make_abstract_machine, memorize_env, memorize_problem
 from restack import invert, compute_spatial_reward, compute_symbolic_reward
 from nvm import virtualize
@@ -19,105 +19,91 @@ def calc_reward(sym_reward, spa_reward):
     # reward = spa_reward
     return reward
 
-class PenaltyTracker:
-    def __init__(self, period):
-        self.period = period
-        self.reset()
-    def reset(self):
-        self.penalty = 0
-        self.counter = 0
-    def step_hook(self, env, action):
-        if self.counter % self.period == 0:
-            mp = env.movement_penalty()
-            self.penalty += mp * self.period
-            # print("penalty: %.5f" % mp)
-        self.counter += 1
+# def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma):
+
+#     memorize_problem(nvm, problem)
+#     for name in ["obj","loc","goal"]:
+#         W_init[name][0] = nvm.connections[name].W.repeat(num_episodes, 1, 1)
+
+#     perf_counter = time.perf_counter()
+#     # W, v = nvm.net.run(W_init, v_init, num_time_steps)
+#     nvm.net.clear_ticks()
+#     for t in range(num_time_steps):
+#         nvm.net.tick(W_init, v_init)
+#         # nvm.pullback(t)
+#         # nvm.dbg()
+#         # input('.')
+#     W, v = nvm.net.weights, nvm.net.activities
+#     print("    NVM run took %fs (%d timesteps)" % (time.perf_counter() - perf_counter, num_time_steps))
+    
+#     perf_counter = time.perf_counter()
+#     positions, log_probs = {}, {}
+#     tar = nvm.registers["tar"]
+#     for b in range(num_episodes):
+#         positions[b], log_probs[b] = [], []
+#         for t in range(2, num_time_steps):
+#             if nvm.decode("tar", t-2, b) != nvm.decode("tar", t-1, b):
+#                 mu = v["jnt"][t][b,:,0]
+#                 dist = tr.distributions.normal.Normal(mu, sigma)
+#                 position = dist.sample() if b > 0 else mu # first episode noiseless
+#                 # position = dist.sample()
+#                 positions[b].append(position)
+#                 log_probs[b].append(dist.log_prob(position).sum()) # multivariate white noise
+#             if len(positions[b]) > len(positions[0]): break # avoid devolution into moving every step
+#         if any([tr.isnan(lp) for lp in log_probs[b]]) or len(positions[b]) != len(positions[0]):
+#             print(" "*6, log_probs[b])
+#             print(len(positions[b]), len(positions[0]))
+#             for t in range(2, num_time_steps):
+#                 if nvm.decode("tar", t-2, b) != nvm.decode("tar", t-1, b):
+#                     nvm.pullback(t, b)
+#                     nvm.dbg()
+#             #         input('.')
+#             # input('.')
+#     print("    log probs took %fs (%d motions)" % (time.perf_counter() - perf_counter, len(positions[0])))
+
+#     perf_counter = time.perf_counter()
+#     # env = BlocksWorldEnv(show=False, step_hook=penalty_tracker.step_hook)
+#     env = nvm.env
+#     rewards, sym = [], []
+#     for b in range(num_episodes):
+#         rewards.append([])
+#         env.reset()
+#         env.load_blocks(problem.thing_below)
+#         for position in positions[b]:
+#             penalty_tracker.reset()
+#             env.goto_position(position.detach().numpy(), speed=1.5)
+#             rewards[b].append(-penalty_tracker.penalty)
+#         sym_reward = compute_symbolic_reward(env, problem.goal_thing_below)
+#         # spa_reward = compute_spatial_reward(env, problem.goal_thing_below)
+#         # end_reward = calc_reward(sym_reward, spa_reward)
+#         # rewards[b][-1] += end_reward
+#         rewards[b][-1] += sym_reward
+#         sym.append(sym_reward)
+#         # env.reset()
+#     # env.close()
+#     print("    simulation rewards took %fs" % (time.perf_counter() - perf_counter))
+            
+#     perf_counter = time.perf_counter()
+#     rewards_to_go = []
+#     for b in range(num_episodes):
+#         rewards[b] = tr.tensor(rewards[b]).float()
+#         rtg = tr.cumsum(rewards[b], dim=0)
+#         rtg = rtg[-1] - rtg + rewards[b]
+#         rewards_to_go.append(rtg)
+#     baselines = tr.stack(rewards_to_go[1:]).mean(dim=0) # exclude noiseless
+#     baselines *= (num_episodes-1) / (num_episodes-2) # de-bias
+#     baseline = baselines[0]
+#     loss = tr.tensor(0.)
+#     for b in range(1,num_episodes): # exclude noiseless
+#         loss -= ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1) / len(positions[0])
+#         # loss = - ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1) / len(positions[0])
+#         # loss.backward(retain_graph=(b+1 < len(rewards)))
+#     loss.backward()
+#     print("    backprop took %fs" % (time.perf_counter() - perf_counter))
+
+#     return sym, rewards_to_go, baseline
 
 def run_episodes(problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma):
-
-    memorize_problem(nvm, problem)
-    for name in ["obj","loc","goal"]:
-        W_init[name][0] = nvm.connections[name].W.repeat(num_episodes, 1, 1)
-
-    perf_counter = time.perf_counter()
-    # W, v = nvm.net.run(W_init, v_init, num_time_steps)
-    nvm.net.clear_ticks()
-    for t in range(num_time_steps):
-        nvm.net.tick(W_init, v_init)
-        # nvm.pullback(t)
-        # nvm.dbg()
-        # input('.')
-    W, v = nvm.net.weights, nvm.net.activities
-    print("    NVM run took %fs" % (time.perf_counter() - perf_counter))
-    
-    perf_counter = time.perf_counter()
-    positions, log_probs = {}, {}
-    tar = nvm.registers["tar"]
-    for b in range(num_episodes):
-        positions[b], log_probs[b] = [], []
-        for t in range(2, num_time_steps):
-            if nvm.decode("tar", t-2, b) != nvm.decode("tar", t-1, b):
-                mu = v["jnt"][t][b,:,0]
-                dist = tr.distributions.normal.Normal(mu, sigma)
-                position = dist.sample() if b > 0 else mu # first episode noiseless
-                # position = dist.sample()
-                positions[b].append(position)
-                log_probs[b].append(dist.log_prob(position).sum()) # multivariate white noise
-            if len(positions[b]) > len(positions[0]): break # avoid devolution into moving every step
-        if any([tr.isnan(lp) for lp in log_probs[b]]) or len(positions[b]) != len(positions[0]):
-            print(" "*6, log_probs[b])
-            print(len(positions[b]), len(positions[0]))
-            for t in range(2, num_time_steps):
-                if nvm.decode("tar", t-2, b) != nvm.decode("tar", t-1, b):
-                    nvm.pullback(t, b)
-                    nvm.dbg()
-            #         input('.')
-            # input('.')
-    print("    log probs took %fs (%d motions)" % (time.perf_counter() - perf_counter, len(positions[0])))
-
-    perf_counter = time.perf_counter()
-    # env = BlocksWorldEnv(show=False, step_hook=penalty_tracker.step_hook)
-    env = nvm.env
-    rewards, sym = [], []
-    for b in range(num_episodes):
-        rewards.append([])
-        env.reset()
-        env.load_blocks(problem.thing_below)
-        for position in positions[b]:
-            penalty_tracker.reset()
-            env.goto_position(position.detach().numpy(), speed=1.5)
-            rewards[b].append(-penalty_tracker.penalty)
-        sym_reward = compute_symbolic_reward(env, problem.goal_thing_below)
-        # spa_reward = compute_spatial_reward(env, problem.goal_thing_below)
-        # end_reward = calc_reward(sym_reward, spa_reward)
-        # rewards[b][-1] += end_reward
-        rewards[b][-1] += sym_reward
-        sym.append(sym_reward)
-        # env.reset()
-    # env.close()
-    print("    simulation rewards took %fs" % (time.perf_counter() - perf_counter))
-            
-    perf_counter = time.perf_counter()
-    rewards_to_go = []
-    for b in range(num_episodes):
-        rewards[b] = tr.tensor(rewards[b]).float()
-        rtg = tr.cumsum(rewards[b], dim=0)
-        rtg = rtg[-1] - rtg + rewards[b]
-        rewards_to_go.append(rtg)
-    baselines = tr.stack(rewards_to_go[1:]).mean(dim=0) # exclude noiseless
-    baselines *= (num_episodes-1) / (num_episodes-2) # de-bias
-    baseline = baselines[0]
-    loss = tr.tensor(0.)
-    for b in range(1,num_episodes): # exclude noiseless
-        loss -= ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1) / len(positions[0])
-        # loss = - ((rewards_to_go[b] - baselines) * tr.stack(log_probs[b])).sum() / (num_episodes - 1) / len(positions[0])
-        # loss.backward(retain_graph=(b+1 < len(rewards)))
-    loss.backward()
-    print("    backprop took %fs" % (time.perf_counter() - perf_counter))
-
-    return sym, rewards_to_go, baseline
-
-def run_episodes2(problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma):
 
     memorize_problem(nvm, problem)
     for name in ["obj","loc","goal"]:
@@ -132,7 +118,7 @@ def run_episodes2(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pe
         # nvm.dbg()
         # input('.')
     W, v = nvm.net.weights, nvm.net.activities
-    print("    NVM run took %fs" % (time.perf_counter() - perf_counter))
+    print("    NVM run took %fs (%d timesteps)" % (time.perf_counter() - perf_counter, num_time_steps))
     
     perf_counter = time.perf_counter()
     positions, log_probs = tuple({b: list() for b in range(num_episodes)} for _ in [0,1])
@@ -201,6 +187,21 @@ def run_episodes2(problem, nvm, W_init, v_init, num_time_steps, num_episodes, pe
 
     return sym, rewards_to_go, baseline
 
+def get_rvm_timesteps(rvm, problem, simulate=False, dbg=False):
+    # run nvm for time-steps
+    rvm.reset({"jnt": "rest"})
+    rvm.mount("main")
+    memorize_problem(rvm, problem)
+    if dbg: rvm.dbg()
+    while True:
+        done = rvm.tick()
+        if dbg: rvm.dbg()
+        if rvm.registers["jnt"].content != rvm.registers["jnt"].old_content:
+            position = rvm.ik[rvm.registers["jnt"].content]
+            rvm.env.goto_position(position)
+        if done: break
+    return rvm.tick_counter
+
 if __name__ == "__main__":
     
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
@@ -219,10 +220,10 @@ if __name__ == "__main__":
         num_episodes = 16
         num_minibatches = 16
         num_epochs = 64
-    num_repetitions = 1
-    num_episodes = 3
-    num_minibatches = 2
-    num_epochs = 2
+    # num_repetitions = 1
+    # num_episodes = 3
+    # num_minibatches = 2
+    # num_epochs = 2
     
     sizing = num_repetitions, num_epochs, num_minibatches, num_episodes
     
@@ -260,16 +261,16 @@ if __name__ == "__main__":
     num_bases = 5
     domain = bp.BlockStackingDomain(num_blocks, num_bases, max_levels)
 
-    # one failure case:
-    prob_freq = "once"
-    thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
-    goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
-    goal_thing_above = invert(goal_thing_below, num_blocks, num_bases)
-    for key, val in goal_thing_above.items():
-        if val == "none": goal_thing_above[key] = "nil"
-    problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
+    # # one failure case:
+    # prob_freq = "once"
+    # thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
+    # goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
+    # goal_thing_above = invert(goal_thing_below, num_blocks, num_bases)
+    # for key, val in goal_thing_above.items():
+    #     if val == "none": goal_thing_above[key] = "nil"
+    # problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
 
-    penalty_tracker = PenaltyTracker(period=5)
+    penalty_tracker = MovementPenaltyTracker(period=5)
 
     if run_exp:
         
@@ -306,16 +307,14 @@ if __name__ == "__main__":
                 
                 # save original values for comparison
                 orig_conns = {name: conn_params[name].detach().clone() for name in trainable}
-                
-                # run nvm for time-steps
-                memorize_env(rvm, problem.goal_thing_above)
-                num_time_steps = rvm.run()
-                # env.close()
-                
+
                 if prob_freq == "repetition":
                     if only_fails: problem, _ = find_failure_case(env, domain, sym_cutoff=-2)
                     else: problem = domain.random_problem_instance()
                 
+                if prob_freq in ["repetition", "once"]:
+                    num_time_steps = get_rvm_timesteps(rvm, problem)
+
                 for epoch in range(num_epochs):
                     start_epoch = time.perf_counter()
                     epoch_syms = []
@@ -328,15 +327,17 @@ if __name__ == "__main__":
                     if prob_freq == "epoch":
                         if only_fails: problem, _ = find_failure_case(env, domain)
                         else: problem = domain.random_problem_instance()
-                    
+                        num_time_steps = get_rvm_timesteps(rvm, problem)
+
                     for minibatch in range(num_minibatches):
                         start_minibatch = time.perf_counter()
                         
                         if prob_freq == "minibatch":
                             if only_fails: problem, _ = find_failure_case(env, domain)
                             else: problem = domain.random_problem_instance()
-                    
-                        sym, rewards_to_go, baseline = run_episodes2(
+                            num_time_steps = get_rvm_timesteps(rvm, problem)
+
+                        sym, rewards_to_go, baseline = run_episodes(
                             problem, nvm, W_init, v_init, num_time_steps, num_episodes, penalty_tracker, sigma)
                         epoch_rtgs.extend([rtg[0].item() for rtg in rewards_to_go])
                         epoch_syms.extend(sym)

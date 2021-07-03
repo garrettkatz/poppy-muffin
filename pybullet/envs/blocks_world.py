@@ -180,6 +180,19 @@ def random_thing_below(num_blocks, max_levels, num_bases=None):
             thing_below[tower[level+1]] = tower[level]
     return thing_below
 
+class MovementPenaltyTracker:
+    def __init__(self, period):
+        self.period = period
+        self.reset()
+    def reset(self):
+        self.penalty = 0
+        self.counter = 0
+    def step_hook(self, env, action):
+        if self.counter % self.period == 0:
+            mp = env.movement_penalty()
+            self.penalty += mp * self.period
+            # print("penalty: %.5f" % mp)
+        self.counter += 1
 
 if __name__ == "__main__":
 

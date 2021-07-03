@@ -226,6 +226,8 @@ class AbstractMachine:
             self.connections["pop"][spt + 1] = spt
         
         # keep joint positions symbolic in abstract machine
+        env.blocks = domain.blocks
+        env.bases = domain.bases
         self.ik = get_joint_positions(env, domain.num_bases, domain.max_levels)
         self.ik["rest"] = env.get_position()
         self.connections["ik"].memory = {key: key for key in self.ik}
@@ -244,12 +246,12 @@ class AbstractMachine:
         
         # constant base loop
         for b in range(domain.num_bases):
-            next_base = env.bases[b+1] if b+1 < len(env.bases) else "nil"
-            self.connections["base"][env.bases[b]] = next_base
+            next_base = domain.bases[b+1] if b+1 < len(domain.bases) else "nil"
+            self.connections["base"][domain.bases[b]] = next_base
 
         # general purpose registers and jmp
         self.blocks = ["b%d" % b for b in range(domain.num_bases)]
-        self.objs = self.env.bases + self.blocks
+        self.objs = domain.bases + domain.blocks
         if gen_regs is None: gen_regs = ["r0", "r1"]
         for name in gen_regs:
             self.registers[name] = AbstractRegister(name)
