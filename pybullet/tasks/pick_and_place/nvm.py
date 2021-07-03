@@ -218,7 +218,7 @@ class NeuralVirtualMachine:
         for name, W in connections.items():
             self.connections[name].reset(W)
     
-    def decode(self, register_name, time_step, batch_index):
+    def decode(self, register_name, time_step, batch_index=0):
         v = self.net.activities[register_name][time_step]
         batch_index = min(batch_index, v.shape[0]-1) # common state across batch may not be broadcasted
         return self.registers[register_name].decode(v[batch_index,:,0])
