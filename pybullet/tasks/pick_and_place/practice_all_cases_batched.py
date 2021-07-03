@@ -133,8 +133,8 @@ if __name__ == "__main__":
     if prob_freq == "minibatch":
         num_repetitions = 5
         num_episodes = 16
-        num_minibatches = 8
-        num_epochs = 100
+        num_minibatches = 16
+        num_epochs = 64
     # num_repetitions = 1
     # num_episodes = 3
     # num_minibatches = 2
@@ -142,8 +142,8 @@ if __name__ == "__main__":
     
     sizing = num_repetitions, num_epochs, num_minibatches, num_episodes
     
-    run_exp = False
-    showresults = True
+    run_exp = True
+    showresults = False
     # run_exp = True
     # showresults = False
     showenv = False
@@ -161,12 +161,12 @@ if __name__ == "__main__":
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
     # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
-    learning_rates=[0.001, 0.0005, 0.0001] # all stack layers trainable
+    learning_rates=[0.0005, 0.0001] # all stack layers trainable
     trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
     # learning_rates = [0.0005] # ik/motor layrs only
     # trainable = ["ik", "to", "tc", "po", "pc"]
-    # trainable = ["ik"]
+    # # trainable = ["ik"]
 
     # sigma = 0.001 # stdev in random angular sampling (radians)
     sigma = 0.0174 # stdev in random angular sampling (radians)
@@ -202,7 +202,7 @@ if __name__ == "__main__":
                 env.load_blocks(problem.thing_below)
             
                 # set up rvm and virtualize
-                rvm = make_abstract_machine(env, num_bases, max_levels)
+                rvm = make_abstract_machine(env, domain)
                 rvm.reset({"jnt": "rest"})
                 rvm.mount("main")
 
@@ -414,7 +414,7 @@ if __name__ == "__main__":
         env.load_blocks(thing_below)
     
         # set up rvm and virtualize
-        rvm = make_abstract_machine(env, num_bases, max_levels)
+        rvm = make_abstract_machine(env, domain)
         memorize_env(rvm, goal_thing_above)
         rvm.reset({"jnt": "rest"})
         rvm.mount("main")
