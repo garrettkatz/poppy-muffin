@@ -67,7 +67,7 @@ class BlockStackingDomain:
             goal_thing_below = self.random_thing_below()
             if self.symbolic_distance(thing_below, goal_thing_below) > 0: break
         
-        goal_thing_above = self.invert(goal_thing_below)        
+        goal_thing_above = self.invert(goal_thing_below)
         return BlockStackingProblem(self, thing_below, goal_thing_below, goal_thing_above)
 
 if __name__ == "__main__":

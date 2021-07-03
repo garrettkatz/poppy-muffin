@@ -192,14 +192,18 @@ class NeuralVirtualMachine:
     def run(self, dbg=False):
         self.mount("main")
         if dbg: self.dbg()
+        ipt = self.registers["ipt"]
+        tar = self.registers["tar"]
         target_changed = True
         while True:
-            done = self.tick()
+            # done = self.tick()
+            self.net.tick()
+            self.pullback(self.net.tick_counter)
+            done = ipt.decode(ipt.content) == ipt.decode(ipt.old_content)
             if dbg: self.dbg()
             if target_changed:
                 position = self.registers["jnt"].content.detach().numpy()
                 self.env.goto_position(position)
-            tar = self.registers["tar"]
             target_changed = (tar.decode(tar.content) != tar.decode(tar.old_content))
             if done: break
         return self.tick_counter
@@ -233,7 +237,7 @@ def virtualize(am, σ=None, detach_gates=True):
         "ipt": list(range(len(am.connections["ipt"].memory)+1)),
         "spt": list(range(am.spt_range)),
         "loc": am.locs + ["nil"],
-        "tar": list(it.product(range(am.num_blocks), range(am.max_levels+1), [0, 1])) + ["rest"],
+        "tar": list(it.product(range(am.num_bases), range(am.max_levels+1), [0, 1])) + ["rest"],
         "obj": am.objs + ["nil"]
     }
     for name in ["r0", "r1", "jmp"]:

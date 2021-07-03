@@ -164,11 +164,11 @@ class Compiler:
         self.machine.message_at[self.cur_ipt] = message
 
 class AbstractMachine:
-    def __init__(self, env, num_bases, max_levels, spt_range=32, gen_regs=None):
+    def __init__(self, env, domain, spt_range=32, gen_regs=None):
         self.env = env
-        self.num_blocks = num_bases
-        self.max_levels = max_levels
-        self.num_bases = num_bases
+        self.num_blocks = domain.num_blocks
+        self.max_levels = domain.max_levels
+        self.num_bases = domain.num_bases
         self.spt_range = spt_range
         self.tick_counter = 0
         
@@ -226,29 +226,29 @@ class AbstractMachine:
             self.connections["pop"][spt + 1] = spt
         
         # keep joint positions symbolic in abstract machine
-        self.ik = get_joint_positions(env, num_bases, max_levels)
+        self.ik = get_joint_positions(env, domain.num_bases, domain.max_levels)
         self.ik["rest"] = env.get_position()
         self.connections["ik"].memory = {key: key for key in self.ik}
 
-        self.locs = list(it.product(range(num_bases), range(max_levels+1)))
-        for base, level in it.product(range(num_bases), range(max_levels)):
+        self.locs = list(it.product(range(domain.num_bases), range(domain.max_levels+1)))
+        for base, level in it.product(range(domain.num_bases), range(domain.max_levels)):
             self.connections["tc"][(base, level)] = (base, level, 1)
             self.connections["to"][(base, level)] = (base, level, 0)
-            self.connections["pc"][(base, level)] = (base, max_levels, 1)
-            self.connections["po"][(base, level)] = (base, max_levels, 0)
+            self.connections["pc"][(base, level)] = (base, domain.max_levels, 1)
+            self.connections["po"][(base, level)] = (base, domain.max_levels, 0)
             self.connections["above"][(base, level)] = (base, level+1)
-            if base + 1 < num_bases:
+            if base + 1 < domain.num_bases:
                 self.connections["right"][(base, level)] = (base+1, level)
             else:
                 self.connections["right"][(base, level)] = "nil"
         
         # constant base loop
-        for b in range(num_bases):
+        for b in range(domain.num_bases):
             next_base = env.bases[b+1] if b+1 < len(env.bases) else "nil"
             self.connections["base"][env.bases[b]] = next_base
 
         # general purpose registers and jmp
-        self.blocks = ["b%d" % b for b in range(num_bases)]
+        self.blocks = ["b%d" % b for b in range(domain.num_bases)]
         self.objs = self.env.bases + self.blocks
         if gen_regs is None: gen_regs = ["r0", "r1"]
         for name in gen_regs:
@@ -357,9 +357,9 @@ class AbstractMachine:
             if done: break
         return self.tick_counter
 
-def setup_abstract_machine(env, num_bases, max_levels, gen_regs=None):
+def setup_abstract_machine(env, domain, gen_regs=None):
 
-    am = AbstractMachine(env, num_bases, max_levels, gen_regs=gen_regs)
+    am = AbstractMachine(env, domain, gen_regs=gen_regs)
     compiler = Compiler(am)
     
     # special firmware routines for return-if-nil
@@ -667,9 +667,9 @@ def main(comp):
     # comp.put((0,1), "loc")
     # comp.call("free_spot")
 
-def make_abstract_machine(env, num_bases, max_levels, gen_regs=None):
+def make_abstract_machine(env, domain, gen_regs=None):
 
-    am, compiler = setup_abstract_machine(env, num_bases, max_levels, gen_regs=gen_regs)
+    am, compiler = setup_abstract_machine(env, domain, gen_regs=gen_regs)
 
     # # tests
     # compiler.flash(test_rin)

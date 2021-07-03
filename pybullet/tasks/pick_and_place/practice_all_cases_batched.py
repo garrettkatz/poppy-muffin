@@ -127,8 +127,8 @@ if __name__ == "__main__":
 
     if prob_freq in ["repetition","epoch"]:
         num_repetitions = 5
-        num_episodes = 15
-        num_minibatches = 2
+        num_episodes = 32
+        num_minibatches = 1
         num_epochs = 100
     if prob_freq == "minibatch":
         num_repetitions = 5
@@ -142,10 +142,10 @@ if __name__ == "__main__":
     
     sizing = num_repetitions, num_epochs, num_minibatches, num_episodes
     
-    # run_exp = False
-    # showresults = True
-    run_exp = True
-    showresults = False
+    run_exp = False
+    showresults = True
+    # run_exp = True
+    # showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
@@ -155,20 +155,21 @@ if __name__ == "__main__":
     # only_fails = True
     only_fails = False
 
+    # learning_rates=[0.000001] # base only trainable
+    # trainable = ["ik", "to", "tc", "po", "pc", "base"]
+
     # learning_rates=[0.0001, 0.00005] # all stack layers trainable
     # learning_rates=[0.0001, 0.000075, 0.00005] # all stack layers trainable
     # learning_rates=[0.00001, 0.0000075, 0.000005] # all stack layers trainable
-    # learning_rates=[0.000005] # all stack layers trainable
-    # trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
+    learning_rates=[0.001, 0.0005, 0.0001] # all stack layers trainable
+    trainable = ["ik", "to", "tc", "po", "pc", "right", "above", "base"]
 
-    learning_rates=[0.000001] # base only trainable, 5 works better than 1
-    trainable = ["ik", "to", "tc", "po", "pc", "base"]
-
-    # learning_rates = [0.000001] # ik/motor layrs only
+    # learning_rates = [0.0005] # ik/motor layrs only
     # trainable = ["ik", "to", "tc", "po", "pc"]
-    # # trainable = ["ik"]
+    # trainable = ["ik"]
 
-    sigma = 0.001 # stdev in random angular sampling (radians)
+    # sigma = 0.001 # stdev in random angular sampling (radians)
+    sigma = 0.0174 # stdev in random angular sampling (radians)
 
     max_levels = 3
     num_blocks = 5
@@ -227,7 +228,7 @@ if __name__ == "__main__":
                 # env.close()
                 
                 if prob_freq == "repetition":
-                    if only_fails: problem, _ = find_failure_case(env, domain)
+                    if only_fails: problem, _ = find_failure_case(env, domain, sym_cutoff=-2)
                     else: problem = domain.random_problem_instance()
                 
                 for epoch in range(num_epochs):
@@ -306,19 +307,20 @@ if __name__ == "__main__":
                 if rep == 0: pt.title(str(learning_rate))
                 baselines = [rewards[::num_episodes] for rewards in epoch_rtgs]
                 signals = [[rewards[b*num_episodes+e] for b in range(num_minibatches) for e in range(1,num_episodes)] for rewards in epoch_rtgs]
-                pt.plot([np.mean(rewards) for rewards in signals], 'k-')
-                pt.plot([np.mean(rewards) for rewards in baselines], 'b-')
-                pt.plot([np.mean(rewards) for rewards in epoch_syms], 'k--')
                 # pt.plot([np.mean(baselines) for baselines in epoch_baselines], 'b-')
-                x, y = zip(*[(r,reward) for r in range(num_epochs) for reward in signals[r]])
+                x, y = zip(*[(r+np.random.rand()*.5,reward)
+                    for r in range(num_epochs) for reward in signals[r]])
                 print(len(signals[0]))
                 print(len(signals[1]))
-                pt.plot(x, y, 'k.')
+                pt.plot(x, y, '.', c=(.5,)*3)
                 # x, y = zip(*[(r,baseline) for r in range(num_epochs) for baseline in epoch_baselines[r]])
                 # pt.plot(np.array(x)+.5, y, 'b.')
         
                 # pt.plot(np.log(-np.array(rewards)))
                 # pt.ylabel("log(-R)")
+                pt.plot([np.mean(rewards) for rewards in signals], 'k-')
+                pt.plot([np.mean(rewards) for rewards in baselines], 'b-')
+                pt.plot([np.mean(rewards) for rewards in epoch_syms], 'k--')
                 
                 # trend line
                 avg_rewards = np.mean(signals, axis=1)
@@ -334,8 +336,10 @@ if __name__ == "__main__":
                 pt.plot(np.arange(len(trend)) + window//2, trend, 'ro-')
                 # pt.ylim([-2, 0])
                 
-                # constant line
-                pt.plot([0, len(avg_rewards)], avg_rewards[[0, 0]],'g-')
+                # constant lines
+                pt.plot([0, len(avg_rewards)], avg_rewards[[0, 0]],'k-')
+                pt.plot([0, len(avg_rewards)], (np.mean(baselines[0]),)*2, 'b-')
+                pt.plot([0, len(avg_rewards)], (np.mean(epoch_syms[0]),)*2,'k--')
 
         pt.show()
 
