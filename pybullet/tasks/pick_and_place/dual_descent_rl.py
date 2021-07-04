@@ -40,21 +40,21 @@ if __name__ == "__main__":
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
     showresults = True
-    run_exp = True
+    run_exp = False
 
     results_file = "ddrl.pkl"
 
     detach_gates = True
     sigma = 0.0174 # stdev in random angular sampling (radians)
 
-    batch_size = 1
-    num_episodes = 5
-    num_batch_iters = 2
+    batch_size = 8
+    num_episodes = 8
+    num_batch_iters = 64
 
-    primal_lr = 0.001
-    dual_lr = 0.001
-    num_primal_iters = 2
-    num_dual_iters = 2
+    primal_lr = 0.01
+    dual_lr = 0.0001
+    num_primal_iters = 16
+    num_dual_iters = 16
     primal_tol = 0.001
     dual_tol = 0.001
 

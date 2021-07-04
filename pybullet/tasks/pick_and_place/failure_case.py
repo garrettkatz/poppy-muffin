@@ -14,7 +14,7 @@ def find_failure_case(env, domain, sym_cutoff=-1):
         problem = domain.random_problem_instance()
         env.reset()
         env.load_blocks(problem.thing_below)
-        am = make_abstract_machine(env, domain.num_bases, domain.max_levels)
+        am = make_abstract_machine(env, domain)
         am_results = run_machine(am, problem.goal_thing_below, {"jnt": "rest"})
         ticks, running_time, sym_reward, spa_reward = am_results        
         if sym_reward <= sym_cutoff: break
