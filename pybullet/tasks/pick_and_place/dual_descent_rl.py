@@ -48,14 +48,14 @@ if __name__ == "__main__":
     sigma = 0.0174 # stdev in random angular sampling (radians)
 
     batch_size = 1
-    num_episodes = 10
-    num_batch_iters = 5
+    num_episodes = 5
+    num_batch_iters = 2
 
-    primal_lr = 0.1
-    dual_lr = 0.005
-    num_primal_iters = 20
-    num_dual_iters = 20
-    primal_tol = 0.0005
+    primal_lr = 0.001
+    dual_lr = 0.001
+    num_primal_iters = 2
+    num_dual_iters = 2
+    primal_tol = 0.001
     dual_tol = 0.001
 
     max_levels = 3
@@ -155,6 +155,7 @@ if __name__ == "__main__":
             
             avg_reward = rewards[:,0].mean() # noiseless episodes
             if batch_iter+1 == num_batch_iters:
+                print("   batch iter %d took %fs, avg reward = %f" % (batch_iter, time.perf_counter() - batch_iter_counter, avg_reward))
                 results.append((avg_reward, rewards, {}, []))
                 with open(results_file, "wb") as f: pk.dump(results, f)
                 break
@@ -167,7 +168,8 @@ if __name__ == "__main__":
                 continue # no noisy trajectories did better
             outputs = [tr.stack(joint_output[b]) for b in range(batch_size)]
             targets = [tr.stack(positions[b][opt_index[b]]).detach() for b in range(batch_size)]
-            multipliers = [(dual_lr * (outputs[b] - targets[b])).clone().detach() for b in range(batch_size)]
+            # multipliers = [(dual_lr * (outputs[b] - targets[b])).clone().detach() for b in range(batch_size)]
+            multipliers = [(outputs[b] - targets[b]).clone().detach() for b in range(batch_size)]
             W_start = {name: W_init[name][0].clone().detach() for name in trainable}
             print("    dual descent init took %fs" % (time.perf_counter() - perf_counter))
             
@@ -207,7 +209,18 @@ if __name__ == "__main__":
                     
                     primal_log.append((lagrangian.item(), primal_grad_sq_norm.item()))
                     if primal_grad_sq_norm < primal_tol: break
-                
+
+                # reconstruct constraints for dual
+                dual_constraints_counter = time.perf_counter()
+                with tr.no_grad():
+                    W, v = run_nvm(nvm, batch_time_steps, W_init, v_init)
+                    outputs = [
+                        tr.stack([v["jnt"][t][b,:,0] for t in time_index[b]])
+                        for b in range(batch_size)]
+                    objective = tr.sum(tr.stack([tr.sum((W_init[name][0] - W_start[name][0])**2) for name in trainable]))
+                    constraints = [outputs[b] - targets[b] for b in range(batch_size)]
+                # print("      %d C calc took %f" % (dual_iter, time.perf_counter() - dual_constraints_counter))
+
                 dual_grad_sq_norm = tr.sum(tr.stack([tr.sum(c**2) for c in constraints]))
                 for b in range(batch_size):
                     multipliers[b].data += constraints[b].data * dual_lr
