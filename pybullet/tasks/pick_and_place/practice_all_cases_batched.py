@@ -227,10 +227,10 @@ if __name__ == "__main__":
     
     sizing = num_repetitions, num_epochs, num_minibatches, num_episodes
     
-    # run_exp = False
-    # showresults = True
-    run_exp = True
-    showresults = False
+    run_exp = False
+    showresults = True
+    # run_exp = True
+    # showresults = False
     showenv = False
     showtrained = False
     # tr.autograd.set_detect_anomaly(True)
