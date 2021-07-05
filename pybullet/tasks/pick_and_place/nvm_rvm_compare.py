@@ -231,8 +231,8 @@ if __name__ == "__main__":
             # shade = 0
             pt.scatter(x, y, fc=(shade,)*3, ec="none", marker="o", label=str(num_blocks))
             # pt.scatter(x, y, ec=(shade,)*3, marker="+", label=str(num_blocks))
-        pt.xticks([600, 900, 1200],["6k", "9k", "12k"])
-        pt.yticks([600, 900, 1200],["6k", "9k", "12k"])
+        pt.xticks([600, 900, 1200],["0.6k","0.9k","1.2k"])
+        pt.yticks([600, 900, 1200],["0.6k","0.9k","1.2k"])
         # pt.xlim([400, 1800])
         pt.xlabel("RVM ticks", fontsize=16)
         pt.ylabel("NVM ticks", fontsize=16)
@@ -245,7 +245,7 @@ if __name__ == "__main__":
         positions = list(sorted(metrics["ticks"].keys()))
         pt.boxplot(x, positions=positions, medianprops={"c": "k"})
         pt.ylabel("Ticks", fontsize=16)
-        pt.yticks([600, 900, 1200],["6k", "9k", "12k"])
+        pt.yticks([600, 900, 1200],["0.6k","0.9k","1.2k"])
         # pt.yticks([])
         pt.xlabel("Blocks", fontsize=16)
 
@@ -268,7 +268,7 @@ if __name__ == "__main__":
             x = [rep+hi/cnt*.5*m for num_blocks in metrics["time"]
                     for rep in metrics["time"][num_blocks][mach]]
             pt.hist(x, ec="k", fc=["w",(.5,)*3][m], bins=np.linspace(0,hi,cnt), label=mach.upper())
-        pt.yticks([0, 500, 1000], ["0","5k","10k"])
+        pt.yticks([0, 500, 1000],["0","0.5k","1.0k"])
         pt.ylabel("Frequency", fontsize=16)
         pt.xlabel("Runtime (s)", fontsize=16)
         pt.legend()
