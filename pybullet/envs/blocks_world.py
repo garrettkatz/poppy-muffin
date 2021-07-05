@@ -199,23 +199,34 @@ if __name__ == "__main__":
     num_blocks = 7
     num_bases = 7
     max_levels = 3
-    thing_below = random_thing_below(num_blocks, max_levels, num_bases)
+
+    # thing_below = random_thing_below(num_blocks, max_levels, num_bases)
     
-    # # full occupancy
-    # thing_below = {}
-    # b = 0
-    # for base in range(num_bases):
-    #     thing_below["b%d" % b] = "t%d" % base
-    #     b += 1
-    #     for level in range(max_levels-1):
-    #         thing_below["b%d" % b] = "b%d" % (b-1)
-    #         b += 1
+    # full occupancy
+    thing_below = {}
+    b = 0
+    for base in range(num_bases):
+        thing_below["b%d" % b] = "t%d" % base
+        b += 1
+        for level in range(max_levels-1):
+            thing_below["b%d" % b] = "b%d" % (b-1)
+            b += 1
 
     env = BlocksWorldEnv(pb.POSITION_CONTROL)
     env.load_blocks(
         thing_below,
         # {"b0": "t0", "b1": "t1", "b2": "t2", "b3": "b2", "b4": "b3", "b5": "t5", "b6":"b5"},
         num_bases)
+    
+    # # set camera position
+    # while True:        
+    #     cam = pb.getDebugVisualizerCamera()
+    #     width, height, view, proj, camup, camfwd, horz, vert, yaw, pitch, dist, targ = cam
+    #     print(yaw, pitch, dist, targ) # input to pb.resetDebugVisualizerCamera()
+    #     if "d" == input("done (d)? "): break
+
+    yaw, pitch, dist, targ = 0, -7, 1.1, (0, 0.75, 0)
+    pb.resetDebugVisualizerCamera(dist, yaw, pitch, targ)
 
     env.update_relations()
     print(env.block_above)

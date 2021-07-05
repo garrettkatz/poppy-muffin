@@ -41,7 +41,7 @@ if __name__ == "__main__":
     tr.set_printoptions(precision=8, sci_mode=False, linewidth=1000)
     
     showresults = True
-    run_exp = True
+    run_exp = False
 
     results_file = "erl.pkl"
 
@@ -100,7 +100,7 @@ if __name__ == "__main__":
         if prob_freq == "once":
             if only_fails:
                 problems, sym_rewards = zip(*[find_failure_case(env, domain, sym_cutoff=-2) for b in range(batch_size)])
-                print(" sym rewards: %s" % sym_rewards)
+                print(" sym rewards: %s" % str(sym_rewards))
             else: problems = [domain.random_problem_instance() for b in range(batch_size)]
 
         results = []
@@ -111,7 +111,7 @@ if __name__ == "__main__":
             if prob_freq == "batch":
                 if only_fails:
                     problems, sym_rewards = zip(*[find_failure_case(env, domain, sym_cutoff=-2) for b in range(batch_size)])
-                    print(" sym rewards: %s" % sym_rewards)
+                    print(" sym rewards: %s" % str(sym_rewards))
                 else: problems = [domain.random_problem_instance() for b in range(batch_size)]
 
             batch_weights = {name: list() for name in inputable}
@@ -191,16 +191,16 @@ if __name__ == "__main__":
                 outputs = [
                     tr.stack([v["jnt"][t][b,:,0] for t in time_index[b]])
                     for b in range(batch_size)]
-                print("      %d NVM run took %f" % (descent_iter, time.perf_counter() - run_counter))
+                # print("      %d NVM run took %f" % (descent_iter, time.perf_counter() - run_counter))
                 
                 objective_counter = time.perf_counter()
                 objective = tr.sum(tr.stack([tr.sum((outputs[b] - targets[b])**2) for b in range(batch_size)]))
                 objective /= sum(batch_time_steps)
-                print("      %d L=%f vs %f, took %f" % (descent_iter, objective, descent_error_tol, time.perf_counter() - objective_counter))
+                # print("      %d L=%f vs %f, took %f" % (descent_iter, objective, descent_error_tol, time.perf_counter() - objective_counter))
     
                 backward_counter = time.perf_counter()
                 objective.backward()
-                print("      %d L grad took %f" % (descent_iter, time.perf_counter() - backward_counter))
+                # print("      %d L grad took %f" % (descent_iter, time.perf_counter() - backward_counter))
             
                 update_counter = time.perf_counter()
                 grad_sq_norm = tr.sum(tr.stack([tr.tensor(0.) if p.grad is None else tr.sum(p.grad**2) for p in train_params.values()]))
@@ -241,7 +241,7 @@ if __name__ == "__main__":
         for avg_reward, rewards, delta, sq_delta, descent_log in results:
             x_avg_rewards.append(len(x_descent))
             y_avg_rewards.append(avg_reward)
-            x_rewards += [len(x_descent)]*rewards.size
+            x_rewards += list((np.random.rand(*rewards.shape)*.5 + len(x_descent)).flat)
             y_rewards += list(rewards.flat)
             for objective, grad_sq_norm in descent_log:
                 x_descent.append(len(x_descent))

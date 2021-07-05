@@ -30,7 +30,7 @@ cam = (
 #     print(cam)
 #     print(len(cam))
 #     width, height, view, proj, camup, camfwd, horz, vert, yaw, pitch, dist, targ = cam
-#     print(dist, yaw, pitch, targ)
+#     print(dist, yaw, pitch, targ) # input to pb.resetDebugVisualizerCamera()
 
 #     _, _, rgb, depth, segment = pb.getCameraImage(width, height, view, proj)
     
