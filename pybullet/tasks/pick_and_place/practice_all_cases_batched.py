@@ -417,6 +417,8 @@ if __name__ == "__main__":
                 rews[rep,:len(results[rep])] = np.array([np.mean(rewards[::num_episodes]) for rewards in epoch_rtgs])
             pt.plot(rews.T, '-', color=(.75, .75, .75))
             pt.plot(syms.T, '--', color=(.75, .75, .75))
+            pt.plot([0, num_epochs], rews.mean(axis=0)[[0,0]], '-', color=(.25, .25, .25))
+            pt.plot([0, num_epochs], syms.mean(axis=0)[[0,0]], '--', color=(.25, .25, .25))
             h1 = pt.plot(rews.mean(axis=0), 'k-')
             h2 = pt.plot(syms.mean(axis=0), 'k--')
             # pt.xlim([0, 100])
@@ -602,6 +604,14 @@ if __name__ == "__main__":
         pt.xlabel("Polar angle", fontsize=14)
 
         fig.add_subplot(gs[1,:3])
+        for name in env.bases:
+            pos, _ = env.placement_of(name)
+            th = np.arctan2(pos[1], pos[0])
+            for h in range(max_levels):
+                pt.plot(
+                    [th-.1, th-.1, th+.1, th+.1, th-.1],
+                    [h*.02, h*.02+.02, h*.02+.02, h*.02, h*.02],
+                    ':', c=(.75,)*3)
         pt.plot(*rvm_polar, '-', c=(.6,)*3)
         pt.plot(*nvm_polar, 'k-')
         pt.xlim([-2.05, -1.9])
