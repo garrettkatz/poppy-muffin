@@ -149,7 +149,7 @@ if __name__ == "__main__":
     # run_exp = True
     # showresults = False
     showenv = False
-    showtrained = False
+    showtrained = True
     # tr.autograd.set_detect_anomaly(True)
     
     detach_gates = True
@@ -370,6 +370,7 @@ if __name__ == "__main__":
             pt.ylabel("Performance", fontsize=12)
             pt.yticks(range(0,-8,-1))
             ax.tick_params(labelright=True, right=True)
+            pt.title("(A)")
 
             pt.subplot(1,2,2)
             pt.plot([d["tc"] for d in deltas], 'k-', label="tc")
@@ -391,10 +392,11 @@ if __name__ == "__main__":
             pt.xlabel("Training iteration", fontsize=12)
             pt.ylabel("Weight changes", fontsize=12)
             pt.legend(framealpha=1, fontsize=12, loc="upper left")
-            pt.tight_layout()
+            pt.title("(B)")
 
+            pt.tight_layout()
             pt.savefig("pacb_one_rep.pdf")
-            # pt.show()
+            pt.show()
             pt.close()
             print(deltas[-1])
             # input('.')
@@ -430,6 +432,7 @@ if __name__ == "__main__":
             pt.ylabel("Performance", fontsize=12)
             if lr == 0: pt.ylabel("Average performance", fontsize=12)
             pt.tick_params(labelright=True, right=True)
+            pt.title("(A)")
 
             fig.add_subplot(gs[:,2])
             x_sym, y_sym = [], []
@@ -465,6 +468,8 @@ if __name__ == "__main__":
             pt.legend([h1, h2], ["reward", "symbolic"], loc="lower right", fontsize=12)
             pt.xlabel("First 5 Iterations", fontsize=12)
             pt.ylabel("Last 5 Iterations", fontsize=12)
+            pt.title("(B)")
+
             pt.tight_layout()
             pt.savefig("pacb_all_reps.pdf")
             pt.show()
@@ -602,6 +607,7 @@ if __name__ == "__main__":
         pt.ylim([0, .1])
         pt.ylabel("Height", fontsize=14)
         pt.xlabel("Polar angle", fontsize=14)
+        pt.title("(A)", fontsize=14)
 
         fig.add_subplot(gs[1,:3])
         for name in env.bases:
@@ -618,6 +624,7 @@ if __name__ == "__main__":
         pt.ylim([.02, .06])
         pt.ylabel("Height", fontsize=14)
         pt.xlabel("Polar angle", fontsize=14)
+        pt.title("(B)", fontsize=14)
         
         fig.add_subplot(gs[:,3:])
         # pt.subplot(1,3,3)
@@ -626,6 +633,7 @@ if __name__ == "__main__":
         pt.xlabel("Simulation steps", fontsize=14)
         pt.ylabel("Movement penalty", fontsize=14)
         pt.legend([h1[0], h2[0]], ["Untrained", "Trained"], loc="upper right", fontsize=14)
+        pt.title("(C)", fontsize=14)
         
         pt.tight_layout()
         pt.savefig("tr_mp.pdf")

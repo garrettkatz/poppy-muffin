@@ -27,7 +27,7 @@ if __name__ == "__main__":
     num_bases, num_blocks, max_levels = 5, 5, 3
     domain = bp.BlockStackingDomain(num_bases, num_blocks, max_levels)
     
-    find_new = True
+    find_new = False
     if find_new:
         env = BlocksWorldEnv(show=False)
         problem, _ = find_failure_case(env, domain)
@@ -57,10 +57,11 @@ if __name__ == "__main__":
                 self.sym.append(compute_symbolic_reward(env, self.goal_thing_below))
         # load
         tracker = Tracker(goal_thing_below)
-        env = BlocksWorldEnv(show=True, step_hook = tracker.step_hook, timestep=1./200)
+        # env = BlocksWorldEnv(show=True, step_hook = tracker.step_hook, timestep=1./200)
+        env = BlocksWorldEnv(show=True, step_hook = tracker.step_hook)
         env.load_blocks(thing_below)    
         # run rvm
-        rvm = make_abstract_machine(env, num_bases, max_levels)
+        rvm = make_abstract_machine(env, domain)
         # run
         goal_thing_above = env.invert(goal_thing_below)
         for key, val in goal_thing_above.items():

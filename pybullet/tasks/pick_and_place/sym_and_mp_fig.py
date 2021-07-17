@@ -32,7 +32,7 @@ for m,met in enumerate(["ticks","time","sym","spa"]):
                 metrics[met][num_blocks][mach].append(rep[v][m])
 
 # sym violin plot
-fig = pt.figure(figsize=(10,2.35))
+fig = pt.figure(figsize=(10,2.5))
 pt.subplot(1,2,1)
 block_counts = list(sorted(metrics["sym"].keys()))
 positions = np.arange(len(block_counts))
@@ -49,22 +49,25 @@ for m,mach in enumerate(["rvm", "nvm"]):
     for key in ["cmins","cmaxes","cbars"]:
         parts[key].set_edgecolor('k')
         parts[key].set_alpha(1)
-pt.ylabel("Symbolic distance", fontsize=14)
+pt.ylabel("Symbolic distance", fontsize=12)
 # pt.yticks([])
 pt.xticks(.5 + 2*positions, block_counts)
-pt.xlabel("Number of blocks in problem instance", fontsize=14)
+pt.xlabel("Number of blocks in problem instance", fontsize=12)
 pt.yticks(range(len(block_counts)+1))
 pt.legend(handles, ["RVM", "NVM"], loc='upper left')
+pt.title("(A)", fontsize=12)
 
 # mp plot
 with open("fcase_data.pkl", "rb") as f: (mp, sym) = pk.load(f)
+mp = mp[10:]
 ax = pt.subplot(1,2,2)
 ax2 = ax.twinx()
 h2 = ax2.plot(np.cumsum(mp), 'k--', label="cumulative")
 h1 = ax.plot(mp, 'k-', label="Movement penalty")
-ax.set_xlabel("Simulation steps", fontsize=14)
-ax.set_ylabel("Movement penalty", fontsize=14)
-ax2.set_ylabel("Cumulative", fontsize=14)
+ax.set_xlabel("Simulation steps", fontsize=12)
+ax.set_ylabel("Movement penalty", fontsize=12)
+ax2.set_ylabel("Cumulative", fontsize=12)
+pt.title("(B)", fontsize=12)
 
 pt.tight_layout()
 pt.savefig("sym_mp.pdf")
