@@ -113,7 +113,7 @@ if __name__ == "__main__":
                 print(" nvm size: %d" % nvm_size[2])
 
     plt_exp = True
-    plot_show = True
+    plot_show = False
     if plt_exp:
 
         import numpy as np
@@ -147,6 +147,9 @@ if __name__ == "__main__":
                     for rep in all_results[num_blocks].values():
                         metrics[met][num_blocks][mach].append(rep[v][m])
 
+        # markers for different block counts
+        bc_markers = "1+*os"
+
         # tick scatterplot
         fig = pt.figure(figsize=(6,2.35))
         gs = fig.add_gridspec(1,3)
@@ -157,7 +160,8 @@ if __name__ == "__main__":
             y = metrics["ticks"][num_blocks]["nvm"]
             # shade = [.4, .3, .2, .1, 0][n]
             shade = 0
-            pt.scatter(x, y, ec=(shade,)*3, fc="none", marker="o")
+            # pt.scatter(x, y, ec=(shade,)*3, fc="none", marker="o")
+            pt.scatter(x, y, ec='k', fc="none", marker=bc_markers[n])
         pt.xticks([600, 900, 1200])
         pt.yticks([600, 900, 1200])
         pt.xlabel("RVM ticks", fontsize=12)
@@ -220,27 +224,28 @@ if __name__ == "__main__":
         # combined computation performance figure
         # tick scatterplot
         fig = pt.figure(figsize=(10,2.65))
-        gs = fig.add_gridspec(1,4)
+        gs = fig.add_gridspec(1,9)
         # pt.subplot(1,2,1)
-        fig.add_subplot(gs[0,0])
+        fig.add_subplot(gs[0,:2])
         # for n,num_blocks in enumerate(metrics["ticks"].keys()):
         for n,num_blocks in enumerate(reversed(sorted(metrics["ticks"].keys()))):
             x = metrics["ticks"][num_blocks]["rvm"]
             y = metrics["ticks"][num_blocks]["nvm"]
             shade = np.linspace(0, .7, 5)[n]
             # shade = 0
-            pt.scatter(x, y, fc=(shade,)*3, ec="none", marker="o", label=str(num_blocks))
+            # pt.scatter(x, y, fc=(shade,)*3, ec="none", marker="o", label=str(num_blocks))
             # pt.scatter(x, y, ec=(shade,)*3, marker="+", label=str(num_blocks))
+            pt.scatter(x, y, color="k", marker='.')
         pt.xticks([600, 900, 1200],["0.6k","0.9k","1.2k"])
         pt.yticks([600, 900, 1200],["0.6k","0.9k","1.2k"])
         # pt.xlim([400, 1800])
         pt.xlabel("RVM ticks", fontsize=12)
         pt.ylabel("NVM ticks", fontsize=12)
-        pt.legend()
+        # pt.legend()
         pt.title("(A)", fontsize=12)
 
         # tick boxplot
-        fig.add_subplot(gs[0,1])
+        fig.add_subplot(gs[0,2:4])
         # pt.subplot(1,2,2)
         x = [metrics["ticks"][num_blocks]["nvm"] for num_blocks in metrics["ticks"]]
         positions = list(sorted(metrics["ticks"].keys()))
@@ -251,21 +256,27 @@ if __name__ == "__main__":
         pt.xlabel("Blocks", fontsize=12)
         pt.title("(B)", fontsize=12)
 
-        fig.add_subplot(gs[0,2])
+        fig.add_subplot(gs[0,4:7])
         for n,num_blocks in enumerate(reversed(sorted(metrics["time"].keys()))):
             x = metrics["time"][num_blocks]["rvm"]
             y = metrics["time"][num_blocks]["nvm"]
+            idx = np.random.permutation(len(x))
+            x = np.array(x)[idx[:10]]
+            y = np.array(y)[idx[:10]]
+
             shade = np.linspace(0, .7, 5)[n]
             # shade = 0
-            pt.scatter(x, y, fc=(shade,)*3, ec="none", marker="o", label=str(num_blocks))
+            # pt.scatter(x, y, fc=(shade,)*3, ec="none", marker="o", label=str(num_blocks))
+            pt.scatter(x, y, fc='none', ec="k", marker=bc_markers[4-n], label=str(num_blocks))
         # pt.xticks([600, 900, 1200])
         # pt.yticks([600, 900, 1200])
+        pt.xlim([-.3, 1])
         pt.legend()
         pt.xlabel("RVM runtime (s)", fontsize=12)
         pt.ylabel("NVM runtime (s)", fontsize=12)
         pt.title("(C)", fontsize=12)
 
-        fig.add_subplot(gs[0,3:])
+        fig.add_subplot(gs[0,7:])
         for m,mach in enumerate(["rvm","nvm"]):
             hi, cnt = 5, 20
             x = [rep+hi/cnt*.5*m for num_blocks in metrics["time"]
@@ -384,4 +395,4 @@ if __name__ == "__main__":
         #     pt.title(metric)
 
         # pt.tight_layout()
-        if plot_show: pt.show()
+        # if plot_show: pt.show()

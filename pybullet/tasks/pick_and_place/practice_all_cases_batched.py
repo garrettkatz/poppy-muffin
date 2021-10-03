@@ -145,12 +145,14 @@ if __name__ == "__main__":
     sizing = num_repetitions, num_epochs, num_minibatches, num_episodes
     
     run_exp = False
-    showresults = True
+    showresults = False
     # run_exp = True
     # showresults = False
     showenv = False
     showtrained = True
     # tr.autograd.set_detect_anomaly(True)
+
+    find_new = True # new failure case
     
     detach_gates = True
     # detach_gates = False
@@ -481,8 +483,8 @@ if __name__ == "__main__":
 
     if showtrained:
         
-        showpb = False
-        runpb = False
+        showpb = True
+        runpb = True
         tr_file = "show_trained_data.pkl"
 
         lr = 0.0005
@@ -513,17 +515,19 @@ if __name__ == "__main__":
 
             with open("pacb_%.2g_state_%d.pkl" % (lr, rep), "rb") as f: (W_init, v_init) = pk.load(f)
     
-            # env = BlocksWorldEnv(show=showpb)
-            # problem, _ = find_failure_case(env, domain)
-            # print(problem.thing_below)
-            # print(problem.goal_thing_below)
-            # print(problem.goal_thing_above)
-            # env.close()
-    
-            thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
-            goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
-            goal_thing_above = domain.invert(goal_thing_below)
-            problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
+            if find_new:
+                env = BlocksWorldEnv(show=showpb)
+                problem, _ = find_failure_case(env, domain)
+                print(problem.thing_below)
+                print(problem.goal_thing_below)
+                print(problem.goal_thing_above)
+                env.close()
+
+            else:    
+                thing_below = {'b0': 't1', 'b2': 'b0', 'b4': 'b2', 'b1': 't4', 'b3': 't2'}
+                goal_thing_below = {'b1': 't1', 'b2': 't3', 'b3': 'b2', 'b0': 't0', 'b4': 'b0'}
+                goal_thing_above = domain.invert(goal_thing_below)
+                problem = bp.BlockStackingProblem(domain, thing_below, goal_thing_below, goal_thing_above)
     
             env = BlocksWorldEnv(show=showpb, step_hook = tracker.step_hook)
             yaw, pitch, dist, targ = 0, -7, 1.1, (0, 0.75, 0) # got from running blocks_world.py
@@ -571,9 +575,11 @@ if __name__ == "__main__":
             if showpb: input('...')
             
             tr_res = (rvm_sym, rvm_mps, rvm_joints, rvm_grips, nvm_sym, nvm_mps, nvm_joints, nvm_grips)
-            with open(tr_file, "wb") as f: pk.dump(tr_res, f)
+            if not find_new:
+                with open(tr_file, "wb") as f: pk.dump(tr_res, f)
 
-        with open(tr_file, "rb") as f: tr_res = pk.load(f)
+        if not find_new:
+            with open(tr_file, "rb") as f: tr_res = pk.load(f)
         rvm_sym, rvm_mps, rvm_joints, rvm_grips, nvm_sym, nvm_mps, nvm_joints, nvm_grips = tr_res
         print(rvm_sym, sum(rvm_mps), nvm_sym, sum(nvm_mps))
 
@@ -636,7 +642,7 @@ if __name__ == "__main__":
         pt.title("(C)", fontsize=14)
         
         pt.tight_layout()
-        pt.savefig("tr_mp.pdf")
+        if not find_new: pt.savefig("tr_mp.pdf")
         pt.show()
         pt.close()
 

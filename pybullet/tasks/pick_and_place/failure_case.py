@@ -10,7 +10,7 @@ import block_stacking_problem as bp
 
 def find_failure_case(env, domain, sym_cutoff=-1):
     while True:
-        # print("trying..")
+        print("trying..")
         problem = domain.random_problem_instance()
         env.reset()
         env.load_blocks(problem.thing_below)
@@ -27,7 +27,7 @@ if __name__ == "__main__":
     num_bases, num_blocks, max_levels = 5, 5, 3
     domain = bp.BlockStackingDomain(num_bases, num_blocks, max_levels)
     
-    find_new = False
+    find_new = True
     if find_new:
         env = BlocksWorldEnv(show=False)
         problem, _ = find_failure_case(env, domain)
@@ -36,6 +36,8 @@ if __name__ == "__main__":
         goal_thing_below = problem.goal_thing_below
         print(thing_below)
         print(goal_thing_below)
+        # thing_below = {'b0': 't1', 'b1': 'b0', 'b2': 'b1', 'b3': 't2', 'b4': 'b3'}
+        # goal_thing_below = {'b0': 't0', 'b1': 'b4', 'b2': 'b1', 'b3': 't1', 'b4': 't4'}
     
     else:
         # one failure case:
@@ -53,7 +55,9 @@ if __name__ == "__main__":
                 self.mp = []
                 self.sym = []
             def step_hook(self, env, action):
-                self.mp.append(env.movement_penalty())
+                pen = env.movement_penalty()
+                if pen > 0.01: input("pen...")
+                self.mp.append(pen)
                 self.sym.append(compute_symbolic_reward(env, self.goal_thing_below))
         # load
         tracker = Tracker(goal_thing_below)
@@ -78,12 +82,16 @@ if __name__ == "__main__":
             if done: break
         # run_machine(rvm, goal_thing_below, reset_dict={"jnt": "rest"})
         # save
-        with open("fcase_data.pkl", "wb") as f: pk.dump((tracker.mp, tracker.sym), f)
+        if not find_new:
+            with open("fcase_data.pkl", "wb") as f: pk.dump((tracker.mp, tracker.sym), f)
 
     plot_case = True
     if plot_case:
     
-        with open("fcase_data.pkl", "rb") as f: (mp, sym) = pk.load(f)
+        if find_new:
+            mp, sym = tracker.mp, tracker.sym
+        else:
+            with open("fcase_data.pkl", "rb") as f: (mp, sym) = pk.load(f)
         
         print("Sym reward = %f" % sym[-1])
         max_mp = max(mp)
