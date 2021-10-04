@@ -78,6 +78,7 @@ class Compiler:
         self.cur_ipt = self.machine.get_new_ipt()
         self.machine.ipt_of[routine.__name__] = self.cur_ipt
         self.machine.inst_at[self.cur_ipt] = "'start %s'" % routine.__name__
+        self.machine.asm_at[self.cur_ipt] = "'start %s'" % routine.__name__
         self.step_ipt()
         routine(self)
 
@@ -97,15 +98,18 @@ class Compiler:
     def recall(self, conn_name):
         self.ungate(recall = (conn_name,))
         self.machine.inst_at[self.old_ipt] = "'recall %s'" % conn_name
+        self.machine.asm_at[self.old_ipt] = "'recall %s'" % conn_name
 
     def store(self, conn_name):
         self.ungate(store = (conn_name,))
         self.machine.inst_at[self.old_ipt] = "'store %s'" % conn_name
+        self.machine.asm_at[self.old_ipt] = "'store %s'" % conn_name
     
     def move(self, src, dst):
         name = self.machine.connection_between(src, dst)
         self.recall(name)
         self.machine.inst_at[self.old_ipt] = "'mov %s to %s'" % (src, dst)
+        self.machine.asm_at[self.old_ipt] = "'mov %s to %s'" % (src, dst)
     
     def put(self, tok, dst):
         name = "put %s" % dst
@@ -114,6 +118,7 @@ class Compiler:
         # recall memory into dst
         self.recall(name)
         self.machine.inst_at[self.old_ipt] = "'put %s in %s'" % (tok, dst)
+        self.machine.asm_at[self.old_ipt] = "'put %s in %s'" % (tok, dst)
     
     def call(self, routine, regs=[]):
         # memorize sub-routine ipt in call connection
@@ -125,12 +130,14 @@ class Compiler:
         # step once to memorize default gates for sub-routine entry
         self.step_ipt()
         self.machine.inst_at[self.old_ipt] = "'call %s'" % routine
+        self.machine.asm_at[self.old_ipt] = "'call %s'" % routine
         # step again so next instructions after call do not overwrite default gates
         self.step_ipt()
     
     def ret(self):
         self.recall("pop") # decrement spt
         self.machine.inst_at[self.old_ipt] = "'ret pop'"
+        self.machine.asm_at[self.old_ipt] = "'ret'"
         # memorize default gates for return to calling ipt
         self.machine.connections["gts"][self.cur_ipt] = (), ("gts","ipt")
         # set gates for call instruction
@@ -147,16 +154,19 @@ class Compiler:
         # step once to memorize default gates for sub-routine entry
         self.step_ipt()
         self.machine.inst_at[self.old_ipt] = "'ret if nil'"
+        self.machine.asm_at[self.old_ipt] = "'rin'"
         # step again so next instructions after call do not overwrite default gates
         self.step_ipt()
     
     def push(self, regs=()):
         self.ungate(store=tuple("spt > %s" % reg for reg in regs), recall=("push",))
         self.machine.inst_at[self.old_ipt] = "'push %s'" % ", ".join(regs)
+        self.machine.asm_at[self.old_ipt] = "'push %s'" % ", ".join(regs)
 
     def pop(self, regs=()):
         self.recall("pop")
         self.machine.inst_at[self.old_ipt] = "'pop dec'"
+        self.machine.asm_at[self.old_ipt] = "'pop %s'" % ", ".join(regs)
         self.ungate(recall=tuple("spt > %s" % reg for reg in regs))
         self.machine.inst_at[self.old_ipt] = "'pop %s'" % ", ".join(regs)
     
@@ -176,6 +186,8 @@ class AbstractMachine:
         self.ipt_of = {}
         # maps ipt to compiled instruction
         self.inst_at = {}
+        # maps ipt to assembly source
+        self.asm_at = {}
         # stores breakpoint messages
         self.message_at = {}
 
@@ -290,6 +302,13 @@ class AbstractMachine:
         for name, memory in memories.items():
             if name in ["gts","ipt"]: continue # don't overwrite programming
             self.connections[name].memory = dict(memory)
+
+    def machine_code(self):
+        src = [] # (ipt, asm instruction, mach instruction, recall, store)
+        for ipt in sorted(self.connections["gts"].memory.keys()):
+            store, recall = self.connections["gts"].memory.get(ipt, ((), ("ipt","gts")))
+            src.append((ipt, self.asm_at.get(ipt, ""), self.inst_at.get(ipt, ""), store, recall))
+        return src
 
     def dbg(self):
         print("****************** dbg: tick %d **********************" % self.tick_counter)
