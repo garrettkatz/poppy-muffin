@@ -2,7 +2,7 @@ import sys
 sys.path.append('../../envs')    
 import block_stacking_problem as bp
 from blocks_world import BlocksWorldEnv
-from abstract_machine import setup_abstract_machine
+from abstract_machine import setup_abstract_machine, make_abstract_machine
 
 def proc(comp):
     comp.ret_if_nil()
@@ -19,10 +19,14 @@ if __name__ == "__main__":
     num_bases = 5
     domain = bp.BlockStackingDomain(num_blocks, num_bases, max_levels)
     env = BlocksWorldEnv(show=False)
-    am, compiler = setup_abstract_machine(env, domain, gen_regs=["r0"])
 
-    compiler.flash(proc)
-    compiler.flash(main)
+    # # small example
+    # am, compiler = setup_abstract_machine(env, domain, gen_regs=["r0"])
+    # compiler.flash(proc)
+    # compiler.flash(main)
+
+    # restacking code
+    am = make_abstract_machine(env, domain)
 
     code = am.machine_code()
     ipt, asm, mach, store, recall = zip(*code)
@@ -48,13 +52,13 @@ if __name__ == "__main__":
         line += recall[c] + " "*(width[4] - len(recall[c]))
         print(line)
 
-    print(am.connections["ipt"].memory)
+    # print(am.connections["ipt"].memory)
 
-    am.reset({
-        # "jmp": "t0",
-        "jmp": "nil",
-    })    
-    num_ticks = am.run(dbg=True)
-    # num_ticks = am.run(dbg=False)
-    print(num_ticks)
+    # am.reset({
+    #     # "jmp": "t0",
+    #     "jmp": "nil",
+    # })    
+    # num_ticks = am.run(dbg=True)
+    # # num_ticks = am.run(dbg=False)
+    # print(num_ticks)
 
