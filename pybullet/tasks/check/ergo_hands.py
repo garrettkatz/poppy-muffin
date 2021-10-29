@@ -48,4 +48,14 @@ cam = 1.2000000476837158, 3.199998140335083, -16.20000648498535, (-0.14883437752
 
 if not MANUALLY_GET_NEW_CAM:
     pb.resetDebugVisualizerCamera(*cam)
+
+    # set angles by name
+    angles = env.angle_dict(env.get_position())
+    # for t in range(1, 6*180):
+    for t in range(1, 2):
+        angles.update({"r_wrist_y": 45., "r_wrist_x": 135., "r_gripper": 45., "l_wrist_y": 45.})
+        env.set_position(env.angle_array(angles))
+        env.step()
+    
+
     input("waiting to close...")

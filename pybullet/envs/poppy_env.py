@@ -98,6 +98,11 @@ class PoppyEnv(object):
             angle_array[self.joint_index[name]] = angle
         if convert: angle_array *= np.pi / 180
         return angle_array
+    # convert back from dict to array
+    def angle_dict(self, angle_array, convert=True):
+        return {
+            name: angle_array[j] * 180/np.pi
+            for j, name in enumerate(self.joint_index)}
 
     # pypot-style command, goes to position in give duration
     # target is a joint angle array
