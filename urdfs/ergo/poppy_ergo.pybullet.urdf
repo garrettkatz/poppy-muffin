@@ -644,7 +644,7 @@
               <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
-        <link name="r_short_u">
+        <link name="r_hand">
             <visual>
               <origin rpy="0 0 0" xyz="0 -.065 0"/>
               <geometry>
@@ -654,24 +654,15 @@
                 <color rgba="0.9 0.9 0.9 1.0"></color>
               </material>
             </visual>
-            <!-- <visual> -->
-            <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-            <!--   <geometry> -->
-            <!--     <!-\- This mesh includes both the motor and fixed finger-\-> -->
-            <!--     <mesh filename="meshes/section_4.stl"/> -->
-            <!--   </geometry> -->
-            <!--   <material name=""> -->
-            <!--     <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/> -->
-            <!--   </material> -->
-            <!-- </visual> -->
-            <!-- <collision> -->
-            <!--   <origin rpy="0 0 0" xyz="0 0 0"/> -->
-            <!--   <geometry> -->
-            <!--     <!-\- <cylinder length="0.06" radius="0.02"/> -\-> -->
-            <!--     <cylinder length="0.03" radius="0.02"/> -->
-            <!--     <!-\- <box size="0.05 0.02 0.03"/> -\-> -->
-            <!--   </geometry> -->
-            <!-- </collision> -->
+            <visual>
+              <origin rpy="3.14 -1.5707963267949 0" xyz="0.005 -.045 0"/>
+              <geometry>
+                <mesh filename="meshes/gripper-fixed_part.stl" scale=".001 .001 .001"/>
+              </geometry>
+              <material name="gray">
+                <color rgba="0.9 0.9 0.9 1.0"></color>
+              </material>
+            </visual>
             <collision>
               <origin rpy="0 0 0" xyz="0 0 0"/>
               <geometry>
@@ -701,8 +692,6 @@
             </inertial>
         </link>
 
-
-
         <link name="l_long_u">
             <visual>
               <origin rpy="0 0 0" xyz="0 0 0"/>
@@ -725,7 +714,53 @@
               <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
-
+        <link name="l_hand">
+            <visual>
+              <origin rpy="0 0 0" xyz="0 -.065 0"/>
+              <geometry>
+                <mesh filename="meshes/short_U.stl" />
+              </geometry>
+              <material name="gray">
+                <color rgba="0.9 0.9 0.9 1.0"></color>
+              </material>
+            </visual>
+            <visual>
+              <origin rpy="3.14 -1.5707963267949 0" xyz="0.005 -.045 0"/>
+              <geometry>
+                <mesh filename="meshes/gripper-fixed_part.stl" scale=".001 .001 .001"/>
+              </geometry>
+              <material name="gray">
+                <color rgba="0.9 0.9 0.9 1.0"></color>
+              </material>
+            </visual>
+            <collision>
+              <origin rpy="0 0 0" xyz="0 0 0"/>
+              <geometry>
+                <cylinder length="0.03" radius="0.01"/>
+                <!-- <box size="0.05 0.05 0.05"/> -->
+              </geometry>
+            </collision>
+            <inertial>
+              <mass value="0.1"/>
+              <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
+            </inertial>
+        </link>
+        <link name="l_thumb">
+            <visual>
+                <origin rpy="0 0 0" xyz="0 0 0"/>
+                <geometry>
+                    <!-- This mesh is the movable finger -->
+                    <mesh filename="meshes/gripper.stl"/>
+                </geometry>
+                <material name="">
+                    <color rgba="0.752941176470588 0.752941176470588 0.752941176470588 1"/>
+                </material>
+            </visual>
+            <inertial>
+                <mass value="0.1"/>
+                <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
+            </inertial>
+        </link>
 
         <!-- <link name="r_section_5"> -->
         <!--     <visual> -->
@@ -937,7 +972,7 @@
             <!-- <origin rpy="3.14159265358979 0 0" xyz="0 0.025 0"/> -->
             <origin rpy="0 0 0" xyz="0 0.025 0"/>
             <parent link="r_long_u"/>
-            <child link="r_short_u"/>
+            <child link="r_hand"/>
             <axis xyz="1 0 0"/>
             <limit effort="3.1" upper="3.14" lower="-3.14" velocity="7.0"></limit>
         </joint>
@@ -945,20 +980,32 @@
             <!-- <origin rpy="3.14159265358979 1.5707963267949 0" xyz="-0.01 0.1 0"/> -->
             <!-- <origin rpy="1.5707963267949 1.5707963267949 0" xyz="-.025 .145 0.06"/> -->
             <!-- <origin rpy="3.14159265358979 0 0" xyz="0 0.025 0"/> -->
-            <origin rpy="0 0 0" xyz="0 -0.04 0"/>
-            <parent link="r_short_u"/>
+            <origin rpy="0 1.5707963267949 0" xyz="0 -0.04 0"/>
+            <parent link="r_hand"/>
             <child link="r_thumb"/>
             <axis xyz="0 0 1"/>
             <limit effort="3.1" upper="3.14" lower="-3.14" velocity="7.0"></limit>
         </joint>
 
         <joint name="l_wrist_y" type="revolute">
-            <!-- <origin rpy="3.14159265358979 1.5707963267949 0" xyz="-0.01 0.1 0"/> -->
-            <!-- <origin rpy="1.5707963267949 1.5707963267949 0" xyz="-.025 .145 0.06"/> -->
             <origin rpy="0 0 0" xyz=".01 .145 0"/>
             <parent link="l_forearm"/>
             <child link="l_long_u"/>
             <axis xyz="0 1 0"/>
+            <limit effort="3.1" upper="3.14" lower="-3.14" velocity="7.0"></limit>
+        </joint>
+        <joint name="l_wrist_x" type="revolute">
+            <origin rpy="0 0 0" xyz="0 0.025 0"/>
+            <parent link="l_long_u"/>
+            <child link="l_hand"/>
+            <axis xyz="1 0 0"/>
+            <limit effort="3.1" upper="3.14" lower="-3.14" velocity="7.0"></limit>
+        </joint>
+        <joint name="l_gripper" type="revolute">
+            <origin rpy="0 1.5707963267949 0" xyz="0 -0.04 0"/>
+            <parent link="l_hand"/>
+            <child link="l_thumb"/>
+            <axis xyz="0 0 1"/>
             <limit effort="3.1" upper="3.14" lower="-3.14" velocity="7.0"></limit>
         </joint>
 

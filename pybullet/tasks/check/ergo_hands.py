@@ -52,8 +52,14 @@ if not MANUALLY_GET_NEW_CAM:
     # set angles by name
     angles = env.angle_dict(env.get_position())
     # for t in range(1, 6*180):
+    #     angles.update({"r_wrist_y": 45., "r_wrist_x": 135., "r_gripper": 10*t/180., "l_wrist_y": 45.})
     for t in range(1, 2):
-        angles.update({"r_wrist_y": 45., "r_wrist_x": 135., "r_gripper": 45., "l_wrist_y": 45.})
+        angles.update({
+            # "r_wrist_y": 45., "r_wrist_x": 135., "r_gripper": 0.,
+            # "l_wrist_y": 45., "l_wrist_x": -135., "l_gripper": 0.,
+            "r_wrist_y": 0., "r_wrist_x": 180., "r_gripper": 0.,
+            "l_wrist_y": 0., "l_wrist_x": -180., "l_gripper": 0.,
+            })
         env.set_position(env.angle_array(angles))
         env.step()
     
