@@ -509,6 +509,13 @@
                         <!--         <color rgba="0 0 0 1"/> -->
                         <!-- </material> -->
                 </visual>
+                <visual>
+                        <!-- motor -->
+                        <origin rpy="1.5707963267949 1.5707963267949 0" xyz=".0125 .1325 0.005"/>
+                        <geometry>
+                            <box size="0.025 0.0325 0.02"/>
+                        </geometry>
+                </visual>
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0"></origin>
 			<geometry>
@@ -608,9 +615,13 @@
                                 <!-- From https://github.com/poppy-project/poppy-6dof-right-arm/blob/master/Hadware/Poppy_arm_gripper/Components/STL/ -->
                                 <mesh filename="meshes/support_gripper.STL" scale=".001 .001 .001" />
                         </geometry>
-                        <!-- <material name="black"> -->
-                        <!--         <color rgba="0 0 0 1"/> -->
-                        <!-- </material> -->
+                </visual>
+                <visual>
+                        <!-- motor -->
+                        <origin rpy="1.5707963267949 1.5707963267949 0" xyz="-.0125 .1325 0.005"/>
+                        <geometry>
+                            <box size="0.025 0.0325 0.02"/>
+                        </geometry>
                 </visual>
 		<collision>
 			<origin xyz="0 0 0" rpy="0 0 0"></origin>
@@ -645,6 +656,13 @@
             </inertial>
         </link>
         <link name="r_hand">
+            <visual>
+                <!-- motor -->
+                <origin rpy="1.57 0 0" xyz="0 0 -.005"/>
+                <geometry>
+                    <box size="0.025 0.0325 0.02"/>
+                </geometry>
+            </visual>
             <visual>
               <origin rpy="0 0 0" xyz="0 -.065 0"/>
               <geometry>
@@ -715,6 +733,13 @@
             </inertial>
         </link>
         <link name="l_hand">
+            <visual>
+                <!-- motor -->
+                <origin rpy="1.57 0 0" xyz="0 0 -.005"/>
+                <geometry>
+                    <box size="0.025 0.0325 0.02"/>
+                </geometry>
+            </visual>
             <visual>
               <origin rpy="0 0 0" xyz="0 -.065 0"/>
               <geometry>

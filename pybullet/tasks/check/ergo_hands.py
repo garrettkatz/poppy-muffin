@@ -44,7 +44,8 @@ while MANUALLY_GET_NEW_CAM:
     input("ready...")
 
 # Copy-paste the camera parameters here to check that it worked:
-cam = 1.2000000476837158, 3.199998140335083, -16.20000648498535, (-0.14883437752723694, 0.8789047002792358, 0.046143874526023865)
+# cam = 1.2000000476837158, 3.199998140335083, -16.20000648498535, (-0.14883437752723694, 0.8789047002792358, 0.046143874526023865)
+cam = (1.2000000476837158, -2.4437904357910156e-06, -1.4000108242034912, (4.0046870708465576e-08, 0.8997313976287842, 0.37801095843315125))
 
 if not MANUALLY_GET_NEW_CAM:
     pb.resetDebugVisualizerCamera(*cam)
@@ -55,10 +56,10 @@ if not MANUALLY_GET_NEW_CAM:
     #     angles.update({"r_wrist_y": 45., "r_wrist_x": 135., "r_gripper": 10*t/180., "l_wrist_y": 45.})
     for t in range(1, 2):
         angles.update({
-            # "r_wrist_y": 45., "r_wrist_x": 135., "r_gripper": 0.,
-            # "l_wrist_y": 45., "l_wrist_x": -135., "l_gripper": 0.,
-            "r_wrist_y": 0., "r_wrist_x": 180., "r_gripper": 0.,
-            "l_wrist_y": 0., "l_wrist_x": -180., "l_gripper": 0.,
+            "r_wrist_y": 45., "r_wrist_x": 135., "r_gripper": 0.,
+            "l_wrist_y": 45., "l_wrist_x": -135., "l_gripper": 0.,
+            # "r_wrist_y": 0., "r_wrist_x": 180., "r_gripper": 0.,
+            # "l_wrist_y": 0., "l_wrist_x": -180., "l_gripper": 0.,
             })
         env.set_position(env.angle_array(angles))
         env.step()
