@@ -650,7 +650,7 @@
               </geometry>
             </collision>
             <inertial>
-              <mass value="0.1"/>
+              <mass value="0.01"/>
               <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
@@ -700,7 +700,7 @@
                 </geometry>
             </collision>
             <inertial>
-              <mass value="0.1"/>
+              <mass value="0.02"/>
               <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
@@ -716,7 +716,7 @@
                 </material>
             </visual>
             <inertial>
-                <mass value="0.1"/>
+                <mass value="0.01"/>
                 <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
@@ -733,8 +733,8 @@
             </geometry>
           </collision>
           <inertial>
-            <mass value="1.0"/>
-            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <mass value=".01"/>
+            <inertia ixx=".01" ixy="0.0" ixz="0.0" iyy=".01" iyz="0.0" izz=".01"/>
           </inertial>
         </link>
         <link name="r_moving_tip">
@@ -750,8 +750,8 @@
             </geometry>
           </collision>
           <inertial>
-            <mass value="1"/>
-            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <mass value=".01"/>
+            <inertia ixx=".01" ixy="0.0" ixz="0.0" iyy=".01" iyz="0.0" izz=".01"/>
           </inertial>
         </link>  
 
@@ -772,7 +772,7 @@
               </geometry>
             </collision>
             <inertial>
-              <mass value="0.1"/>
+              <mass value="0.01"/>
               <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
@@ -823,7 +823,7 @@
                 </geometry>
             </collision>
             <inertial>
-              <mass value="0.1"/>
+              <mass value="0.02"/>
               <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
@@ -839,7 +839,7 @@
                 </material>
             </visual>
             <inertial>
-                <mass value="0.1"/>
+                <mass value="0.01"/>
                 <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
@@ -856,8 +856,8 @@
             </geometry>
           </collision>
           <inertial>
-            <mass value="1.0"/>
-            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <mass value=".01"/>
+            <inertia ixx=".01" ixy="0.0" ixz="0.0" iyy=".01" iyz="0.0" izz=".01"/>
           </inertial>
         </link>
         <link name="l_moving_tip">
@@ -873,8 +873,8 @@
             </geometry>
           </collision>
           <inertial>
-            <mass value="1"/>
-            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+            <mass value=".01"/>
+            <inertia ixx=".01" ixy="0.0" ixz="0.0" iyy=".01" iyz="0.0" izz=".01"/>
           </inertial>
         </link>  
 
@@ -1144,18 +1144,5 @@
             <parent link="l_thumb"/>
             <child link="l_moving_tip"/>
         </joint>
-
-        <!-- <joint name="r_m5" type="continuous"> -->
-        <!--     <origin rpy="3.14159265358979 1.5707963267949 0" xyz="-0.01 0.1 0"/> -->
-        <!--     <parent link="r_forearm"/> -->
-        <!--     <child link="r_section_4"/> -->
-        <!--     <axis xyz="0 0 1"/> -->
-        <!-- </joint> -->
-        <!-- <joint name="m6" type="continuous"> -->
-        <!--     <origin rpy="0 -1.5707963267949 0" xyz="0 -0.058 0"/> -->
-        <!--     <axis xyz="0 0 -1"/> -->
-        <!--     <parent link="r_section_4"/> -->
-        <!--     <child link="r_section_5"/> -->
-        <!-- </joint>   -->
 
 </robot>

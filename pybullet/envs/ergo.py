@@ -5,7 +5,7 @@ from poppy_env import PoppyEnv
 
 class PoppyErgoEnv(PoppyEnv):
     
-    # Humanoid-specific urdf loading logic
+    # Ergo-specific urdf loading logic
     def load_urdf(self):
         fpath = os.path.dirname(os.path.abspath(__file__))
         fpath += '/../../urdfs/ergo'

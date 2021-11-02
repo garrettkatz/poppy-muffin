@@ -51,6 +51,13 @@ cam = (1.2000000476837158, -2.4437904357910156e-06, -1.4000108242034912, (4.0046
 if not MANUALLY_GET_NEW_CAM:
     pb.resetDebugVisualizerCamera(*cam)
 
+    # check inertia
+    # confirms that pybullet reads mass from urdf, but recalculates inertia from collision shape
+    info = pb.getDynamicsInfo(env.robot_id, env.joint_index["r_moving_tip"])
+    mass, _, inertia = info[:3]
+    print("mass", mass)
+    print("inertia", inertia)
+
     # set angles by name
     angles = env.angle_dict(env.get_position())
     for t in range(1, 6*180):
