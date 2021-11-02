@@ -644,10 +644,9 @@
               </material>
             </visual>
             <collision>
-              <origin rpy="0 0 0" xyz="0 0 0"/>
+              <origin rpy="0 0 0" xyz="0 0.0175 0"/>
               <geometry>
-                <cylinder length="0.03" radius="0.02"/>
-                <!-- <box size="0.05 0.05 0.05"/> -->
+                <box size="0.03 0.0325 0.02"/>
               </geometry>
             </collision>
             <inertial>
@@ -689,11 +688,16 @@
               </material>
             </visual>
             <collision>
-              <origin rpy="0 0 0" xyz="0 0 0"/>
-              <geometry>
-                <cylinder length="0.03" radius="0.01"/>
-                <!-- <box size="0.05 0.05 0.05"/> -->
-              </geometry>
+                <origin rpy="1.57 0 0" xyz="0 0 -.005"/>
+                <geometry>
+                    <box size="0.025 0.0325 0.02"/>
+                </geometry>
+            </collision>
+            <collision>
+                <origin rpy="3.14 0 0" xyz="0 -.0325 0"/>
+                <geometry>
+                    <box size="0.025 0.035 0.02"/>
+                </geometry>
             </collision>
             <inertial>
               <mass value="0.1"/>
@@ -716,6 +720,40 @@
                 <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
+        <link name="r_fixed_tip">
+          <!-- comment visual placeholder to see collision shape -->
+          <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry><box size="0 0 0"/></geometry>
+          </visual>
+          <collision>
+            <origin rpy="0 0 0" xyz="0 0.0125 0"/>
+            <geometry>
+              <box size="0.020 0.025 0.003"/>
+            </geometry>
+          </collision>
+          <inertial>
+            <mass value="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+          </inertial>
+        </link>
+        <link name="r_moving_tip">
+          <!-- comment visual placeholder to see collision shape -->
+          <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry><box size="0 0 0"/></geometry>
+          </visual>
+          <collision>
+            <origin rpy="0 0 0" xyz="0 0.0125 0"/>
+            <geometry>
+              <box size="0.003 0.025 0.02"/>
+            </geometry>
+          </collision>
+          <inertial>
+            <mass value="1"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+          </inertial>
+        </link>  
 
         <link name="l_long_u">
             <visual>
@@ -728,10 +766,9 @@
               </material>
             </visual>
             <collision>
-              <origin rpy="0 0 0" xyz="0 0 0"/>
+              <origin rpy="0 0 0" xyz="0 0.0175 0"/>
               <geometry>
-                <cylinder length="0.03" radius="0.02"/>
-                <!-- <box size="0.05 0.05 0.05"/> -->
+                <box size="0.03 0.0325 0.02"/>
               </geometry>
             </collision>
             <inertial>
@@ -774,11 +811,16 @@
               </material>
             </visual>
             <collision>
-              <origin rpy="0 0 0" xyz="0 0 0"/>
-              <geometry>
-                <cylinder length="0.03" radius="0.01"/>
-                <!-- <box size="0.05 0.05 0.05"/> -->
-              </geometry>
+                <origin rpy="1.57 0 0" xyz="0 0 -.005"/>
+                <geometry>
+                    <box size="0.025 0.0325 0.02"/>
+                </geometry>
+            </collision>
+            <collision>
+                <origin rpy="3.14 0 0" xyz="0 -.0325 0"/>
+                <geometry>
+                    <box size="0.025 0.035 0.02"/>
+                </geometry>
             </collision>
             <inertial>
               <mass value="0.1"/>
@@ -801,6 +843,40 @@
                 <inertia ixx="0.03" ixy="0.0" ixz="0.0" iyy="0.03" iyz="0.0" izz="0.03"/>
             </inertial>
         </link>
+        <link name="l_fixed_tip">
+          <!-- comment visual placeholder to see collision shape -->
+          <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry><box size="0 0 0"/></geometry>
+          </visual>
+          <collision>
+            <origin rpy="0 0 0" xyz="0 0.0125 0"/>
+            <geometry>
+              <box size="0.020 0.025 0.003"/>
+            </geometry>
+          </collision>
+          <inertial>
+            <mass value="1.0"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+          </inertial>
+        </link>
+        <link name="l_moving_tip">
+          <!-- comment visual placeholder to see collision shape -->
+          <visual>
+            <origin rpy="0 0 0" xyz="0 0 0"/>
+            <geometry><box size="0 0 0"/></geometry>
+          </visual>
+          <collision>
+            <origin rpy="0 0 0" xyz="0 0.0125 0"/>
+            <geometry>
+              <box size="0.003 0.025 0.02"/>
+            </geometry>
+          </collision>
+          <inertial>
+            <mass value="1"/>
+            <inertia ixx="1.0" ixy="0.0" ixz="0.0" iyy="1.0" iyz="0.0" izz="1.0"/>
+          </inertial>
+        </link>  
 
         <!-- <link name="r_section_5"> -->
         <!--     <visual> -->
@@ -1026,6 +1102,16 @@
             <axis xyz="0 0 1"/>
             <limit effort="3.1" upper="3.14" lower="-3.14" velocity="7.0"></limit>
         </joint>
+        <joint name="r_fixed_tip" type="fixed">
+            <origin rpy="0 0 0" xyz="0 -0.11 -0.01325"/>
+            <parent link="r_hand"/>
+            <child link="r_fixed_tip"/>
+        </joint>
+        <joint name="r_moving_tip" type="fixed">
+            <origin rpy="0 0 0" xyz="-0.0155 -0.0675 0"/>
+            <parent link="r_thumb"/>
+            <child link="r_moving_tip"/>
+        </joint>
 
         <joint name="l_wrist_y" type="revolute">
             <origin rpy="0 0 0" xyz=".01 .145 0"/>
@@ -1047,6 +1133,16 @@
             <child link="l_thumb"/>
             <axis xyz="0 0 1"/>
             <limit effort="3.1" upper="3.14" lower="-3.14" velocity="7.0"></limit>
+        </joint>
+        <joint name="l_fixed_tip" type="fixed">
+            <origin rpy="0 0 0" xyz="0 -0.11 -0.01325"/>
+            <parent link="l_hand"/>
+            <child link="l_fixed_tip"/>
+        </joint>
+        <joint name="l_moving_tip" type="fixed">
+            <origin rpy="0 0 0" xyz="-0.0155 -0.0675 0"/>
+            <parent link="l_thumb"/>
+            <child link="l_moving_tip"/>
         </joint>
 
         <!-- <joint name="r_m5" type="continuous"> -->
