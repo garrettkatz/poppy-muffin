@@ -4,6 +4,7 @@ import time
 import pickle as pk
 import numpy as np
 import matplotlib.pyplot as plt
+import dances
 from record_angles import hotkeys
 
 p = PH()
@@ -24,6 +25,25 @@ def load(name):
 def toggle(motors):
     if type(motors) is not list: motors = [motors]
     for m in motors: m.compliant = not m.compliant
+
+def do(traj):
+    for m in p.motors: m.compliant = False
+    inits = {m.name: m.present_position for m in p.motors}
+    for (duration, angles) in traj:
+        for m in p.motors:
+            if m.name not in angles:
+                angles[m.name] = inits[m.name]
+        p.goto_position(angles, duration, wait=True)
+
+def sit():
+    with open("sit_angles.pkl","r") as f: sit_angles = pk.load(f)
+    for m in p.motors: m.compliant = False
+    p.goto_position(sit_angles, 5, wait=True)
+
+def zero():
+    zero_angles = {m.name: 0. for m in p.motors}
+    for m in p.motors: m.compliant = False
+    p.goto_position(zero_angles, 5, wait=True)
 
 print("Created poppy humanoid p and opencvcamera c with 10 fps.  Don't forget to p.close() and c.close() before quit() when you are finished to clean up the motor state.")
 
