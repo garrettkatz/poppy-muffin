@@ -1,6 +1,6 @@
 from pypot.creatures import PoppyHumanoid as PH
 from pypot.sensor import OpenCVCamera
-import time
+import pypot.utils.pypot_time as time
 import pickle as pk
 import numpy as np
 import matplotlib.pyplot as plt
@@ -9,6 +9,32 @@ from record_angles import hotkeys
 
 p = PH()
 c = OpenCVCamera("poppy-cam",0,10)
+
+def gobuf(angs, duration, bufsize):
+
+    # buffers
+    bufkeys = ("position", "speed", "load", "voltage", "temperature")
+    buffers = {key: np.empty((bufsize, len(angs)) for key in bufkeys}
+    timepoints = np.linspace(0, duration, bufsize)
+    motor_names = sorted(angs.keys())
+
+    start = time.time()
+    p.goto_position(angs, duration, wait=False)
+
+    for t in range(bufsize):
+
+        # update buffer
+        for key in bufkeys:
+            buffers['position'][t] = [
+                getattr(getattr(p, motor_name), "present_" + key)
+                for motor_name in motor_names]
+
+        # sleep to next timepoint
+        if t < bufsize - 1:
+            time_elapsed = time.time() - start
+            time.sleep(max(0, timepoints[t+1] - time_elapsed)
+
+    return buffers, motor_names
 
 def angs():
     return {m.name: m.present_position for m in p.motors}
