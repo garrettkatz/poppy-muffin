@@ -9,20 +9,28 @@ from record_angles import hotkeys
 p = PH()
 c = OpenCVCamera("poppy-cam",0,10)
 
-def gobuf(angs, duration, bufsize):
+def gobuf(angs, duration, bufsize, motion_window=.5, speed_ratio=.5):
+    # motion_window: timespan (s) used to measure actual speed
+    # speed_ratio: abort if less than this ratio of commanded speed
 
     # buffers
     bufkeys = ("position", "speed", "load", "voltage", "temperature")
-    buffers = {key: np.empty((bufsize, len(angs))) for key in bufkeys}
+    buffers = {key: np.empty((bufsize, len(angs))) for key in bufkeys + ("target",)}
     timepoints = np.linspace(0, duration, bufsize)
     motor_names = sorted(angs.keys())
     success = True
     t = 0
 
+    motion_dt = max(1, int(bufsize * motion_window / duration))
+
     try:
 
         start = time.time()
         p.goto_position(angs, duration, wait=False)
+
+        speeds = np.array([
+            getattr(p, motor_name).moving_speed
+            for motor_name in motor_names])
 
         for t in range(bufsize):
 
@@ -31,6 +39,9 @@ def gobuf(angs, duration, bufsize):
                 buffers[key][t] = [
                     getattr(getattr(p, motor_name), "present_" + key)
                     for motor_name in motor_names]
+            buffers["target"][t] = [
+                getattr(p, motor_name).goal_position
+                for motor_name in motor_names]
 
             # abort if approaching dangerous voltage/temperature
             # https://emanual.robotis.com/docs/en/dxl/mx/mx-12w/#control-table-of-eeprom-area
@@ -42,10 +53,19 @@ def gobuf(angs, duration, bufsize):
                 safe_temperature = (m.present_temperature < 70)
                 if not (safe_voltage and safe_temperature):
                     success = False
+
+            # abort if motion is restricted
+            mt = t - motion_dt
+            if mt >= 0:
+                dp = buffers['position'][t] - buffers['position'][mt]
+                dt = timepoints[t] - timepoints[mt]
+                if (np.fabs(dp / dt) < speed_ratio * speeds).any():
+                    success = False
+
             if not success:
                 for m in p.motors:
                     m.goal_position = m.present_position
-                for key in bufkeys:
+                for key in buffers.keys():
                     buffers[key] = buffers[key][:t+1]
                 print("Unsafe motion!!!")
                 break
@@ -56,12 +76,12 @@ def gobuf(angs, duration, bufsize):
                 print(t, time_elapsed, timepoints[t])
                 time.sleep(max(0, timepoints[t+1] - time_elapsed))
 
-        return success, buffers, motor_names
-
-    except:
+    except OSError:
 
         buffers = {key: buf[:t] for (key, buf) in buffers.items()}
         with open("gobuf.pkl","wb") as f: pk.dump((success, buffers, motor_names), f)
+
+    return success, buffers, motor_names
 
 def angs():
     return {m.name: m.present_position for m in p.motors}
