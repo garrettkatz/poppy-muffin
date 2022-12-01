@@ -5,9 +5,60 @@ import pickle as pk
 import numpy as np
 import matplotlib.pyplot as plt
 from record_angles import hotkeys
+import signal
 
 p = PH()
 c = OpenCVCamera("poppy-cam",0,10)
+
+# for safer keyboard interruptible busy-loops
+busy_interrupted = False
+def busy_interrupt_handler(signum, frame):
+    global busy_interrupted
+    busy_interrupted = True
+signal.signal(signal.SIGINT, busy_interrupt_handler)
+
+
+def is_safe():
+    # True iff motors are in safe voltage/temp ranges
+    # https://emanual.robotis.com/docs/en/dxl/mx/mx-12w/#control-table-of-eeprom-area
+    # https://emanual.robotis.com/docs/en/dxl/mx/mx-28/#control-table-of-eeprom-area
+    # https://emanual.robotis.com/docs/en/dxl/mx/mx-64/#control-table-of-eeprom-area
+    # pypot/dynamixel/conversion.py converts dynamixel voltage register to volts (divides by 10)
+    for m in p.motors:
+        safe_voltage = (7 < m.present_voltage < 15)
+        safe_temperature = (m.present_temperature < 70)
+        if not (safe_voltage and safe_temperature):
+            return False
+    return True
+
+def drift(alphas):
+    # continually set goal_position to a moving average of present_position on per-joint basis
+        # alpha = alphas[m.name]
+        # m.goal = a * m.present + (1-a) * m.goal
+        # e.g. a=1 completely overwrites goal with present, a=0 never changes goal
+    # intended for Baxter-like telekinetic demonstration
+
+    global busy_interrupted
+    busy_interrupted = False
+
+    # initialize goal positions at present positions
+    for m in p.motors: m.goal_position = m.present_position
+
+    # unless alpha provided, keep motor fixed at initial goal position
+    alphas = {m.name: alphas.get(m.name, 0) for m in p.motors}
+
+    # Try busy-loop
+    try:
+        while not busy_interrupted:
+
+            # update goal positions with moving average
+            for m in p.motors:
+                a = alphas[m.name]
+                m.goal_position = a * m.present_position + (1-a) * m.goal_position
+
+    # Abort on hardware errors
+    except OSError:
+        pass
 
 def gobuf(angs, duration, bufsize, motion_window=.5, speed_ratio=.5):
     # motion_window: timespan (s) used to measure actual speed
@@ -44,22 +95,17 @@ def gobuf(angs, duration, bufsize, motion_window=.5, speed_ratio=.5):
                 for motor_name in motor_names]
 
             # abort if approaching dangerous voltage/temperature
-            # https://emanual.robotis.com/docs/en/dxl/mx/mx-12w/#control-table-of-eeprom-area
-            # https://emanual.robotis.com/docs/en/dxl/mx/mx-28/#control-table-of-eeprom-area
-            # https://emanual.robotis.com/docs/en/dxl/mx/mx-64/#control-table-of-eeprom-area
-            # pypot/dynamixel/conversion.py converts dynamixel voltage register to volts (divides by 10)
-            for m in p.motors:
-                safe_voltage = (7 < m.present_voltage < 15)
-                safe_temperature = (m.present_temperature < 70)
-                if not (safe_voltage and safe_temperature):
-                    success = False
+            success = is_safe()
 
             # abort if motion is restricted
             mt = t - motion_dt
             if mt >= 0:
                 dp = buffers['position'][t] - buffers['position'][mt]
                 dt = timepoints[t] - timepoints[mt]
-                if (np.fabs(dp / dt) < speed_ratio * speeds).any():
+                is_restricted = (np.fabs(dp / dt) < speed_ratio * speeds)
+                if is_restricted.any():
+                    print('restricted!!!')
+                    print([motor_names[r] for r in np.flatnonzero(is_restricted)])
                     success = False
 
             if not success:
