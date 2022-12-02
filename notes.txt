@@ -318,3 +318,6 @@ probably easier to attach the other cables before m1, and chip+arm to the wood b
 !!!!!! be careful inserting/removing! pins can get bent out of shape
 
 2.5x6 bolts included with ergo are good for fixing chip to wood, but one left over is too long for arm base, use spare 2.5x4 bolts instead
+
+error "VIDIOC_DQBUF: no such device": do c.close() to stop it, comes from loose camera wire
+

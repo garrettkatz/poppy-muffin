@@ -10,6 +10,10 @@ import signal
 p = PH()
 c = OpenCVCamera("poppy-cam",0,10)
 
+# for python 2.7 on poppy
+if hasattr(__builtins__, 'raw_input'):
+    input=raw_input
+
 # for safer keyboard interruptible busy-loops
 busy_interrupted = False
 def busy_interrupt_handler(signum, frame):
@@ -17,6 +21,40 @@ def busy_interrupt_handler(signum, frame):
     busy_interrupted = True
 signal.signal(signal.SIGINT, busy_interrupt_handler)
 
+def angs():
+    return {m.name: m.present_position for m in p.motors}
+
+def go(angs):
+    p.goto_position(angs, 1, wait=True)
+
+def save(angs, name):
+    with open(name, "wb") as f: pk.dump(angs, f)
+
+def load(name):
+    with open(name, "rb") as f: return pk.load(f)
+
+def toggle(motors):
+    if type(motors) is not list: motors = [motors]
+    for m in motors: m.compliant = not m.compliant
+
+def do(traj):
+    for m in p.motors: m.compliant = False
+    inits = {m.name: m.present_position for m in p.motors}
+    for (duration, angles) in traj:
+        for m in p.motors:
+            if m.name not in angles:
+                angles[m.name] = inits[m.name]
+        p.goto_position(angles, duration, wait=True)
+
+def sit():
+    with open("sit_angles.pkl","r") as f: sit_angles = pk.load(f)
+    for m in p.motors: m.compliant = False
+    p.goto_position(sit_angles, 5, wait=True)
+
+def zero():
+    zero_angles = {m.name: 0. for m in p.motors}
+    for m in p.motors: m.compliant = False
+    p.goto_position(zero_angles, 5, wait=True)
 
 def is_safe():
     # True iff motors are in safe voltage/temp ranges
@@ -37,6 +75,7 @@ def drift(alphas):
         # m.goal = a * m.present + (1-a) * m.goal
         # e.g. a=1 completely overwrites goal with present, a=0 never changes goal
     # intended for Baxter-like telekinetic demonstration
+    # or to let robot passively alleviate stress on motors
 
     global busy_interrupted
     busy_interrupted = False
@@ -47,18 +86,33 @@ def drift(alphas):
     # unless alpha provided, keep motor fixed at initial goal position
     alphas = {m.name: alphas.get(m.name, 0) for m in p.motors}
 
-    # Try busy-loop
-    try:
-        while not busy_interrupted:
+    # Run busy-loop
+    while not busy_interrupted:
 
-            # update goal positions with moving average
-            for m in p.motors:
-                a = alphas[m.name]
-                m.goal_position = a * m.present_position + (1-a) * m.goal_position
+        # update goal positions with moving average
+        for m in p.motors:
+            a = alphas[m.name]
+            m.goal_position = a * m.present_position + (1-a) * m.goal_position
 
-    # Abort on hardware errors
-    except OSError:
-        pass
+def busytoggle(motor_names):
+    # continually toggle compliance of listed motors on Enter, until ctrl c
+
+    global busy_interrupted
+    busy_interrupted = False
+
+    # Run busy-loop
+    while not busy_interrupted:
+
+        for m in motor_names:
+            motor = getattr(p, m)
+            motor.compliant = not motor.compliant
+
+        # Toggle compliance after user enter
+        input('Toggled. Enter to do it again or Ctrl-C to stop ...')
+
+    # return final angles after toggles
+    return angs()
+    
 
 def gobuf(angs, duration, bufsize, motion_window=.5, speed_ratio=.5):
     # motion_window: timespan (s) used to measure actual speed
@@ -128,41 +182,6 @@ def gobuf(angs, duration, bufsize, motion_window=.5, speed_ratio=.5):
         with open("gobuf.pkl","wb") as f: pk.dump((success, buffers, motor_names), f)
 
     return success, buffers, motor_names
-
-def angs():
-    return {m.name: m.present_position for m in p.motors}
-
-def go(angs):
-    p.goto_position(angs, 1, wait=True)
-
-def save(angs, name):
-    with open(name, "wb") as f: pk.dump(angs, f)
-
-def load(name):
-    with open(name, "rb") as f: return pk.load(f)
-
-def toggle(motors):
-    if type(motors) is not list: motors = [motors]
-    for m in motors: m.compliant = not m.compliant
-
-def do(traj):
-    for m in p.motors: m.compliant = False
-    inits = {m.name: m.present_position for m in p.motors}
-    for (duration, angles) in traj:
-        for m in p.motors:
-            if m.name not in angles:
-                angles[m.name] = inits[m.name]
-        p.goto_position(angles, duration, wait=True)
-
-def sit():
-    with open("sit_angles.pkl","r") as f: sit_angles = pk.load(f)
-    for m in p.motors: m.compliant = False
-    p.goto_position(sit_angles, 5, wait=True)
-
-def zero():
-    zero_angles = {m.name: 0. for m in p.motors}
-    for m in p.motors: m.compliant = False
-    p.goto_position(zero_angles, 5, wait=True)
 
 print("Created poppy humanoid p and opencvcamera c with 10 fps.  Don't forget to p.close() and c.close() before quit() when you are finished to clean up the motor state.")
 

@@ -24,7 +24,7 @@ class PoppyErgoEnv(PoppyEnv):
             mirror_name = name # swap right and left
             if name[:2] == "l_": mirror_name = "r_" + name[2:]
             if name[:2] == "r_": mirror_name = "l_" + name[2:]
-            mirrored[self.joint_index[mirror_name]] = position[i] * sign        
+            mirrored[self.joint_index[mirror_name]] = position[i] * sign
         return mirrored        
             
 # convert from physical robot angles to pybullet angles
