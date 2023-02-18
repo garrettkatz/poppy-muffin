@@ -8,15 +8,17 @@ except:
     from mocks import PoppyHumanoid as PH
     do_run = False
 
+# joints involved in walking
+walk_names = ["%s_%s_y" % (lr, jnt) for lr in "lr" for jnt in ("hip", "ankle", "knee")]
+walk_names += ["abs_y","bust_y"]
+# walk_names += ["%s_hip_%s" % (lr, ax) for lr in "lr" for ax in "xz"]
+
 # load planned trajectory
 with open('pypot_traj1.pkl', "rb") as f: trajs = pk.load(f)
 # get initial angles
-traj = trajs[0]
-durations, angles = zip(*traj)
-print('traj[0] durations:')
-print(durations)
-print('traj[0] angles:')
-print(angles)
+init_angles = trajs[0][0][1]
+# traj = trajs[0]
+# durations, angles = zip(*traj)
 
 # Run and don't show
 if do_run:
@@ -29,12 +31,30 @@ if do_run:
     
     input('[Enter] to turn off compliance')
     for m in poppy.motors: m.compliant = False
-    
-    input('[Enter] for motion (may want to hold off ground)')
-    stand = poppy.goto_position(angles[0], durations[0]) # too long duration triggers restricted motion?
-    maintain = poppy.goto_position(angles[0], duration=10, bufsize=100, speed_ratio=-1) # don't abort for speed
 
-    with open('scratchbuf.pkl', "wb") as f: pk.dump((poppy.motor_names, stand, maintain), f)
+    # PID tuning
+    # K_p, K_i, K_d = 15.0, 3.0, 0.0
+    K_p, K_i, K_d = 20.0, 0.0, 0.0
+    # for name in walk_names:
+    #     getattr(poppy.robot, name).pid = (K_p, K_i, K_d)
+    for m in poppy.motors:
+        if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
+    
+    input('[Enter] for init angles (may want to hold up by strap)')
+    init_buf = poppy.goto_position(init_angles, duration=1, bufsize=10, speed_ratio=-1) # don't abort for speed
+    # init_buf2 = poppy.goto_position(init_angles, duration=1, bufsize=100, speed_ratio=-1) # to check more pid
+    bufs = [init_buf] #, init_buf2
+
+    for t, traj in enumerate(trajs[1:2]):
+        cmd = input('[Enter] for traj %d, [q] to quit: ' % t)
+        if cmd == 'q': break
+        for s, (duration, angles) in enumerate(traj):
+            # input('[Enter] for step %d' % s)
+            buf = poppy.goto_position(angles, 5*duration, bufsize=15, speed_ratio=-1)
+            bufs.append(buf)
+            print('  success = %s' % buf[0])
+
+    with open('scratchbuf.pkl', "wb") as f: pk.dump((poppy.motor_names, bufs), f)
 
     input('[Enter] to turn on compliance (may want to hold up by strap)')
     for m in poppy.motors: m.compliant = True
@@ -48,40 +68,46 @@ else:
     import matplotlib.pyplot as pt
 
     # load with latin1 encoding for numpy 2.x 3.x incompatibility
-    with open('scratchbuf.real.pkl', 'rb') as f: (motor_names, stand, maintain) = pk.load(f, encoding='latin1')
+    with open('scratchbuf.real.pkl', 'rb') as f: (motor_names, bufs) = pk.load(f, encoding='latin1')
     # with open('scratchbuf.real.2.pkl', 'rb') as f: (motor_names, buffers, time_elapsed) = pk.load(f, encoding='latin1')
     # bufkeys = ("position", "speed", "load", "voltage", "temperature")
 
-    print("success: stand %s, maintain %s" % (stand[0], maintain[0]))
+    successes, buffers, times_elapsed = zip(*bufs)
+    step_times = np.cumsum([times_elapsed[s][len(buffers[s]['position'])-1] for s in range(len(bufs))])
+
+    print("success: %s" % all(successes))
 
     registers = ['position'] #, 'load', 'voltage']
-    names = ["%s_%s_y" % (lr, jnt) for lr in "lr" for jnt in ("hip", "ankle", "knee")]
     # names = motor_names
+    names = walk_names
     colors = 'bgrcmyk'
 
-    stand_time, maintain_time = stand[2], maintain[2]
-    maintain_time += stand_time[-1]
-    maintain = maintain[:2] + (maintain_time,)
-
-    target_angles = np.array([angles[0][name] for name in motor_names])
+    # stand_time, maintain_time = stand[2], maintain[2]
+    # maintain_time += stand_time[-1]
+    # maintain = maintain[:2] + (maintain_time,)
+    # target_angles = np.array([angles[0][name] for name in motor_names])
 
     for r,reg in enumerate(registers):
         pt.subplot(len(registers), 1, r+1)
 
-        for (_, buffers, time_elapsed) in (stand, maintain):
+        for b, (success, buffers, time_elapsed) in enumerate(bufs):
+            if b > 0: time_elapsed += step_times[b-1]
+            if not success: time_elapsed = time_elapsed[:len(buffers['position'])]
             for k,name in enumerate(names):
                 j = motor_names.index(name)
                 pt.plot(time_elapsed, buffers[reg][:,j], colors[k % len(colors)] + '+-')
                 if reg == "position":
-                    pt.plot(time_elapsed, buffers["target"][:,j], colors[k % len(colors)] + 'o:', label=name)
+                    if b == 0:
+                        pt.plot(time_elapsed, buffers["target"][:,j], colors[k % len(colors)] + 'o:', label=name)
+                    else:
+                        pt.plot(time_elapsed, buffers["target"][:,j], colors[k % len(colors)] + 'o:')
 
-
-        if reg == 'position':
-            # for k,name in enumerate(names):
-            #     j = motor_names.index(name)
-                # pt.plot([stand_time[0], maintain_time[-1]], target_angles[[j,j]], colors[k % len(colors)] + 'o:', label=name)
-                # pt.plot(time_elapsed, buffers["target"][:,j], colors[k % len(colors)] + 'o:', label=name)
-            pt.plot(stand_time[[-1, -1]], [stand[1][reg].min(), stand[1][reg].max()], 'k:')
+            if reg == 'position':
+                # for k,name in enumerate(names):
+                #     j = motor_names.index(name)
+                    # pt.plot([stand_time[0], maintain_time[-1]], target_angles[[j,j]], colors[k % len(colors)] + 'o:', label=name)
+                    # pt.plot(time_elapsed, buffers["target"][:,j], colors[k % len(colors)] + 'o:', label=name)
+                pt.plot(step_times[[b, b]], [buffers[reg].min(), buffers[reg].max()], 'k:')
 
     pt.legend()
     pt.tight_layout()

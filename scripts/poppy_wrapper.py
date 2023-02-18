@@ -17,21 +17,21 @@ def custom_interrupt_handler(signum, frame):
     INTERRUPTED = True
 
 class PoppyWrapper:
-    def __init__(self, poppy, camera=None):
+    def __init__(self, robot, camera=None):
         """
         Inputs:
             poppy: pypot.creatures.PoppyHumanoid
             camera: pypot.sensor.OpenCVCamera (or None to ignore camera)
         """
-        self.poppy = poppy
+        self.robot = robot
         self.camera = camera
 
-        self.motors = self.poppy.motors
+        self.motors = self.robot.motors
         self.motor_names = tuple(str(m.name) for m in self.motors)
         self.num_joints = len(self.motors)
 
     def close(self):
-        self.poppy.close()
+        self.robot.close()
         if self.camera is not None: self.camera.close()
 
     def is_safe(self):
@@ -88,7 +88,7 @@ class PoppyWrapper:
 
             # launch the motion (non-blocking)
             start = time.time()
-            self.poppy.goto_position(angles, duration, wait=False)
+            self.robot.goto_position(angles, duration, wait=False)
 
             # record effective commanded speeds
             speeds = np.array([m.moving_speed for m in self.motors])

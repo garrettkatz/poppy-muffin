@@ -9,5 +9,11 @@ class PoppyHumanoid:
         return
     def close(self):
         return
+
+class OpenCVCamera:
+    def __init__(self, name, p1, fps):
+        pass
+    def close(self):
+        return
     
 
