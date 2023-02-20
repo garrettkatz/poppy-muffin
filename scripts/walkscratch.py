@@ -33,8 +33,8 @@ if do_run:
     for m in poppy.motors: m.compliant = False
 
     # PID tuning
-    # K_p, K_i, K_d = 15.0, 3.0, 0.0
-    K_p, K_i, K_d = 20.0, 0.0, 0.0
+    K_p, K_i, K_d = 18.0, 4.0, 0.1
+    # K_p, K_i, K_d = 20.0, 0.0, 0.0
     # for name in walk_names:
     #     getattr(poppy.robot, name).pid = (K_p, K_i, K_d)
     for m in poppy.motors:
@@ -45,12 +45,22 @@ if do_run:
     # init_buf2 = poppy.goto_position(init_angles, duration=1, bufsize=100, speed_ratio=-1) # to check more pid
     bufs = [init_buf] #, init_buf2
 
-    for t, traj in enumerate(trajs[1:2]):
+    # for t, traj in enumerate(trajs[1:5]):
+    for t in range(1, 5):
+        if t == 3: # swing
+            # poppy.robot.l_ankle_y.pid = (30., 0., 0.)
+            # poppy.robot.l_knee_y.pid = (30., 0., 0.)
+            durfac = 1
+        else:
+            # poppy.robot.l_ankle_y.pid = (K_p, K_i, K_d)
+            # poppy.robot.l_knee_y.pid = (K_p, K_i, K_d)
+            durfac = 5
+        traj = trajs[t]
         cmd = input('[Enter] for traj %d, [q] to quit: ' % t)
         if cmd == 'q': break
         for s, (duration, angles) in enumerate(traj):
             # input('[Enter] for step %d' % s)
-            buf = poppy.goto_position(angles, 5*duration, bufsize=15, speed_ratio=-1)
+            buf = poppy.goto_position(angles, durfac*duration, bufsize=10, speed_ratio=-1)
             bufs.append(buf)
             print('  success = %s' % buf[0])
 
@@ -98,9 +108,9 @@ else:
                 pt.plot(time_elapsed, buffers[reg][:,j], colors[k % len(colors)] + '+-')
                 if reg == "position":
                     if b == 0:
-                        pt.plot(time_elapsed, buffers["target"][:,j], colors[k % len(colors)] + 'o:', label=name)
+                        pt.plot(time_elapsed[-1], buffers["target"][-1,j], colors[k % len(colors)] + 'o:', label=name)
                     else:
-                        pt.plot(time_elapsed, buffers["target"][:,j], colors[k % len(colors)] + 'o:')
+                        pt.plot(time_elapsed[-1], buffers["target"][-1,j], colors[k % len(colors)] + 'o:')
 
             if reg == 'position':
                 # for k,name in enumerate(names):
