@@ -9,8 +9,8 @@ except:
     do_run = False
 
 # joints involved in walking
-walk_names = ["%s_%s_y" % (lr, jnt) for lr in "lr" for jnt in ("hip", "ankle", "knee")]
-walk_names += ["abs_y","bust_y"]
+leg_names = ["%s_%s_y" % (lr, jnt) for lr in "lr" for jnt in ("hip", "ankle", "knee")]
+walk_names = leg_names + ["abs_y","bust_y"]
 # walk_names += ["%s_hip_%s" % (lr, ax) for lr in "lr" for ax in "xz"]
 
 # load planned trajectory
@@ -84,8 +84,32 @@ else:
 
     successes, buffers, times_elapsed = zip(*bufs)
     step_times = np.cumsum([times_elapsed[s][len(buffers[s]['position'])-1] for s in range(len(bufs))])
+    for b, (success, buffers, time_elapsed) in enumerate(bufs):
+        if b > 0: time_elapsed += step_times[b-1]
+        if not success: time_elapsed = time_elapsed[:len(buffers['position'])]
 
     print("success: %s" % all(successes))
+
+    pt.rcParams['font.family'] = 'serif'
+    pt.figure(figsize=(4,4))
+    linestyles = ['-',':','--']
+    colors = (0, .5)
+    for b, (success, buffers, time_elapsed) in enumerate(bufs[1:]):
+        for c,lr in enumerate("lr"):
+            for n,part in enumerate(('hip', 'knee', 'ankle')):
+                name = "%s_%s_y" % (lr, part)
+                j = motor_names.index(name)
+                if b == 0:
+                    pt.plot(time_elapsed, buffers['position'][:,j], color=(colors[c],)*3, linestyle=linestyles[n], label=name)
+                else:
+                    pt.plot(time_elapsed, buffers['position'][:,j], color=(colors[c],)*3, linestyle=linestyles[n])
+    pt.legend(ncol=2)
+    pt.xlabel('Time Elapsed (s)')
+    pt.ylabel('Joint Angle (deg)')
+    pt.ylim([-20, 55])
+    pt.tight_layout()
+    pt.savefig('traj.eps')
+    pt.show()
 
     registers = ['position'] #, 'load', 'voltage']
     # names = motor_names
@@ -101,8 +125,6 @@ else:
         pt.subplot(len(registers), 1, r+1)
 
         for b, (success, buffers, time_elapsed) in enumerate(bufs):
-            if b > 0: time_elapsed += step_times[b-1]
-            if not success: time_elapsed = time_elapsed[:len(buffers['position'])]
             for k,name in enumerate(names):
                 j = motor_names.index(name)
                 pt.plot(time_elapsed, buffers[reg][:,j], colors[k % len(colors)] + '+-')
