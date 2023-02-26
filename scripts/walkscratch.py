@@ -3,9 +3,11 @@ import numpy as np
 import poppy_wrapper as pw
 try:
     from pypot.creatures import PoppyHumanoid as PH
+    import pypot.utils.pypot_time as time
     do_run = True
 except:
     from mocks import PoppyHumanoid as PH
+    import time
     do_run = False
 
 # joints involved in walking
@@ -40,10 +42,20 @@ if do_run:
     for m in poppy.motors:
         if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
     
+    # input('[Enter] for init angles (may want to hold up by strap)')
+    # init_buf = poppy.goto_position(init_angles, duration=1, bufsize=10, speed_ratio=-1) # don't abort for speed
+
+    # input('[Enter] for ankle compliance')
+    # # poppy.robot.l_ankle_y.compliant = True
+    # poppy.robot.r_ankle_y.compliant = True
+
     input('[Enter] for init angles (may want to hold up by strap)')
+    # # poppy.robot.l_ankle_y.compliant = False
+    # poppy.robot.r_ankle_y.compliant = False
+
     init_buf = poppy.goto_position(init_angles, duration=1, bufsize=10, speed_ratio=-1) # don't abort for speed
     # init_buf2 = poppy.goto_position(init_angles, duration=1, bufsize=100, speed_ratio=-1) # to check more pid
-    bufs = [init_buf] #, init_buf2
+    bufs = [[init_buf]] #, init_buf2
 
     # for t, traj in enumerate(trajs[1:5]):
     for t in range(1, 5):
@@ -56,13 +68,15 @@ if do_run:
             # poppy.robot.l_knee_y.pid = (K_p, K_i, K_d)
             durfac = 5
         traj = trajs[t]
-        cmd = input('[Enter] for traj %d, [q] to quit: ' % t)
-        if cmd == 'q': break
+        # cmd = input('[Enter] for traj %d, [q] to quit: ' % t)
+        # if cmd == 'q': break
+        time.sleep(0.5) # settle briefly at waypoint
+        bufs.append([])
         for s, (duration, angles) in enumerate(traj):
             # input('[Enter] for step %d' % s)
             buf = poppy.goto_position(angles, durfac*duration, bufsize=10, speed_ratio=-1)
-            bufs.append(buf)
-            print('  success = %s' % buf[0])
+            bufs[-1].append(buf)
+            print('  success = %s' % buf[-1][0])
 
     with open('scratchbuf.pkl', "wb") as f: pk.dump((poppy.motor_names, bufs), f)
 
@@ -81,6 +95,9 @@ else:
     with open('scratchbuf.real.pkl', 'rb') as f: (motor_names, bufs) = pk.load(f, encoding='latin1')
     # with open('scratchbuf.real.2.pkl', 'rb') as f: (motor_names, buffers, time_elapsed) = pk.load(f, encoding='latin1')
     # bufkeys = ("position", "speed", "load", "voltage", "temperature")
+
+    # flatten buffer phase grouping
+    bufs = [buf for traj_bufs in bufs for buf in traj_bufs]
 
     successes, buffers, times_elapsed = zip(*bufs)
     step_times = np.cumsum([times_elapsed[s][len(buffers[s]['position'])-1] for s in range(len(bufs))])
@@ -130,9 +147,10 @@ else:
                 pt.plot(time_elapsed, buffers[reg][:,j], colors[k % len(colors)] + '+-')
                 if reg == "position":
                     if b == 0:
-                        pt.plot(time_elapsed[-1], buffers["target"][-1,j], colors[k % len(colors)] + 'o:', label=name)
+                        pt.plot(time_elapsed[-1], buffers["target"][-1,j], colors[k % len(colors)] + 'o', label=name)
                     else:
-                        pt.plot(time_elapsed[-1], buffers["target"][-1,j], colors[k % len(colors)] + 'o:')
+                        pt.plot(time_elapsed[-1], buffers["target"][-1,j], colors[k % len(colors)] + 'o')
+                    pt.plot(time_elapsed, buffers["target"][:,j], colors[k % len(colors)] + ':')
 
             if reg == 'position':
                 # for k,name in enumerate(names):
