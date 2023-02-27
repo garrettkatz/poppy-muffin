@@ -17,10 +17,9 @@ walk_names = leg_names + ["abs_y","bust_y"]
 
 # load planned trajectory
 with open('pypot_traj1.pkl', "rb") as f: trajs = pk.load(f)
+
 # get initial angles
 init_angles = trajs[0][0][1]
-# traj = trajs[0]
-# durations, angles = zip(*traj)
 
 # Run and don't show
 if do_run:
@@ -35,8 +34,8 @@ if do_run:
     for m in poppy.motors: m.compliant = False
 
     # PID tuning
-    K_p, K_i, K_d = 18.0, 4.0, 0.1
-    # K_p, K_i, K_d = 20.0, 0.0, 0.0
+    # K_p, K_i, K_d = 18.0, 4.0, 0.1
+    K_p, K_i, K_d = 20.0, 0.0, 0.0
     # for name in walk_names:
     #     getattr(poppy.robot, name).pid = (K_p, K_i, K_d)
     for m in poppy.motors:
@@ -57,20 +56,31 @@ if do_run:
     # init_buf2 = poppy.goto_position(init_angles, duration=1, bufsize=100, speed_ratio=-1) # to check more pid
     bufs = [[init_buf]] #, init_buf2
 
+    input('[Enter] to begin walking')
+
     # for t, traj in enumerate(trajs[1:5]):
-    for t in range(1, 5):
-        if t == 3: # swing
-            # poppy.robot.l_ankle_y.pid = (30., 0., 0.)
-            # poppy.robot.l_knee_y.pid = (30., 0., 0.)
-            durfac = 1
-        else:
-            # poppy.robot.l_ankle_y.pid = (K_p, K_i, K_d)
-            # poppy.robot.l_knee_y.pid = (K_p, K_i, K_d)
-            durfac = 5
+    for t in range(1, 6):
+
+        # hang at waypoint
+        if t != 4: # don't wait before kick
+            cmd = input('[Enter] for traj %d, [q] to quit: ' % t)
+            if cmd == 'q': break
+
+        # # settle briefly at waypoint
+        # if t != 4: # don't wait before kick
+        #     time.sleep(0.5)
+
+        # if t == 3: # swing
+        #     # poppy.robot.l_ankle_y.pid = (30., 0., 0.)
+        #     # poppy.robot.l_knee_y.pid = (30., 0., 0.)
+        #     durfac = 1
+        # else:
+        #     # poppy.robot.l_ankle_y.pid = (K_p, K_i, K_d)
+        #     # poppy.robot.l_knee_y.pid = (K_p, K_i, K_d)
+        #     durfac = 5
+        durfac = 1
+
         traj = trajs[t]
-        # cmd = input('[Enter] for traj %d, [q] to quit: ' % t)
-        # if cmd == 'q': break
-        time.sleep(0.5) # settle briefly at waypoint
         bufs.append([])
         for s, (duration, angles) in enumerate(traj):
             # input('[Enter] for step %d' % s)
@@ -130,7 +140,8 @@ else:
 
     registers = ['position'] #, 'load', 'voltage']
     # names = motor_names
-    names = walk_names
+    # names = walk_names
+    names = leg_names
     colors = 'bgrcmyk'
 
     # stand_time, maintain_time = stand[2], maintain[2]
