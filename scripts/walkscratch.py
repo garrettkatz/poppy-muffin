@@ -19,7 +19,7 @@ walk_names = leg_names + ["abs_y","bust_y"]
 with open('pypot_traj1.pkl', "rb") as f: trajs = pk.load(f)
 
 # get initial angles
-init_angles = trajs[0][0][1]
+_, init_angles = trajs[0][0]
 
 # Run and don't show
 if do_run:
@@ -41,16 +41,7 @@ if do_run:
     for m in poppy.motors:
         if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
     
-    # input('[Enter] for init angles (may want to hold up by strap)')
-    # init_buf = poppy.goto_position(init_angles, duration=1, bufsize=10, speed_ratio=-1) # don't abort for speed
-
-    # input('[Enter] for ankle compliance')
-    # # poppy.robot.l_ankle_y.compliant = True
-    # poppy.robot.r_ankle_y.compliant = True
-
     input('[Enter] for init angles (may want to hold up by strap)')
-    # # poppy.robot.l_ankle_y.compliant = False
-    # poppy.robot.r_ankle_y.compliant = False
 
     init_buf = poppy.goto_position(init_angles, duration=1, bufsize=10, speed_ratio=-1) # don't abort for speed
     # init_buf2 = poppy.goto_position(init_angles, duration=1, bufsize=100, speed_ratio=-1) # to check more pid
@@ -58,37 +49,38 @@ if do_run:
 
     input('[Enter] to begin walking')
 
-    # for t, traj in enumerate(trajs[1:5]):
-    for t in range(1, 6):
+    hang = False
 
-        # hang at waypoint
-        if t != 4: # don't wait before kick
+    success = True
+    # for t, traj in enumerate(trajs): # all include mirror
+    for t, traj in enumerate(trajs[:5]): # return to init
+    # for t, traj in enumerate(trajs[:4]): # stop after kick
+
+        # if hang and (t not in [3, 4]): # don't wait before kick or plant
+        if hang and (t not in [3]): # don't wait before kick
+
+            # hang at waypoint
             cmd = input('[Enter] for traj %d, [q] to quit: ' % t)
             if cmd == 'q': break
 
-        # # settle briefly at waypoint
-        # if t != 4: # don't wait before kick
-        #     time.sleep(0.5)
+            # # settle briefly at waypoint
+            # time.sleep(0.5)
 
-        # if t == 3: # swing
-        #     # poppy.robot.l_ankle_y.pid = (30., 0., 0.)
-        #     # poppy.robot.l_knee_y.pid = (30., 0., 0.)
-        #     durfac = 1
-        # else:
-        #     # poppy.robot.l_ankle_y.pid = (K_p, K_i, K_d)
-        #     # poppy.robot.l_knee_y.pid = (K_p, K_i, K_d)
-        #     durfac = 5
-        durfac = 1
-
-        traj = trajs[t]
         bufs.append([])
-        for s, (duration, angles) in enumerate(traj):
+        for s, (duration, angles) in enumerate(traj[1:]): # skip (0, start)
             # input('[Enter] for step %d' % s)
-            buf = poppy.goto_position(angles, durfac*duration, bufsize=10, speed_ratio=-1)
+            buf = poppy.goto_position(angles, duration, bufsize=10, speed_ratio=-1)
             bufs[-1].append(buf)
-            print('  success = %s' % buf[-1][0])
+            success = buf[0]
+            print('  success = %s' % str(success))
+            if not success: break
+        if not success: break
 
     with open('scratchbuf.pkl', "wb") as f: pk.dump((poppy.motor_names, bufs), f)
+
+    if cmd == 'q':
+        input('[Enter] to return to rest (may want to hold up by strap)')
+        poppy.goto_position({name: 0. for name in poppy.motor_names}, 3, bufsize=10, speed_ratio=-1)
 
     input('[Enter] to turn on compliance (may want to hold up by strap)')
     for m in poppy.motors: m.compliant = True
@@ -117,26 +109,26 @@ else:
 
     print("success: %s" % all(successes))
 
-    pt.rcParams['font.family'] = 'serif'
-    pt.figure(figsize=(4,4))
-    linestyles = ['-',':','--']
-    colors = (0, .5)
-    for b, (success, buffers, time_elapsed) in enumerate(bufs[1:]):
-        for c,lr in enumerate("lr"):
-            for n,part in enumerate(('hip', 'knee', 'ankle')):
-                name = "%s_%s_y" % (lr, part)
-                j = motor_names.index(name)
-                if b == 0:
-                    pt.plot(time_elapsed, buffers['position'][:,j], color=(colors[c],)*3, linestyle=linestyles[n], label=name)
-                else:
-                    pt.plot(time_elapsed, buffers['position'][:,j], color=(colors[c],)*3, linestyle=linestyles[n])
-    pt.legend(ncol=2)
-    pt.xlabel('Time Elapsed (s)')
-    pt.ylabel('Joint Angle (deg)')
-    pt.ylim([-20, 55])
-    pt.tight_layout()
-    pt.savefig('traj.eps')
-    pt.show()
+    # pt.rcParams['font.family'] = 'serif'
+    # pt.figure(figsize=(4,4))
+    # linestyles = ['-',':','--']
+    # colors = (0, .5)
+    # for b, (success, buffers, time_elapsed) in enumerate(bufs[1:]):
+    #     for c,lr in enumerate("lr"):
+    #         for n,part in enumerate(('hip', 'knee', 'ankle')):
+    #             name = "%s_%s_y" % (lr, part)
+    #             j = motor_names.index(name)
+    #             if b == 0:
+    #                 pt.plot(time_elapsed, buffers['position'][:,j], color=(colors[c],)*3, linestyle=linestyles[n], label=name)
+    #             else:
+    #                 pt.plot(time_elapsed, buffers['position'][:,j], color=(colors[c],)*3, linestyle=linestyles[n])
+    # pt.legend(ncol=2)
+    # pt.xlabel('Time Elapsed (s)')
+    # pt.ylabel('Joint Angle (deg)')
+    # pt.ylim([-20, 55])
+    # pt.tight_layout()
+    # pt.savefig('traj.eps')
+    # pt.show()
 
     registers = ['position'] #, 'load', 'voltage']
     # names = motor_names

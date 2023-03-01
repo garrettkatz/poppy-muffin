@@ -146,6 +146,7 @@ class PoppyWrapper:
         except OSError:
             buffers = {key: buf[:t] for (key, buf) in buffers.items()}
             with open("gobuf.pkl","wb") as f: pk.dump((success, buffers, time_elapsed, motor_names), f)
+            success = False
 
         # restore default interrupt handler
         finally:
