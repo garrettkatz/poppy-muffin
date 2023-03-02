@@ -19,7 +19,8 @@ walk_names = leg_names + ["abs_y","bust_y"]
 with open('pypot_traj1.pkl', "rb") as f: trajs = pk.load(f)
 
 # get initial angles
-_, init_angles = trajs[0][0]
+# _, init_angles = trajs[0][0]
+_, init_angles = trajs[4][0] # debugging high heel
 
 # Run and don't show
 if do_run:
