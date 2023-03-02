@@ -19,9 +19,9 @@ Synthesis is done in an adjoining repository as described [here](https://github.
 
         `$ python run_walk_experiment.py <sample>`
 
-  where `<sample>` is an integer.  If `<sample>` is negative, it uses the trajectory stored in `pypot_traj1.pkl`.  Otherwise, it uses the trajectory stored in the file `pypot_sample_trajectory_<sample>.pkl`.  In either case, it writes output data about the motor execution to a file `results<sample>.pkl`.
+    where `<sample>` is an integer.  If `<sample>` is negative, it uses the trajectory stored in `pypot_traj1.pkl`.  Otherwise, it uses the trajectory stored in the file `pypot_sample_trajectory_<sample>.pkl`.  In either case, it writes output data about the motor execution to a file `results<sample>.pkl`.
 
-  The python script will prompt you to take several actions before/after the robotic motion; make sure you appropriately and safely position the robot in between each one.
+    The python script will prompt you to take several actions before/after the robotic motion; make sure you appropriately and safely position the robot in between each one.
 
     - First, it will prompt you to prepare the joints for non-compliance, which will fix them at their current angles.
 
