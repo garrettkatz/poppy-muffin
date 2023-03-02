@@ -99,93 +99,107 @@ pt.tight_layout()
 pt.savefig('linfit.eps')
 pt.show()
 
-# fit linear function: final_mad = (perturbation - orig) @ W + z
-finished = {key: (results[key] == 4) for key in ('perturbed', 'hand-tuned')}
-Wz, _, _, _ = np.linalg.lstsq(delta1[finished['perturbed']], return_mads['perturbed'][finished['perturbed']], rcond=None)
-dots = delta1[finished['perturbed'], :-1] @ Wz[:-1]
-orig_dot = 0
+# # fit linear function: final_mad = (perturbation - orig) @ W + z
+# finished = {key: (results[key] == 4) for key in ('perturbed', 'hand-tuned')}
+# Wz, _, _, _ = np.linalg.lstsq(delta1[finished['perturbed']], return_mads['perturbed'][finished['perturbed']], rcond=None)
+# dots = delta1[finished['perturbed'], :-1] @ Wz[:-1]
+# orig_dot = 0
 
-pt.figure(figsize=(4,2))
-pt.plot(dots, return_mads['perturbed'][finished['perturbed']], 'k+', label='Perturbed')
-pt.plot([orig_dot]*finished['hand-tuned'].sum(), return_mads['hand-tuned'][finished['hand-tuned']], 'ko', mfc='none', label='Hand-tuned')
+# pt.figure(figsize=(4,2))
+# pt.plot(dots, return_mads['perturbed'][finished['perturbed']], 'k+', label='Perturbed')
+# pt.plot([orig_dot]*finished['hand-tuned'].sum(), return_mads['hand-tuned'][finished['hand-tuned']], 'ko', mfc='none', label='Hand-tuned')
 
-x = [dots.min(), dots.max()]
-y = np.poly1d(np.polyfit(dots, return_mads['perturbed'][finished['perturbed']], 1))(x)
-pt.plot(x, y, 'k:')
+# x = [dots.min(), dots.max()]
+# y = np.poly1d(np.polyfit(dots, return_mads['perturbed'][finished['perturbed']], 1))(x)
+# pt.plot(x, y, 'k:')
 
-pt.xlabel('$\\langle \\Delta\\Theta, \\mathbf{w}\\rangle$')
-pt.ylabel('Return MAD')
-pt.legend()
-pt.tight_layout()
-pt.savefig('returnfit.eps')
-pt.show()
+# pt.xlabel('$\\langle \\Delta\\Theta, \\mathbf{w}\\rangle$')
+# pt.ylabel('Return MAD')
+# pt.legend()
+# pt.tight_layout()
+# pt.savefig('returnfit.eps')
+# pt.show()
 
-# orthonormal basis
-basis = np.stack((Ab[:-1], Wz[:-1]))
-basis[0] /= np.linalg.norm(basis[0])
-basis[1] -= basis[0] * np.dot(basis[0], basis[1])
-basis[1] /= np.linalg.norm(basis[1])
+# # orthonormal basis
+# basis = np.stack((Ab[:-1], Wz[:-1]))
+# basis[0] /= np.linalg.norm(basis[0])
+# basis[1] -= basis[0] * np.dot(basis[0], basis[1])
+# basis[1] /= np.linalg.norm(basis[1])
 
-proj_A = basis @ Ab[:-1]
-proj_W = basis @ Wz[:-1]
-proj_delta1 = basis @ delta1[:, :-1].T
-mad_max = max(return_mads['perturbed'].max(), return_mads['hand-tuned'].max())
-proj_max = np.fabs(proj_delta1).max()
-print(proj_max)
-colors = return_mads['perturbed']/mad_max
-colors = colors[:,np.newaxis] * np.ones(3)
+# proj_A = basis @ Ab[:-1]
+# proj_W = basis @ Wz[:-1]
+# proj_delta1 = basis @ delta1[:, :-1].T
+# mad_max = max(return_mads['perturbed'].max(), return_mads['hand-tuned'].max())
+# proj_max = np.fabs(proj_delta1).max()
+# print(proj_max)
+# colors = return_mads['perturbed']/mad_max
+# colors = colors[:,np.newaxis] * np.ones(3)
 
-pt.plot([0, proj_A[0]], [0, proj_A[1]], 'r-')
-pt.plot([0, -proj_W[0]], [0, -proj_W[1]], 'b-')
-pt.scatter(*proj_delta1[:, finished['perturbed']], marker='+', c=colors[finished['perturbed']])
-pt.scatter(*proj_delta1[:, ~finished['perturbed']], marker='x', c=colors[~finished['perturbed']])
+# pt.plot([0, proj_A[0]], [0, proj_A[1]], 'r-')
+# pt.plot([0, -proj_W[0]], [0, -proj_W[1]], 'b-')
+# pt.scatter(*proj_delta1[:, finished['perturbed']], marker='+', c=colors[finished['perturbed']])
+# pt.scatter(*proj_delta1[:, ~finished['perturbed']], marker='x', c=colors[~finished['perturbed']])
 
-for k in np.flatnonzero(finished['perturbed']):
-    pt.text(*proj_delta1[:, k], s=str(k))
+# for k in np.flatnonzero(finished['perturbed']):
+#     pt.text(*proj_delta1[:, k], s=str(k))
 
-k_star = 5
-print("init_flat, init_abs_y, shift_swing, shift_torso, push_flat, push_swing")
-print(orig_params + delta1[k_star,:-1])
-print(orig_params)
-print(return_mads['perturbed'][k_star])
-print(results['perturbed'][k_star])
+# k_star = 5
+# print("init_flat, init_abs_y, shift_swing, shift_torso, push_flat, push_swing")
+# print(orig_params + delta1[k_star,:-1])
+# print(orig_params)
+# print(return_mads['perturbed'][k_star])
+# print(results['perturbed'][k_star])
 
-pt.xlim([-proj_max, +proj_max])
-pt.ylim([-proj_max, +proj_max])
-# pt.axis('equal')
-pt.show()
+# pt.xlim([-proj_max, +proj_max])
+# pt.ylim([-proj_max, +proj_max])
+# # pt.axis('equal')
+# pt.show()
 
-# mad_avg = 0
-# total_steps = 0
-# mad_time_avg = 0
-# total_time = 0
-# offset = 0
-# for t, transition in enumerate(bufs):
-#     # pt.subplot(1, len(bufs), t+1)
-#     # offset = 0
-#     for (success, buffers, time_elapsed) in transition:
-#         if not success: continue
 
-#         pt.plot(offset + time_elapsed, buffers['position'], 'k-')
+# fig = pt.figure(figsize=(6.5, 3), constrained_layout=True)
+# gs = fig.add_gridspec(6, 7)
+fig = pt.figure(figsize=(4, 6), constrained_layout=True)
 
-#         # pt.plot(offset + time_elapsed, np.fabs(buffers['position'] - buffers['target']).mean(axis=1), 'k-')
-#         # pt.plot(offset + time_elapsed[-1], np.fabs(buffers['position'] - buffers['target']).mean(axis=1)[-1], 'ko')
+# fig.add_subplot(gs[:, :3])
+offset = 0
+for t, transition in enumerate(bufs[1:]): # skip init buf
+    # pt.subplot(1, len(bufs), t+1)
+    # offset = 0
+    for (success, buffers, time_elapsed) in transition:
+        if not success: continue
 
-#         pt.plot([offset, offset], [buffers['position'].min(), buffers['position'].max()], 'k:')
-#         offset += time_elapsed[-1]
+        pt.subplot(2,1,1)
+        pt.plot(offset + time_elapsed, buffers['position'], 'k-')
 
-#         mad_avg += np.fabs(buffers['position'] - buffers['target']).mean(axis=1).sum()
-#         total_steps += len(time_elapsed)
+        if t == 1:
+            pt.subplot(2,1,2)
+            pt.plot(offset + time_elapsed, buffers['position'], 'k-')
+            pt.plot(offset + time_elapsed, buffers['target'], 'k:')
+            pt.xlabel('Time elapsed (s)')
 
-#         durations = time_elapsed
-#         durations[1:] = time_elapsed[1:] - time_elapsed[:-1]
-#         mad_time_avg += np.fabs(buffers['position'] - buffers['target']).mean(axis=1).dot(durations)
-#         total_time += durations.sum()
+        offset += time_elapsed[-1]
 
-# mad_avg /= total_steps
-# mad_time_avg /= total_time
-# print(mad_avg)
-# print(mad_time_avg)
+    # pt.subplot(2,1,1)
+    # pt.plot([offset, offset], [buffers['position'].min(), buffers['position'].max()], 'k:')
+
+pt.gcf().supylabel('Joint Positions (deg)')
+pt.subplot(2,1,1)
+
+# pt.subplot(2,1,2)
+# # fig.add_subplot(gs[:, 3:])
+# transition = bufs[2]
+# for (success, buffers, time_elapsed) in transition:
+#     if not success: continue
+
+#     pt.plot(offset + time_elapsed, buffers['position'], 'k-')
+#     pt.plot(offset + time_elapsed, buffers['target'], 'k:')
+#     # pt.plot([offset + time_elapsed[-1]]*buffers['target'].shape[1], buffers['target'][-1], 'ko')
+#     pt.plot([offset, offset], [buffers['position'].min(), buffers['position'].max()], 'k:')
+
+#     offset += time_elapsed[-1]
 
 # pt.show()
+
+pt.savefig('buffers.eps')
+pt.show()
 
