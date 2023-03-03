@@ -158,7 +158,7 @@ pt.show()
 
 # fig = pt.figure(figsize=(6.5, 3), constrained_layout=True)
 # gs = fig.add_gridspec(6, 7)
-fig = pt.figure(figsize=(4, 6), constrained_layout=True)
+fig = pt.figure(figsize=(4, 4.5), constrained_layout=True)
 
 # fig.add_subplot(gs[:, :3])
 offset = 0
@@ -176,6 +176,7 @@ for t, transition in enumerate(bufs[1:]): # skip init buf
             pt.plot(offset + time_elapsed, buffers['position'], 'k-')
             pt.plot(offset + time_elapsed, buffers['target'], 'k:')
             pt.xlabel('Time elapsed (s)')
+            pt.ylim([-20, 20])
 
         offset += time_elapsed[-1]
 
