@@ -4,9 +4,11 @@ import numpy as np
 import poppy_wrapper as pw
 try:
     from pypot.creatures import PoppyHumanoid as PH
+    from pypot.sensor import OpenCVCamera
     import pypot.utils.pypot_time as time
 except:
     from mocks import PoppyHumanoid as PH
+    from mocks import OpenCVCamera
     import time
 
 # for python 2.7 on poppy
@@ -19,7 +21,13 @@ if hasattr(__builtins__, 'raw_input'):
 
 sample = int(sys.argv[1])
 
-poppy = pw.PoppyWrapper(PH())
+save_images = True
+if save_images:
+    poppy = pw.PoppyWrapper(PH(), OpenCVCamera("poppy-cam", 0, 24))
+    binsize = 10
+else:
+    poppy = pw.PoppyWrapper(PH())
+    binsize = None
     
 # load planned trajectory
 if sample < 0:
@@ -62,7 +70,7 @@ for cycle in range(num_cycles):
     
         bufs.append([])
         for s, (duration, angles) in enumerate(traj[1:]): # skip (0, start)
-            buf = poppy.goto_position(angles, duration, bufsize=10, speed_ratio=-1)
+            buf = poppy.goto_position(angles, duration, bufsize=10, speed_ratio=-1, binsize=binsize)
             bufs[-1].append(buf)
             success = buf[0]
             print('  success = %s' % str(success))

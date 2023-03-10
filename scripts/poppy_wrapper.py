@@ -24,7 +24,7 @@ class PoppyWrapper:
             camera: pypot.sensor.OpenCVCamera (or None to ignore camera)
         """
         self.robot = robot
-        self.camera = camera
+        self.camera = camera # image shape is (480, 640, 3)
 
         self.motors = self.robot.motors
         self.motor_names = tuple(str(m.name) for m in self.motors)
@@ -33,6 +33,9 @@ class PoppyWrapper:
     def close(self):
         self.robot.close()
         if self.camera is not None: self.camera.close()
+
+    def comply(self, mode=True):
+        for m in self.motors: m.compliant = mode
 
     def is_safe(self):
         """
@@ -49,7 +52,7 @@ class PoppyWrapper:
                 return False
         return True
 
-    def goto_position(self, angles, duration=1.0, bufsize=10, speed_ratio=.5, motion_window=.5):
+    def goto_position(self, angles, duration=1.0, bufsize=10, speed_ratio=.5, motion_window=.5, binsize=None):
         """
         Moves to target position, blocks until motion has finished
         Freezes motion early if overloading motors, motion is restricted, or user interrupts
@@ -62,6 +65,7 @@ class PoppyWrapper:
             bufsize: number of timesteps to sample buffers
             speed_ratio: abort if actual speed less than this ratio of commanded speed
             motion_window: timespan in seconds used to measure actual speed
+            binsize: bin factor for image buffer (if None, no images are buffered)
         Outputs:
             success: True iff motion completed successfully
             buffers[register][t, j]: buffered info from joint j register at timestep t
@@ -74,6 +78,7 @@ class PoppyWrapper:
         # initialize buffers
         bufkeys = ("position", "speed", "load", "voltage", "temperature")
         buffers = {key: np.empty((bufsize, self.num_joints)) for key in bufkeys + ("target",)}
+        if binsize is not None: buffers['images'] = []
         time_points = np.linspace(0, duration, bufsize)
         time_elapsed = np.empty(bufsize)
 
@@ -99,8 +104,14 @@ class PoppyWrapper:
                 # update buffers
                 for key in bufkeys:
                     buffers[key][t] = [getattr(motor, "present_" + key) for motor in self.motors]
+
                 # including current target position
                 buffers["target"][t] = [motor.goal_position for motor in self.motors]
+
+                # and images if requested
+                if binsize is not None:
+                    frame = self.camera.frame[::binsize, ::binsize].copy()
+                    buffers['images'].append(frame)
 
                 # check user interrupt
                 if INTERRUPTED:
