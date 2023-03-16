@@ -46,8 +46,8 @@ for key in ('perturbed', 'hand-tuned'):
         mad_sum = 0
         total_steps = 0
     
-        # process transitions after move to init and until failure
-        for t, transition in enumerate(bufs[1:][:result+1]):
+        # process transitions until failure
+        for t, transition in enumerate(bufs[:result+1]):
             for (success, buffers, time_elapsed) in transition:
 
                 # long-duration trajectory points will have high mad in beginning
@@ -162,7 +162,7 @@ fig = pt.figure(figsize=(4, 4.5), constrained_layout=True)
 
 # fig.add_subplot(gs[:, :3])
 offset = 0
-for t, transition in enumerate(bufs[1:]): # skip init buf
+for t, transition in enumerate(bufs):
     # pt.subplot(1, len(bufs), t+1)
     # offset = 0
     for (success, buffers, time_elapsed) in transition:

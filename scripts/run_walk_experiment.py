@@ -1,3 +1,12 @@
+"""
+$ python run_walk_experiment.py <sample>
+    sample < 0: use reference trajectory (pypot_traj1.pkl)
+    0 <= sample < 100: use perturbed trajectory (pypot_sample_trajectory_<sample>.pkl)
+    100 <= sample: use updated trajectory (pypot_traj_star.pkl)
+saves output data as
+    walk_samples/results_<sample>.pkl
+    walk_samples/frames.pkl (overwrites previous run due to storage limitations)
+"""
 import sys
 import pickle as pk
 import numpy as np
@@ -24,7 +33,7 @@ sample = int(sys.argv[1])
 save_images = True
 if save_images:
     poppy = pw.PoppyWrapper(PH(), OpenCVCamera("poppy-cam", 0, 24))
-    binsize = 10
+    binsize = 5
 else:
     poppy = pw.PoppyWrapper(PH())
     binsize = None
@@ -46,12 +55,11 @@ for m in poppy.motors:
     if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
 
 input('[Enter] to turn off compliance')
-for m in poppy.motors: m.compliant = False
+poppy.comply(False)
 
 input('[Enter] for init angles (may want to hold up by strap)')
 
-init_buf = poppy.goto_position(init_angles, duration=1, bufsize=10, speed_ratio=-1) # don't abort for speed
-bufs = [[init_buf]]
+poppy.goto_position(init_angles, duration=1, bufsize=10, speed_ratio=-1) # don't abort for speed
 
 input('[Enter] to begin walking')
 
@@ -60,18 +68,25 @@ if np.abs(sample) >= 100:
     num_cycles = 10
     stop_traj = len(trajs)
 
+bufs = []
+vids = []
 success = True
 for cycle in range(num_cycles):
     for t, traj in enumerate(trajs[:stop_traj]):
     
         # settle briefly at waypoint
-        if t not in [3]: # don't wait before kick
-            time.sleep(0.1)
+        # if t not in [3]: # don't wait before kick
+        #     time.sleep(0.1)
+        if t not in [2]: # don't wait after swing
+            traj = traj + ((0.1, traj[-1][1]),)
     
         bufs.append([])
+        vids.append([])
         for s, (duration, angles) in enumerate(traj[1:]): # skip (0, start)
             buf = poppy.goto_position(angles, duration, bufsize=10, speed_ratio=-1, binsize=binsize)
+            vid = buf[1].pop('images')
             bufs[-1].append(buf)
+            vids[-1].append(vid)
             success = buf[0]
             print('  success = %s' % str(success))
             if not success: break
@@ -80,7 +95,14 @@ for cycle in range(num_cycles):
     # wait at final pose for stability
     if success:
         print('settling into init...')
-        time.sleep(3)
+        # time.sleep(3)
+        buf = poppy.goto_position(angles, duration=3, bufsize=10, speed_ratio=-1, binsize=binsize)
+        vid = buf[1].pop('images')
+        bufs[-1].append(buf)
+        vids[-1].append(vid)
+        success = buf[0]
+        print('  success = %s' % str(success))
+        if not success: break
 
     # check for next step
     if num_cycles > 1:
@@ -89,7 +111,7 @@ for cycle in range(num_cycles):
 
 input('[Enter] to return to rest and go compliant (may want to hold up by strap)')
 poppy.goto_position({name: 0. for name in poppy.motor_names}, 3, bufsize=10, speed_ratio=-1)
-for m in poppy.motors: m.compliant = True
+poppy.comply()
 
 print("closing...")
 poppy.close()
@@ -117,4 +139,8 @@ while True:
 
 with open('walk_samples/results_%d.pkl' % sample, "wb") as f:
     pk.dump((poppy.motor_names, result, bufs), f)
+
+# overwrite frame file every time due to limited storage space on chip
+with open('walk_samples/frames.pkl', "wb") as f:
+    pk.dump(vids, f)
 
