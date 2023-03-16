@@ -11,10 +11,10 @@ num_reps = 30
 ## load all the data
 results, bufs, frames = {}, {}, {}
 for rep in range(num_reps):
-    with open('walk_samples/results_%d.pkl' % (-rep-1), "rb") as f:
+    with open('walk_samples/poppy_falls/results_%d.pkl' % (-rep-1), "rb") as f:
         (motor_names, results[rep], bufs[rep]) = pk.load(f, encoding='latin1')
 
-    with open('walk_samples/frames_%d.pkl' % (-rep-1), "rb") as f:
+    with open('walk_samples/poppy_falls/frames_%d.pkl' % (-rep-1), "rb") as f:
         frames[rep] = pk.load(f, encoding='latin1')
 
 ## results[rep]: the number of successful transitions before a fall (4 is a complete step without falling)
