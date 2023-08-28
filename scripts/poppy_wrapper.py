@@ -63,7 +63,7 @@ class PoppyWrapper:
             angles[motor.name]: target angle for named motor
             duration: target time in seconds to reach target
             bufsize: number of timesteps to sample buffers
-            speed_ratio: abort if actual speed less than this ratio of commanded speed
+            speed_ratio: abort if actual speed less than this ratio of commanded speed (set to 0 to disable)
             motion_window: timespan in seconds used to measure actual speed
             binsize: bin factor for image buffer (if None, no images are buffered)
         Outputs:
