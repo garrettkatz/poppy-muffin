@@ -1,3 +1,5 @@
+import numpy as np
+
 class Motor:
     # present_ ("position", "speed", "load", "voltage", "temperature")
     pass
@@ -12,7 +14,7 @@ class PoppyHumanoid:
 
 class OpenCVCamera:
     def __init__(self, name, p1, fps):
-        pass
+        self.frame = np.empty((120,240,3), dtype=np.uint8)
     def close(self):
         return
     
