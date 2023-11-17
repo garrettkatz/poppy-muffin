@@ -45,7 +45,10 @@ _, init_angles = trajectory[0]
 # # PID tuning
 for m in poppy.motors:
     if hasattr(m, 'pid'): print(m.name, m.pid) # default is (4., 0., 0.)
-K_p, K_i, K_d = 20.0, 0.0, 0.0
+
+# K_p, K_i, K_d = 10.0, 0.0, 0.0
+K_p, K_i, K_d = 4.0, 0.0, 0.0
+
 for m in poppy.motors:
     if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
 

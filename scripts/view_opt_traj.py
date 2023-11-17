@@ -12,6 +12,11 @@ with open('opt_traj_result.pkl', "rb") as f:
 with open('opt_traj_frames.pkl', "rb") as f:
     frames = pk.load(f, encoding='latin1')
 
+# load planned trajectory
+traj_file = "poppy_opt_traj.pkl" # sys.argv[1]
+with open(traj_file, "rb") as f:
+    trajectory = pk.load(f)
+
 ## bufs[i]: buffer data for ith waypoint of trajectory
 # bufs[i] is a tuple (flag, buffers, elapsed)
 # flag: True if motion was completed safely (e.g., low motor temperature), False otherwise
@@ -27,9 +32,15 @@ for i in range(1, len(elapsed)):
     elapsed[i][:] = elapsed[i] + elapsed[i-1][-1]
 elapsed = np.concatenate(elapsed)
 
+planned = []
+for i, (_, angles) in enumerate(trajectory[1:]):
+    angs = [angles[name] for name in motor_names]
+    planned.append(np.array([angs]*len(buffers[i]['position'])))
+planned = np.concatenate(planned, axis=0)
 
 pt.subplot(2,1,1)
-pt.plot(elapsed, targets, linestyle='-', color=(.5,)*3, label='Target')
+pt.plot(elapsed, planned, linestyle='-', color='b', label='Planned')
+pt.plot(elapsed, targets, linestyle='--', color='r', label='Target')
 pt.plot(elapsed, actuals, linestyle='-', marker='+', color='k', label='Actual')
 for m, name in enumerate(motor_names):
     pt.text(elapsed[0], actuals[0][m], name, color='b')
