@@ -52,7 +52,7 @@ class PoppyWrapper:
                 return False
         return True
 
-    def goto_position(self, angles, duration=1.0, bufsize=10, speed_ratio=.5, motion_window=.5, binsize=None):
+    def goto_position(self, angles, duration=1.0, bufsize=10, speed_ratio=.5, motion_window=.5, binsize=None, verbose=True):
         """
         Moves to target position, blocks until motion has finished
         Freezes motion early if overloading motors, motion is restricted, or user interrupts
@@ -66,6 +66,7 @@ class PoppyWrapper:
             speed_ratio: abort if actual speed less than this ratio of commanded speed (set to 0 to disable)
             motion_window: timespan in seconds used to measure actual speed
             binsize: bin factor for image buffer (if None, no images are buffered)
+            verbose: whether to print elapsed times
         Outputs:
             success: True iff motion completed successfully
             buffers[register][t, j]: buffered info from joint j register at timestep t
@@ -150,8 +151,14 @@ class PoppyWrapper:
                 # sleep to next timepoint
                 time_elapsed[t] = time.time() - start
                 if t < bufsize - 1:
-                    print("%d: %.3fs elapsed, timepoint=%.3fs" % (t, time_elapsed[t], time_points[t]))
+                    if verbose:
+                        dangle = max([np.fabs(m.present_position - angles[m.name]) for m in self.motors])
+                        print("%d: %.3fs elapsed, timepoint=%.3fs, dangle=%.3f" % (t, time_elapsed[t], time_points[t], dangle))
                     time.sleep(max(0, time_points[t+1] - time_elapsed[t]))
+
+            if verbose:
+                dangle = max([np.fabs(m.present_position - angles[m.name]) for m in self.motors])
+                print("done: %.3fs elapsed, dangle=%.3f" % (time_elapsed[-1], dangle))
     
         # Dump partial buffers to file on error
         except OSError:
