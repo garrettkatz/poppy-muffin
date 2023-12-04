@@ -38,6 +38,13 @@ for i, (_, angles) in enumerate(trajectory[1:]):
     planned.append(np.array([angs]*len(buffers[i]['position'])))
 planned = np.concatenate(planned, axis=0)
 
+# # just show one joint
+# i = motor_names.index("l_ankle_y")
+# planned = planned[:, i:i+1]
+# targets = targets[:, i:i+1]
+# actuals = actuals[:, i:i+1]
+# motor_names = motor_names[i:i+1]
+
 pt.subplot(2,1,1)
 pt.plot(elapsed, planned, linestyle='-', color='b', label='Planned')
 pt.plot(elapsed, targets, linestyle='--', color='r', label='Target')

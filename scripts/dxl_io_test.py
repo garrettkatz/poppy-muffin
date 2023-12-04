@@ -10,6 +10,9 @@ try:
 except:
     import time
 
+ports = pypot.dynamixel.get_available_ports()
+print(ports)
+
 start_pos = 132.9
 end_pos = 70.
 duration = 1. # seconds
