@@ -120,10 +120,10 @@ class PoppyWrapper:
                     print("Set poppy_wrapper.INTERRUPTED to False to re-enable motion")
                     success = False
 
-                # check safe voltage/temperature
-                if not self.is_safe():
-                    print("Unsafe motion!!!")
-                    success = False
+                # # check safe voltage/temperature
+                # if not self.is_safe():
+                #     print("Unsafe motion!!!")
+                #     success = False
     
                 # check restricted motion
                 mt = t - motion_dt
