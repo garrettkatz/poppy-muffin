@@ -59,19 +59,25 @@ upper_names, upper_ids = zip(*(
 all_motor_names = lower_names + upper_names
 name_index = {name: i for i, name in enumerate(all_motor_names)}
 
-kp = 4. # PID P gain
+kp = 2. # PID P gain
 
-# remap a few joints for some reason
+# remap joint angles based on direct and offset
+# https://github.com/poppy-project/poppy-humanoid/blob/master/software/poppy_humanoid/configuration/poppy_humanoid.json#L144
+# https://github.com/poppy-project/pypot/blob/master/pypot/dynamixel/motor.py#L56
 for (_, angles) in trajectory:
-    for name in ("r_shoulder_x", "r_shoulder_y"):
-        angles[name] -= 90.
-    for name in ("l_shoulder_x", "l_shoulder_y"):
-        angles[name] += 90.
+    angles['r_shoulder_x'] -= +90.
+    angles['r_shoulder_y'] -= +90.
+    angles['l_shoulder_x'] -= -90.
+    angles['l_shoulder_y'] -= -90. # +90 but indirect?
+    angles['head_y'] -= 20.
+    angles['l_hip_y'] -= 2.
 
 # reformat trajectory
+_, init_angles = trajectory[0]
+init_waypoint = np.array([init_angles[name] for i, name in enumerate(all_motor_names)])
+
 timepoints = np.empty(len(trajectory)-1)
 waypoints = np.empty((len(trajectory)-1, len(all_motor_names)))
-_, init_angles = trajectory[0]
 for n, (duration, angles) in enumerate(trajectory[1:]): # skip init_angles
     timepoints[n] = duration
     for i, name in enumerate(all_motor_names):
@@ -112,7 +118,7 @@ input('[Enter] for init angles (may want to hold up by strap)')
 
 for dxl_io, names, ids in lower_upper:
 
-    dxl_io.set_moving_speed({motor_id: 50 for motor_id in ids})
+    dxl_io.set_moving_speed({motor_id: 10 for motor_id in ids})
     dxl_io.set_goal_position({
         motor_id: init_angles[motor_name]
         for motor_id, motor_name in zip(ids, names)})
@@ -121,12 +127,13 @@ time.sleep(2.)
 
 input('[Enter] to run trajectory')
 
+
+# init angles
+time_elapsed = [0.]
+positions = [pos]
+targets = [init_waypoint]
 n = 0
 start_time = time.time()
-time_elapsed = []
-positions = []
-targets = []
-
 while True:
 
     # record current state
