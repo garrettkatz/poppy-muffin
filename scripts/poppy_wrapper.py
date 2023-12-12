@@ -28,11 +28,43 @@ class PoppyWrapper:
 
         self.motors = self.robot.motors
         self.motor_names = tuple(str(m.name) for m in self.motors)
+        self.motor_ids = tuple(m.id for m in self.motors)
+
         self.num_joints = len(self.motors)
+
+        # cache look-ups for low-level motor io
+        self.name_of = dict(zip(self.motor_ids, self.motor_names)) # name of id
+        self.low_level = ()
+        for ctrl in self.robot._controllers:
+            ctrl_ids = tuple(ctrl.io.scan())
+            ctrl_idx = [self.motor_ids.index(cid) for cid in ctrl_ids] # list for numpy indexing
+            self.low_level += ((ctrl.io, ctrl_ids, ctrl_idx),)
 
     def close(self):
         self.robot.close()
         if self.camera is not None: self.camera.close()
+
+    # low-level control to side-step laggy sync-loop
+    def get_present_positions(self):
+        # lists positions in same order as self.motors
+        positions = np.empty(len(self.motor_names))
+        for (io, ids, idx) in self.low_level:
+            positions[idx] = io.get_present_position(ids)
+        return positions
+
+    def set_goal_positions(self, setpoints):
+        # setpoints[name]: angle
+        for (io, ids, _) in self.low_level:
+            targets = {id: setpoints[self.name_of[id]] for id in ids if self.name_of[id] in setpoints}
+            print('goal',targets)
+            io.set_goal_position(targets)
+
+    def set_moving_speeds(self, setpoints):
+        # setpoints[name]: speed
+        for (io, ids, _) in self.low_level:
+            targets = {id: setpoints[self.name_of[id]] for id in ids if self.name_of[id] in setpoints}
+            print('speed',targets)
+            io.set_moving_speed(targets)
 
     def comply(self, mode=True):
         for m in self.motors: m.compliant = mode
@@ -163,7 +195,7 @@ class PoppyWrapper:
         # Dump partial buffers to file on error
         except OSError:
             buffers = {key: buf[:t] for (key, buf) in buffers.items()}
-            with open("gobuf.pkl","wb") as f: pk.dump((success, buffers, time_elapsed, motor_names), f)
+            with open("gobuf.pkl","wb") as f: pk.dump((success, buffers, time_elapsed, self.motor_names), f)
             success = False
 
         # restore default interrupt handler
@@ -171,5 +203,121 @@ class PoppyWrapper:
             signal.signal(signal.SIGINT, default_interrupt_handler)
 
         return success, buffers, time_elapsed
-        
+
+    def track_trajectory(self, trajectory, binsize=None, overshoot=None):
+        # trajectory = [..., (duration (sec), waypoint) ...]
+        # waypoint[name] = angle (deg)
+        # binsize: image binning (if None, does not save images)
+        # overshoot: how many degrees to overshoot goal position (if None, does not overshoot)
+        #    smooths trajectory with non-zero velocity at intermediate waypoints
+
+        # temporary custom handling of Ctrl-C for user-stopped motion
+        default_interrupt_handler = signal.signal(signal.SIGINT, custom_interrupt_handler)
+
+        # initialize buffers
+        bufkeys = ("position", "speed", "load", "voltage", "temperature")
+        buffers = {key: [] for key in bufkeys + ("target",)}
+        if binsize is not None: buffers['images'] = []
+        time_elapsed = []
+
+        # preprocess trajectory
+        durations, waypoints = zip(*trajectory)
+        timepoints = np.array(durations).cumsum()
+
+        # extract motor names involved in trajectory
+        motor_names = list(waypoints[0].keys())
+
+        # fail gracefully on OSErrors due to loose wiring
+        try:
+
+            # until you resolve fighting with poppy sync loop
+            self.robot._controllers[1].io.enable_torque((15,))
+
+            start_time = time.time()
+            for n in range(len(trajectory)):
+
+                # skip intermediate waypoints that are behind schedule
+                time_passed = time.time() - start_time
+                if n + 1 != len(trajectory) and time_passed >= timepoints[n]: continue
+
+                # otherwise, set goal positions for current waypoint
+                positions = self.get_present_positions()
+                targets = positions.copy()
+                duration = timepoints[n] - time_passed
+                goal_positions, moving_speeds = {}, {}
+                for name in motor_names:
+                    motor = getattr(self.robot, name)
+                    index = self.motor_names.index(name)
+
+                    position = positions[index]
+                    targets[index] = waypoints[n][name]
+                    goal_positions[name] = waypoints[n][name]
+
+                    # only do overshoot if requested before last waypoint
+                    if overshoot is None: continue
+                    if n + 1 == len(timepoints): continue
+
+                    # don't overshoot extremal waypoints
+                    current_direction = np.sign(waypoints[n][name] - position)
+                    next_direction = np.sign(waypoints[n+1][name] - waypoints[n][name])
+                    if current_direction != next_direction: continue
+
+                    # limit overshoot speed based on target duration
+                    distance = np.fabs(waypoints[n][name] - position)
+                    max_speed = distance / duration # units = degs / sec
+                    max_speed = int(max_speed * 60. / 360. /.229) # units = .229 rotations / min
+                    max_speed = min(max_speed, 500) # don't go too fast
+                    moving_speeds[name] = max_speed
+
+                    # apply overshoot
+                    goal_positions[name] += overshoot * current_direction
+                    targets[index] = goal_positions[name]
+
+                # set new goal positions and speeds
+                self.set_moving_speeds(moving_speeds)
+                self.set_goal_positions(goal_positions)
+
+                # busy buffer loop until current timepoint is reached
+                while True:
+
+                    # update buffers
+                    for key in bufkeys:
+                        if key == 'position':
+                            # use less laggy low-level for position
+                            buffers[key].append(self.get_present_positions())
+                        else:
+                            buffers[key].append([getattr(motor, "present_" + key) for motor in self.motors])
     
+                    # including current goal position (includes overshoot)
+                    buffers["target"].append(targets)
+    
+                    # and images if requested
+                    if binsize is not None:
+                        frame = self.camera.frame[::binsize, ::binsize].copy()
+                        buffers['images'].append(frame)
+    
+                    # and finally timing
+                    time_elapsed.append(time.time() - start_time)
+    
+                    # stop when current timepoint is reached
+                    if time_elapsed[-1] > timepoints[n]: break
+
+            # until you resolve fighting with poppy sync loop
+            self.robot._controllers[1].io.disable_torque((15,))
+
+        # Don't crash on loose wiring errors
+        except OSError: pass
+
+        finally:
+
+            # restore default interrupt handler
+            signal.signal(signal.SIGINT, default_interrupt_handler)
+
+            # save results
+            buffers = {key: np.array(buf) for (key, buf) in buffers.items()}
+            with open("traj_buf.pkl","wb") as f:
+                pk.dump((buffers, time_elapsed, self.motor_names), f)
+
+        # return results
+        return buffers, time_elapsed
+
