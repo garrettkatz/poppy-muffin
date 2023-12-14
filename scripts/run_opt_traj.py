@@ -27,6 +27,7 @@ if hasattr(__builtins__, 'raw_input'):
     input=raw_input
 
 # load planned trajectory
+# with open("poppy_opt_traj.pkl","rb") as f: trajectory = pk.load(f)
 traj_file = sys.argv[1]
 with open(traj_file, "rb") as f:
     trajectory = pk.load(f)
@@ -61,19 +62,21 @@ poppy.goto_position(init_angles, duration=1, bufsize=10, speed_ratio=-1) # don't
 
 input('[Enter] to run trajectory')
 
-bufs = []
-vids = []
-success = True
+buffers, time_elapsed = poppy.track_trajectory(trajectory[1:], overshoot=30.) # skip (_, init_angles)
+
+# bufs = []
+# vids = []
+# success = True
     
-for s, (duration, angles) in enumerate(trajectory[1:]): # skip (_, init_angles)
-    buf = poppy.goto_position(angles, duration, bufsize=10, speed_ratio=-1, binsize=binsize)
-    if save_images:
-        vid = buf[1].pop('images')
-        vids.append(vid)
-    bufs.append(buf)
-    success = buf[0]
-    print('  success = %s' % str(success))
-    if not success: break
+# for s, (duration, angles) in enumerate(trajectory[1:]): # skip (_, init_angles)
+#     buf = poppy.goto_position(angles, duration, bufsize=10, speed_ratio=-1, binsize=binsize)
+#     if save_images:
+#         vid = buf[1].pop('images')
+#         vids.append(vid)
+#     bufs.append(buf)
+#     success = buf[0]
+#     print('  success = %s' % str(success))
+#     if not success: break
 
 input('[Enter] to return to rest and go compliant (may want to hold up by strap)')
 poppy.goto_position({name: 0. for name in poppy.motor_names}, 3, bufsize=10, speed_ratio=-1)
@@ -84,11 +87,12 @@ poppy.close()
 print("closed.")
 
 with open('opt_traj_result.pkl', "wb") as f:
-    pk.dump((poppy.motor_names, bufs), f)
+    # pk.dump((poppy.motor_names, bufs), f)
+    pk.dump((buffers, time_elapsed, poppy.motor_names), f)
 
-# overwrite frame file every time due to limited storage space on chip
-with open('opt_traj_frames.pkl', "wb") as f:
-    pk.dump(vids, f)
+# # overwrite frame file every time due to limited storage space on chip
+# with open('opt_traj_frames.pkl', "wb") as f:
+#     pk.dump(vids, f)
 
 
 

@@ -5,7 +5,7 @@ import matplotlib.pyplot as pt
 with open("dxl_traj.pkl", "rb") as f: (time_elapsed, positions, dup_targets) = pk.load(f, encoding='latin1')
 
 pt.subplot(1,3,1)
-pt.plot(time_elapsed, positions, 'k-')
+pt.plot(time_elapsed, positions, 'k+-')
 pt.plot(time_elapsed, dup_targets, 'r--')
 pt.legend(("position", "target"))
 

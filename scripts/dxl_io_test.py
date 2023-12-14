@@ -1,8 +1,12 @@
 # moving_speed appears to be velocity limit: https://docs.poppy-project.org/en/software-libraries/pypot
-# velocity limit info: https://emanual.robotis.com/docs/en/dxl/mx/mx-28-2/#velocity-limit
+# velocity limit info? https://emanual.robotis.com/docs/en/dxl/mx/mx-28-2/#velocity-limit
 # values from 0 to 1023
 # units are 0.229rpm
 # e.g. 200 * 0.229rpm ~ 45rpm ~ .76 rps ~ 274 deg/s
+# but this one seems more accurate: https://emanual.robotis.com/docs/en/dxl/mx/mx-28/#moving-speed
+# units are 0.114rpm
+
+
 
 import pypot.dynamixel
 try:
