@@ -12,7 +12,7 @@ bufs_name = sys.argv[2]
 
 # # load planned trajectory
 with open(traj_name, "rb") as f:
-    trajectory = pk.load(f)
+    trajectory = pk.load(f, encoding='latin1')
 
 durations, waypoints = zip(*trajectory)
 schedule = np.array(durations).cumsum()
@@ -30,21 +30,23 @@ actuals = buffers['position']
 targets = buffers['target']
 motor_idx = [all_motor_names.index(name) for name in motor_names]
 
-pt.subplot(2,1,1)
-pt.plot(schedule, planned, linestyle='-', color='b', marker='+', label='Planned')
-pt.plot(elapsed, targets[:, motor_idx], linestyle='--', color='r', marker='+', label='Target')
+# pt.subplot(2,1,1)
+# pt.plot(elapsed, targets[:, motor_idx], linestyle='--', color='r', marker='+', label='Target')
+pt.plot(schedule, planned, linestyle='-', color='b', marker='o', label='Planned')
 pt.plot(elapsed, actuals[:, motor_idx], linestyle='-', marker='+', color='k', label='Actual')
 for m, name in enumerate(motor_names):
     pt.text(elapsed[0], actuals[0, motor_idx[m]], name, color='b')
 pt.ylabel('Joint Angles (deg)')
-pt.legend()
+pt.legend(['planned', 'actual'])
 
-pt.subplot(2,1,2)
-pt.plot(elapsed, actuals - targets, 'k-')
-for m, name in enumerate(motor_names):
-    pt.text(elapsed[0], (actuals-targets)[0, motor_idx[m]], name, color='b')
-pt.ylabel('Actual - Target Angles (deg)')
+# pt.subplot(2,1,2)
+# pt.plot(elapsed, actuals - targets, 'k-')
+# for m, name in enumerate(motor_names):
+#     pt.text(elapsed[0], (actuals-targets)[0, motor_idx[m]], name, color='b')
+# pt.ylabel('Actual - Target Angles (deg)')
+
 pt.xlabel("Time Elapsed (sec)")
+
 pt.tight_layout()
 pt.show()
 

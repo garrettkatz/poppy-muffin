@@ -1,11 +1,14 @@
+import os
 import pickle as pk
 import signal
 import numpy as np
+import json
 
 try:
     import pypot.utils.pypot_time as time
 except:
     import time
+
 
 # for python 2.7 on poppy odroid board
 if hasattr(__builtins__, 'raw_input'): input=raw_input
@@ -29,6 +32,7 @@ class PoppyWrapper:
         self.motors = self.robot.motors
         self.motor_names = tuple(str(m.name) for m in self.motors)
         self.motor_ids = tuple(m.id for m in self.motors)
+        self.motor_index = {name: idx for (idx, name) in enumerate(self.motor_names)}
 
         self.num_joints = len(self.motors)
 
@@ -40,9 +44,45 @@ class PoppyWrapper:
             ctrl_idx = [self.motor_ids.index(cid) for cid in ctrl_ids] # list for numpy indexing
             self.low_level += ((ctrl.io, ctrl_ids, ctrl_idx),)
 
+        # including motor remapping
+        config_base = os.path.dirname(__import__('poppy_humanoid').__file__)
+        config_file = os.path.join(config_base, 'configuration', 'poppy_humanoid.json')
+        with open(config_file) as f:
+            config = json.load(f)
+
+        self.motor_directions = np.ones(self.num_joints)
+        self.motor_offsets = np.zeros(self.num_joints)
+        for motor_name, properties in config['motors'].items():
+            motor_index = self.motor_index[motor_name]
+            if properties['orientation'] == 'indirect':
+                self.motor_directions[motor_index] = -1
+            self.motor_offsets[motor_index] = properties['offset']
+
     def close(self):
         self.robot.close()
         if self.camera is not None: self.camera.close()
+
+    def remap_low_to_high(self, positions):
+        # positions is array of angles, same order as self.motor_names
+        
+        # remap based on:
+        # https://github.com/poppy-project/poppy-humanoid/blob/master/software/poppy_humanoid/configuration/poppy_humanoid.json
+        # https://github.com/poppy-project/pypot/blob/master/pypot/dynamixel/motor.py#L56
+        return positions * self.motor_directions - self.motor_offsets
+
+    def remap_high_to_low(self, positions):
+        # positions is one of:
+        #  array of angles, same order as self.motor_names
+        #  dict mapping names to angles
+        # returns same type with angles remapped
+        if type(positions) == dict:
+            low = {}
+            for name, angle in positions.items():
+                idx = self.motor_index[name]
+                low[name] = (angle + self.motor_offsets[idx]) * self.motor_directions[idx]
+            return low
+        else:
+            return (positions + self.motor_offsets) * self.motor_directions # /+-1 == *+-1
 
     # low-level control to side-step laggy sync-loop
     def get_present_positions(self):
@@ -243,17 +283,17 @@ class PoppyWrapper:
                 if n + 1 != len(trajectory) and time_passed >= timepoints[n]: continue
 
                 # otherwise, set goal positions for current waypoint
-                # positions = self.get_present_positions() # low-level
-                # targets = positions.copy() # low-level
-                targets = [m.present_position for m in self.motors] # high-level
+                positions = self.remap_low_to_high(self.get_present_positions()) # low-level
+                targets = positions.copy() # low-level
+                # positions = [m.present_position for m in self.motors] # high-level
+                # targets = list(positions)
                 duration = timepoints[n] - time_passed
                 goal_positions, moving_speeds = {}, {}
                 for name in motor_names:
                     motor = getattr(self.robot, name)
-                    index = self.motor_names.index(name)
+                    index = self.motor_index[name]
 
-                    # position = positions[index] # low-level
-                    position = targets[index] # high-level
+                    position = positions[index]
                     targets[index] = waypoints[n][name]
                     goal_positions[name] = waypoints[n][name]
 
@@ -273,15 +313,20 @@ class PoppyWrapper:
                     # max_speed = int(max_speed * 60. / 360. / .114) # units = .114 rotations / min
                     max_speed = int(max_speed * 60. / 360. / ms_rpms) # units = ms_rpms rotations / min
                     max_speed = min(max_speed, 500) # don't go too fast
+                    max_speed = max(max_speed, 1) # 0 means as fast as possible, so avoid this too
                     moving_speeds[name] = max_speed
 
                     # apply overshoot
                     if do_overshoot: goal_positions[name] += overshoot * current_direction
                     targets[index] = goal_positions[name]
 
-                    # high-level
-                    motor.moving_speed = moving_speeds[name]
-                    motor.goal_position = goal_positions[name]
+                    # # high-level
+                    # motor.moving_speed = moving_speeds[name]
+                    # motor.goal_position = goal_positions[name]
+
+                # low-level
+                self.set_moving_speeds(moving_speeds)
+                self.set_goal_positions(self.remap_high_to_low(goal_positions))
 
                 # busy buffer loop until current timepoint is reached
                 while True:
@@ -292,7 +337,7 @@ class PoppyWrapper:
                     # update buffers
                     for key in bufkeys:
                         if key == 'position':
-                            buffers[key].append(self.get_present_positions()) # low-level, more accurate
+                            buffers[key].append(self.remap_low_to_high(self.get_present_positions())) # low-level, more accurate
                             # buffers[key].append([m.present_position for m in self.motors]) # high-level
                         else:
                             buffers[key].append([getattr(motor, "present_" + key) for motor in self.motors])
