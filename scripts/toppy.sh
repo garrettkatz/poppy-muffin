@@ -1,6 +1,6 @@
 scp \
     poppy_wrapper.py \
     launch_poppy.py \
-    opt_traj_slow_ilc.pkl \
+    poppy_opt_traj_40_ilc.pkl \
     poppy@poppy.local:scripts/
 

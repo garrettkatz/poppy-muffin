@@ -22,9 +22,11 @@ poppy = pw.PoppyWrapper(
 
 print("Created poppy with 10 fps camera.  Don't forget to poppy.close() before quit() when you are finished to clean up the motor state.")
 
+traj_name = sys.argv[1] # e.g. poppy_opt_traj_40_ilc.pkl
+
 # ILC
-input("[Enter] to enable torques and run opt_traj_slow_ilc ...")
-with open("opt_traj_slow_ilc.pkl","rb") as f: traj = pk.load(f)
+input("[Enter] to enable torques and run %s ..." % traj_name)
+with open(traj_name,"rb") as f: traj = pk.load(f)
 
 # go to initial
 poppy.enable_torques()

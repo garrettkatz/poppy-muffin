@@ -19,7 +19,7 @@ import glob
 traj_base = sys.argv[1]
 # traj_base = 'opt_traj_med'
 
-ilc_kp = .05 # "proportional gain" for ILC update
+ilc_kp = .5 # "proportional gain" for ILC update
 
 # every run of this script saves result_{itr}
 # itr is the number of results saved so far
