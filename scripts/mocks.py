@@ -7,6 +7,7 @@ class Motor:
 class PoppyHumanoid:
     def __init__(self):
         self.motors = []
+        self._controllers = []
     def goto_position(self, trajectory, duration, wait):
         return
     def close(self):

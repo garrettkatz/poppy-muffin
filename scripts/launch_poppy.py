@@ -22,21 +22,29 @@ poppy = pw.PoppyWrapper(
 
 print("Created poppy with 10 fps camera.  Don't forget to poppy.close() before quit() when you are finished to clean up the motor state.")
 
-traj_name = sys.argv[1] # e.g. poppy_opt_traj_40_ilc.pkl
+# hand
+def load_hand():
+    hand = {}
+    for suffix in ('init', 'shift', 'lift', 'plant'):
+        with open("hand_" + suffix + ".pkl", "rb") as f:
+            hand[suffix] = pk.load(f)
+    return hand
 
-# ILC
-input("[Enter] to enable torques and run %s ..." % traj_name)
-with open(traj_name,"rb") as f: traj = pk.load(f)
+# # ILC
+# traj_name = sys.argv[1] # e.g. poppy_opt_traj_40_ilc.pkl
 
-# go to initial
-poppy.enable_torques()
-_ = poppy.track_trajectory([(.5, traj[0][1])], overshoot=10.)
-time.sleep(1.)
+# input("[Enter] to enable torques and run %s ..." % traj_name)
+# with open(traj_name,"rb") as f: traj = pk.load(f)
 
-# run full
-_ = poppy.track_trajectory(traj, overshoot=10.)
+# # go to initial
+# poppy.enable_torques()
+# _ = poppy.track_trajectory([(.5, traj[0][1])], overshoot=10.)
+# time.sleep(1.)
 
-print("Don't forget to disable_torques() and close()")
+# # run full
+# _ = poppy.track_trajectory(traj, overshoot=10.)
+
+# print("Don't forget to disable_torques() and close()")
 
 # # dbg
 # traj=[(0.5, {'l_ankle_y': 15.0}), (0.5, {'l_ankle_y': 0}), (0.5, {'l_ankle_y': -15.0}), (0.5, {'l_ankle_y': -30.0})]

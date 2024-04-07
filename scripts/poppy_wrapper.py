@@ -84,6 +84,10 @@ class PoppyWrapper:
         else:
             return (positions + self.motor_offsets) * self.motor_directions # /+-1 == *+-1
 
+    def dict_from(self, positions):
+        # positions is array of angles, same order as self.motor_names
+        return {name: positions[idx] for (name, idx) in self.motor_index.items()}
+
     # low-level control to side-step laggy sync-loop
     def get_present_positions(self):
         # lists positions in same order as self.motors
