@@ -47,66 +47,114 @@ def get_mirror(angle_dict):
 
     return mirrored
 
-# load hand data
-waypoints = ('init', 'shift', 'lift', 'plant', 'mirror')
-hand = {}
-for suffix in waypoints:
-    with open("hand_" + suffix + ".pkl", "rb") as f:
-        hand[suffix] = pk.load(f)
+with open('hand_init.pkl', 'rb') as f:
+    init = pk.load(f)
 
-# configure transitions
-transition_sampling = 20
+with open('hand_trajectories.pkl', 'rb') as f:
+    transitions, interpolants = pk.load(f)
+
+# config
+do_mirror = False
 transition_duration = 1.
+init_abs_x = 0
+init_abs_y = 9
+swing_abs_x = 18
+swing_abs_y = 18
+# (20,20) was fr
 
-def setup_transitions(init_abs_x, init_abs_y, swing_abs_x, swing_abs_y, mirror=True):
+swing_abs = [(swing_abs_x, swing_abs_y)
+    for (swing_abs_x, swing_abs_y) in [
+        (35,18)]]
+    # done
+        # (30,18)]]
+        # (26,18)]]
+        # (25,18)]]
+    # for swing_abs_x in range(22,25,1)
+    #     for swing_abs_y in range(15,18,1)]
+    # # done
+    # for swing_abs_x in range(20,23,1)
+    #     for swing_abs_y in range(13,16,1)]
+    # # done, towards the end these were getting through to lift phase but com was still too far left
+    # for (swing_abs_x, swing_abs_y) in [
+    #     (17,14),
+    #     (18,14), (18,15), (18,16),
+    #     (19,13), (19,14), (19,15), (19,16), 
+    #     ]]
+    # # done
+    # for swing_abs_x in range(12,19,2)
+    #     for swing_abs_y in range(9,14,2)]
+    # # done
+    # for swing_abs_x in range(11,18,2)
+    #     for swing_abs_y in range(11,18,2)]
+    # # done
+    # for swing_abs_x in range(10,17,2)
+    #     for swing_abs_y in range(14,25,2)]
 
-    # set uppers
-    uppers = dict()
+def setup_transitions(init_abs_x, init_abs_y, swing_abs_x, swing_abs_y, mirror=False):
 
-    uppers['init'] = set_upper(hand['init'], init_abs_x, init_abs_y)
-    uppers['shift'] = set_upper(hand['shift'], (init_abs_x + swing_abs_x)/2, (init_abs_y + swing_abs_y)/2)
-    uppers['lift'] = set_upper(hand['lift'], swing_abs_x, swing_abs_y)
-    uppers['plant'] = set_upper(hand['plant'], (init_abs_x + swing_abs_x)/2, (init_abs_y + swing_abs_y)/2)
-    uppers['mirror'] = set_upper(hand['mirror'], init_abs_x, init_abs_y)
+    mid_abs_x = (init_abs_x + swing_abs_x)/2.
+    mid_abs_y = (init_abs_y + swing_abs_y)/2.
+    upways = {
+        ("init","shift"): ((init_abs_x, init_abs_y), (mid_abs_x, mid_abs_y)),
+        ("shift","lift"): ((mid_abs_x, mid_abs_y), (swing_abs_x, swing_abs_y)),
+        ("lift","plant"): ((swing_abs_x, swing_abs_y), (mid_abs_x, mid_abs_y)),
+        ("plant","mirror"): ((mid_abs_x, mid_abs_y), (init_abs_x, init_abs_y)),
+    }
 
-    # mirror everything if requested
-    if mirror:
-        for suffix in waypoints:
-            uppers[suffix] = get_mirror(uppers[suffix])
+    # deterministic key order for py2.7
+    keys = [
+        ("init","shift"),
+        ("shift","lift"),
+        ("lift","plant"),
+        ("plant","mirror"),
+    ]
 
-    # build transition trajectories
-    steps = np.arange(1, transition_sampling+1)
-    sample_weights = (np.cos(np.pi * steps / transition_sampling) + 1.)/2.
-    step_duration = transition_duration / transition_sampling    
-    
-    transitions = []
-    for wp in range(len(waypoints)-1):
-        start = uppers[waypoints[wp]]
-        end = uppers[waypoints[wp+1]]
-        trajectory = []
-    
-        for weight in sample_weights:
-            target = {
-                name: weight * start[name] + (1. - weight) * end[name]
-                for name in start}
-            trajectory.append((step_duration, target))
-    
-        transitions.append(trajectory)
+    # set uppers in flat single trajectory
+    uppered = []
+    # for key, transition in transitions.items():
+    for key in keys:
+        transition = transitions[key]
+        old_abs, new_abs = upways[key]
+        old_abs_x, old_abs_y = old_abs
+        new_abs_x, new_abs_y = new_abs
 
-    return transitions
+        for t, (dur, targ) in enumerate(transition):
 
-transitions = setup_transitions(init_abs_x = 9, init_abs_y = 0, swing_abs_x = 9, swing_abs_y = 6)
+            abs_x = interpolants[key][t]*old_abs_x + (1-interpolants[key][t])*new_abs_x
+            abs_y = interpolants[key][t]*old_abs_y + (1-interpolants[key][t])*new_abs_y
 
-print(hand['init']['r_knee_y'])
-print(hand['init']['l_knee_y'])
-print(hand['mirror']['r_knee_y'])
-print(hand['mirror']['l_knee_y'])
+            targ = set_upper(targ, abs_x, abs_y)
+            if mirror: targ = get_mirror(targ)
 
-import matplotlib.pyplot as pt
-durs = [dur for traj in transitions for (dur,_) in traj]
-angs = [targ['r_knee_y'] for traj in transitions for (_, targ) in traj]
-pt.plot(np.cumsum(durs), angs, 'k.-')
-pt.show()
+            # hand.py scaled transition durations to 1, rescale here
+            uppered.append((dur*transition_duration, targ))
+
+    return uppered
+
+uppered = setup_transitions(init_abs_x, init_abs_y, swing_abs_x, swing_abs_y, mirror=do_mirror)
+
+### show what traj will look like
+
+# import matplotlib.pyplot as pt
+# for key in init:
+#     durs = [dur for (dur,_) in uppered]
+#     angs = [targ[key] for (_, targ) in uppered]
+#     pt.plot(np.cumsum(durs), angs, '.-', label=key)
+# pt.legend()
+# pt.show()
+
+# import matplotlib.pyplot as pt
+# durs = [dur for (dur,_) in uppered]
+# angs = [targ['r_knee_y'] for (_, targ) in uppered]
+# pt.plot(np.cumsum(durs), angs, '.-', label='r_knee_y')
+# angs = [targ['l_knee_y'] for (_, targ) in uppered]
+# pt.plot(np.cumsum(durs), angs, '.-', label='l_knee_y')
+# angs = [targ['abs_y'] for (_, targ) in uppered]
+# pt.plot(np.cumsum(durs), angs, '.-', label='abs_y')
+# angs = [targ['r_shoulder_x'] for (_, targ) in uppered]
+# pt.plot(np.cumsum(durs), angs, '.-', label='r_shoulder_x')
+# pt.legend()
+# pt.show()
 
 poppy = pw.PoppyWrapper(
     PoppyHumanoid(),
@@ -115,7 +163,7 @@ poppy = pw.PoppyWrapper(
 
 # wrap low-level trajectory for one waypoint
 def goto_pos(goal_positions, dur=1.):
-    _ = poppy.track_trajectory([(dur, goal_positions)], overshoot=10.)
+    _ = poppy.track_trajectory([(dur, goal_positions)], overshoot=1.)
     time.sleep(.25) # catch up end pos
     end_pos = poppy.remap_low_to_high(poppy.get_present_positions())
     return poppy.dict_from(end_pos)
@@ -123,25 +171,93 @@ def goto_pos(goal_positions, dur=1.):
 def dsa():
     poppy.disable_torques()
 
-input("[Enter] to go compliant and init (suspend first)")
-poppy.enable_torques()
+# for trial, (swing_abs_x, swing_abs_y) in enumerate(swing_abs):
+#     print("trial %s: abs_x=%d, abs_y=%d" % (trial, swing_abs_x, swing_abs_y))
+trial, abort, results = 0, "", []
+while abort != "a":
+    for res in results: print(res)
+    swing_abs_x, swing_abs_y = map(int, input("Enter [abs_x],[abs_y]: ").split(","))
+    print("trial %s: abs_x=%d, abs_y=%d" % (trial, swing_abs_x, swing_abs_y))
+    trial += 1
 
-_ = goto_pos(hand['init'], dur = 3.)
+    trajectory = setup_transitions(init_abs_x, init_abs_y, swing_abs_x, swing_abs_y, mirror=do_mirror)
+    
+    try:
+    
+        input("[Enter] to enable torques")
+        poppy.enable_torques()
+        
+        input("[Enter] to goto init (suspend first)")
+        _ = goto_pos(trajectory[0][-1], dur = 1.)
+        
+        input("[Enter] to go through trajectory")
+        buffers, time_elapsed = poppy.track_trajectory(trajectory, overshoot=1.)
+        
+        input("[Enter] to go compliant (hold strap first)")
+        dsa()
 
-input("[Enter] to go through trajectory")
-tracked = []
-for traj in transitions:
-    buffers, time_elapsed = poppy.track_trajectory(traj, overshoot=1.)
-    tracked.append((buffers, time_elapsed))
+        fall = input("Fall direction: Combo of [f]ront or [b]ack and [l]eft or [r]ight, or [s]uccess: ")
 
-with open("hand_tune_buffers.pkl", "wb") as f:
-    pk.dump(tracked, f)
+        results.append((swing_abs_x, swing_abs_y, fall))
 
-input("[Enter] to go compliant")
-dsa()
+        suffix = "_%d_%d_%d_%d_%s" % (init_abs_x, init_abs_y, swing_abs_x, swing_abs_y, fall)
+        if do_mirror: suffix += "_m"
+        
+        with open("hand_tune_buffers%s.pkl" % suffix, "wb") as f:
+            pk.dump((buffers, time_elapsed, poppy.motor_names), f)
+        
+        with open("hand_tune_uppered%s.pkl" % suffix, "wb") as f:
+            pk.dump(trajectory, f)
 
-print("closing poppy...")
-poppy.close()
+        abort = input("[Enter] for next, or [a]bort: ")
+        if abort == "a": break
+
+    
+    except:
+        print("something broke")
+        abort = "a"
+
+if abort != "a":
+    print("closing poppy...")
+    poppy.close()
+
+else:
+    print("Don't forget to poppy.close()")
+
+
+# ## grid search
+# def check_swing_abs(init_abs_x, init_abs_y, swing_abs_x, swing_abs_y):
+
+#     uppered = setup_transitions(init_abs_x, init_abs_y, swing_abs_x, swing_abs_y)
+
+#     input("[Enter] to init (suspend first)")
+#     _ = goto_pos(init, dur = 3.)
+
+#     input("[Enter] to go through trajectory")
+#     # buffers, time_elapsed = poppy.track_trajectory(uppered, overshoot=1.)
+#     buffers, time_elapsed = poppy.track_trajectory(uppered_mirror, overshoot=1.)
+
+#     time.sleep(.25) # catch up end pos
+#     end_pos = poppy.remap_low_to_high(poppy.get_present_positions())
+#     end_dict = poppy.dict_from(end_pos)
+#     end_diff = max([abs(uppered[-1][-1][name] - actu) for (name, actu) in end_diff.items()])
+
+#     return buffers, time_elapsed, end_pos, end_diff
+
+
+
+# for
+
+#     msg = "end diff = %f | " % end_diff
+#     msg += "[s] for success, [f] for fail, append [r] to abort row, [g] to abort grid: "
+
+#     result = input(msg % (abs_x, abs_y, actu["abs_x"], actu["abs_y"], max_diff))
+
+
+
+
+
+
 
 # def check_ranges(abs_grid, nominal_position):
 

@@ -91,9 +91,11 @@ class PoppyWrapper:
     # low-level control to side-step laggy sync-loop
     def get_present_positions(self):
         # lists positions in same order as self.motors
-        positions = np.empty(len(self.motor_names))
+        positions = np.full(len(self.motor_names), np.nan)
         for (io, ids, idx) in self.low_level:
-            positions[idx] = io.get_present_position(ids)
+            response = io.get_present_position(ids)
+            if len(response) == 0: raise OSError # happens when usbs are knocked?
+            positions[idx] = response
         return positions
 
     def set_goal_positions(self, setpoints):

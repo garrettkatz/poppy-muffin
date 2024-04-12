@@ -22,13 +22,6 @@ poppy = pw.PoppyWrapper(
 
 print("Created poppy with 10 fps camera.  Don't forget to poppy.close() before quit() when you are finished to clean up the motor state.")
 
-# hand
-def load_hand():
-    hand = {}
-    for suffix in ('init', 'shift', 'lift', 'plant'):
-        with open("hand_" + suffix + ".pkl", "rb") as f:
-            hand[suffix] = pk.load(f)
-    return hand
 
 # # ILC
 # traj_name = sys.argv[1] # e.g. poppy_opt_traj_40_ilc.pkl

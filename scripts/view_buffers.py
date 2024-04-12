@@ -14,30 +14,37 @@ bufs_name = sys.argv[2]
 with open(traj_name, "rb") as f:
     trajectory = pk.load(f, encoding='latin1')
 
-durations, waypoints = zip(*trajectory)
-schedule = np.array(durations).cumsum()
-motor_names = list(waypoints[0].keys())
-planned = np.array([[waypoint[name] for name in motor_names] for waypoint in waypoints])
-
 ## load the data
 with open(bufs_name, "rb") as f:
     (buffers, elapsed, all_motor_names) = pk.load(f, encoding='latin1')
+
+durations, waypoints = zip(*trajectory)
+schedule = np.array(durations).cumsum()
+motor_names = list(waypoints[0].keys())
+planned = np.array([[waypoint[name] for name in all_motor_names] for waypoint in waypoints])
 
 # with open('opt_traj_frames.pkl', "rb") as f:
 #     frames = pk.load(f, encoding='latin1')
 
 actuals = buffers['position']
 targets = buffers['target']
-motor_idx = [all_motor_names.index(name) for name in motor_names]
+# motor_idx = [all_motor_names.index(name) for name in motor_names]
+motor_idx = np.flatnonzero(np.fabs(planned).max(axis=0) > 3)
+print(motor_idx)
 
 # pt.subplot(2,1,1)
 # pt.plot(elapsed, targets[:, motor_idx], linestyle='--', color='r', marker='+', label='Target')
-pt.plot(schedule, planned, linestyle='-', color='b', marker='o', label='Planned')
-pt.plot(elapsed, actuals[:, motor_idx], linestyle='-', marker='+', color='k', label='Actual')
-for m, name in enumerate(motor_names):
-    pt.text(elapsed[0], actuals[0, motor_idx[m]], name, color='b')
+# pt.plot(schedule, planned, linestyle='-', color='b', marker='o', label='Planned')
+# pt.plot(elapsed, actuals[:, motor_idx], linestyle='-', marker='+', color='k', label='Actual')
+# for m, name in enumerate(motor_names):
+#     pt.text(elapsed[0], actuals[0, motor_idx[m]], name, color='b')
+for m in motor_idx:
+    name = all_motor_names[m]
+    pt.plot(schedule, planned[:,m], linestyle='-', marker='.', label=f'{name} [planned]')
+    pt.plot(elapsed, actuals[:,m], linestyle='-', marker='+', label=f'{name} [actual]')
+    pt.text(elapsed[0], actuals[0, m], name, color='b')
 pt.ylabel('Joint Angles (deg)')
-pt.legend(['planned', 'actual'])
+pt.legend()
 
 # pt.subplot(2,1,2)
 # pt.plot(elapsed, actuals - targets, 'k-')
