@@ -37,7 +37,12 @@ with open('nopause_trajectories.pkl', 'rb') as f:
     init_angles, trajectories = pk.load(f)
 
 # show what traj will look like
-trajectory = trajectories["init","shift"]
+# trajectory = trajectories["init","shift"]
+
+trajectory = \
+    trajectories["init","shift"] + \
+    trajectories["shift","lift"] + \
+    trajectories["lift","mirror"]
 
 import matplotlib.pyplot as pt
 durs = [dur for (dur,_) in trajectory]
@@ -58,6 +63,11 @@ poppy = pw.PoppyWrapper(
     # OpenCVCamera("poppy-cam", 0, 10),
 )
 
+# PID tuning
+K_p, K_i, K_d = 10.0, 0.0, 0.0
+for m in poppy.motors:
+    if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
+
 input("[Enter] to enable torques")
 poppy.enable_torques()
 
@@ -70,7 +80,19 @@ buffers, time_elapsed = poppy.track_trajectory(trajectory, overshoot=1.)
 input("[Enter] to go compliant (hold strap first)")
 poppy.disable_torques()
 
+# reset PID
+K_p, K_i, K_d = 4.0, 0.0, 0.0
+for m in poppy.motors:
+    if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
+
 fall = input("Fall direction: Combo of [f]ront or [b]ack and [l]eft or [r]ight, or [s]uccess: ")
 
+with open("nopause_buffers.pkl", "wb") as f:
+    pk.dump((buffers, time_elapsed, poppy.motor_names), f)
+
+with open("nopause_trajectory.pkl", "wb") as f:
+    pk.dump(trajectory, f)
+
 print("don't forget poppy.close()")
+poppy.close()
 

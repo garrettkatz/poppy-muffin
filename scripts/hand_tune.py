@@ -161,6 +161,11 @@ poppy = pw.PoppyWrapper(
     # OpenCVCamera("poppy-cam", 0, 10),
 )
 
+# PID tuning
+K_p, K_i, K_d = 10.0, 0.0, 0.0
+for m in poppy.motors:
+    if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
+
 # wrap low-level trajectory for one waypoint
 def goto_pos(goal_positions, dur=1.):
     _ = poppy.track_trajectory([(dur, goal_positions)], overshoot=1.)
@@ -216,6 +221,11 @@ while abort != "a":
     except:
         print("something broke")
         abort = "a"
+
+# reset PID
+K_p, K_i, K_d = 4.0, 0.0, 0.0
+for m in poppy.motors:
+    if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
 
 if abort != "a":
     print("closing poppy...")

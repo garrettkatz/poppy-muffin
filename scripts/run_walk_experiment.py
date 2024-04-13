@@ -30,7 +30,7 @@ if hasattr(__builtins__, 'raw_input'):
 
 sample = int(sys.argv[1])
 
-save_images = True
+save_images = False
 if save_images:
     poppy = pw.PoppyWrapper(PH(), OpenCVCamera("poppy-cam", 0, 24))
     binsize = 5
@@ -84,9 +84,10 @@ for cycle in range(num_cycles):
         vids.append([])
         for s, (duration, angles) in enumerate(traj[1:]): # skip (0, start)
             buf = poppy.goto_position(angles, duration, bufsize=10, speed_ratio=-1, binsize=binsize)
-            vid = buf[1].pop('images')
             bufs[-1].append(buf)
-            vids[-1].append(vid)
+            if save_images:
+                vid = buf[1].pop('images')
+                vids[-1].append(vid)
             success = buf[0]
             print('  success = %s' % str(success))
             if not success: break
@@ -97,9 +98,10 @@ for cycle in range(num_cycles):
         print('settling into init...')
         # time.sleep(3)
         buf = poppy.goto_position(angles, duration=3, bufsize=10, speed_ratio=-1, binsize=binsize)
-        vid = buf[1].pop('images')
         bufs[-1].append(buf)
-        vids[-1].append(vid)
+        if save_images:
+            vid = buf[1].pop('images')
+            vids[-1].append(vid)
         success = buf[0]
         print('  success = %s' % str(success))
         if not success: break
@@ -141,6 +143,7 @@ with open('walk_samples/results_%d.pkl' % sample, "wb") as f:
     pk.dump((poppy.motor_names, result, bufs), f)
 
 # overwrite frame file every time due to limited storage space on chip
-with open('walk_samples/frames.pkl', "wb") as f:
-    pk.dump(vids, f)
+if save_images:
+    with open('walk_samples/frames.pkl', "wb") as f:
+        pk.dump(vids, f)
 
