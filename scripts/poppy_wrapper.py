@@ -255,6 +255,7 @@ class PoppyWrapper:
         return success, buffers, time_elapsed
 
     def track_trajectory(self, trajectory, binsize=None, overshoot=None, ms_rpms = 0.165):
+        # !! works well with durations around 1/5 sec, but poorly with durations around 1/24 sec
         # trajectory = [..., (duration (sec), waypoint) ...]
         # waypoint[name] = angle (deg)
         # binsize: image binning (if None, does not save images)

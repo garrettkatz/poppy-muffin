@@ -21,7 +21,7 @@ with open(bufs_name, "rb") as f:
 durations, waypoints = zip(*trajectory)
 schedule = np.array(durations).cumsum()
 motor_names = list(waypoints[0].keys())
-planned = np.array([[waypoint[name] for name in all_motor_names] for waypoint in waypoints])
+planned = np.array([[waypoint.get(name, 0.) for name in all_motor_names] for waypoint in waypoints])
 
 # with open('opt_traj_frames.pkl', "rb") as f:
 #     frames = pk.load(f, encoding='latin1')
@@ -29,7 +29,7 @@ planned = np.array([[waypoint[name] for name in all_motor_names] for waypoint in
 actuals = buffers['position']
 targets = buffers['target']
 # motor_idx = [all_motor_names.index(name) for name in motor_names]
-motor_idx = np.flatnonzero(np.fabs(planned).max(axis=0) > 3)
+motor_idx = np.flatnonzero(np.fabs(planned).max(axis=0) > .5)
 print(motor_idx)
 
 # pt.subplot(2,1,1)
