@@ -8,6 +8,7 @@ class PoppyHumanoid:
     def __init__(self):
         self.motors = []
         self._controllers = []
+        self.mock = True
     def goto_position(self, trajectory, duration, wait):
         return
     def close(self):

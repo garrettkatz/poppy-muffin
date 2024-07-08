@@ -44,19 +44,21 @@ class PoppyWrapper:
             ctrl_idx = [self.motor_ids.index(cid) for cid in ctrl_ids] # list for numpy indexing
             self.low_level += ((ctrl.io, ctrl_ids, ctrl_idx),)
 
-        # including motor remapping
-        config_base = os.path.dirname(__import__('poppy_humanoid').__file__)
-        config_file = os.path.join(config_base, 'configuration', 'poppy_humanoid.json')
-        with open(config_file) as f:
-            config = json.load(f)
+        # including motor remapping (unless mock object)
+        if not hasattr(robot, "mock"):
 
-        self.motor_directions = np.ones(self.num_joints)
-        self.motor_offsets = np.zeros(self.num_joints)
-        for motor_name, properties in config['motors'].items():
-            motor_index = self.motor_index[motor_name]
-            if properties['orientation'] == 'indirect':
-                self.motor_directions[motor_index] = -1
-            self.motor_offsets[motor_index] = properties['offset']
+            config_base = os.path.dirname(__import__('poppy_humanoid').__file__)
+            config_file = os.path.join(config_base, 'configuration', 'poppy_humanoid.json')
+            with open(config_file) as f:
+                config = json.load(f)
+
+            self.motor_directions = np.ones(self.num_joints)
+            self.motor_offsets = np.zeros(self.num_joints)
+            for motor_name, properties in config['motors'].items():
+                motor_index = self.motor_index[motor_name]
+                if properties['orientation'] == 'indirect':
+                    self.motor_directions[motor_index] = -1
+                self.motor_offsets[motor_index] = properties['offset']
 
     def close(self):
         self.robot.close()
