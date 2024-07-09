@@ -10,7 +10,8 @@ success = np.array([d[0] for d in data])
 error = np.empty(len(success))
 for d in range(len(data)):
     actuals, elapsed, planned, timepoints = data[d][1:]
-    error[d] = np.mean(np.fabs(actuals[-1] - planned[-1]))
+    # error[d] = np.mean(np.fabs(actuals[-1] - planned[-1]))
+    error[d] = np.max(np.fabs(actuals[-1] - planned[-1]))
 
 print(f"{len(params)} samples")
 
@@ -22,7 +23,9 @@ bad_errors = error[~success]
 print(np.sort(np.concatenate((good_params, good_errors[:,None]), axis=1), axis=0))
 print(np.sort(np.concatenate((bad_params, bad_errors[:,None]), axis=1), axis=0))
 
-actuals, elapsed, planned, timepoints = data[-1][1:]
+data_idx = np.random.randint(len(data))
+actuals, elapsed, planned, timepoints = data[data_idx][1:]
+print(f"datapoint {data_idx}: success={success[data_idx]}, avg error = {np.mean(np.fabs(actuals[:len(planned)] - planned))}")
 print(actuals.shape)
 # motor_idx = [all_motor_names.index(name) for name in motor_names]
 motor_idx = np.flatnonzero(np.fabs(planned).max(axis=0) > .1)

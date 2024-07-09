@@ -54,6 +54,13 @@ def execute(poppy, inflect_angles, results, boundary, params):
     deviation = np.mean(np.fabs(buffers["position"][-1] - planned[-1]))
     print("|final planned - actual| ~ %f" % deviation)
 
+    # specifically for boundary thigh
+    idx = poppy.motor_index["r_hip_y"]
+    planned_thigh = planned[-1,idx]
+    actual_thigh = buffers["position"][-1][idx]
+    deviation = np.fabs(planned_thigh - actual_thigh)
+    print("|final planned - actual thigh| = |%f - %f| = %f" % (planned_thigh, actual_thigh, deviation))
+
     # get user input
     print("Did poppy fall and how do you want to proceed?")
     while True:
@@ -84,17 +91,17 @@ if __name__ == "__main__":
 
     # set up param names and ranges in degrees (excluding boundary thigh, set separately)
     param_names, param_lows, param_highs = zip(*[
-        ("thigh_ext",   0., 5.),
-        ("stance_knee", 0., 5.),
+        ("thigh_ext",   0., 6.),
+        ("stance_knee", 0., 6.),
         ("swing_knee",  0., 10.),
-        ("ankle_ext",   0., 5.),
-        ("ankle_flex", -5., 0.),
-        ("lean",        5., 10.),
+        ("ankle_ext",   0., 6.),
+        ("ankle_flex", -6., 0.),
+        ("lean",        6., 10.),
         ("sway",        0., 10.),
     ])
     
     # param units (deg/level) * param level (int) = param value (deg)
-    param_units = 0.5
+    param_units = 2.0
     
     # results[boundary][params] = (success, position buffer, time elapsed, planned, timepoints)
     # success: whether these params succeeded (didn't fall)
@@ -146,7 +153,7 @@ if __name__ == "__main__":
     
         # sample a successful param set found so far (initially just all params=0)
         print(good_params)
-        print("^^ good params so far")
+        print("^^ %d good params so far, %d samples total" % (len(good_params), len(results[boundary])))
         print(param_names)
         params = random.choice(good_params)
     
