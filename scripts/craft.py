@@ -4,6 +4,7 @@ import pickle as pk
 import random
 import numpy as np
 import poppy_wrapper as pw
+from cosine_trajectory import make_cosine_trajectory
 try:
     from pypot.creatures import PoppyHumanoid
     from pypot.sensor import OpenCVCamera
@@ -61,9 +62,138 @@ if __name__ == "__main__":
     init_angles["abs_y"] = 7.
     _ = poppy.track_trajectory([(1., init_angles)], overshoot=1.)
 
-    increase sway to 20 based on below
-    also motors seem to be suffering with big sways like this, try slightly increasing duration?
-    and before a full bend, try just swaying right, bending left up, and freezing there to keep balance
+    # sway,bank: (bend=7)
+    # 15, 5 already fell right, and when returning, did the typical rotate on its feet to face left
+    # 14, 7 looked a bit unstable but kept balance at sway.  However, started to fall right on return (swing leg straight too fast?)
+    # 14, 6 worked surprisingly well! kept balance and returned with toe in nearly correct position 
+    # 14, 8 was similar to 14, 7
+    # 14, 5 surprisingly also fell right, then after returning left ankle motor soon crapped out and fall forward
+    # surprising 6 worked but 5 didn't; maybe because of motor overheat and not angle setting
+    # ***___ need to retry 14, 6.  and maybe 13 is also more stable?
+                
+    sway = 14
+    bend = 7
+    for bank in [7,6,8,5,9]:
+        waypoints = [
+            (0., {"abs_y": 7., "abs_x": 0., "r_shoulder_x": 0.,
+                  "l_hip_y": 0., "l_knee_y": 0., "l_ankle_y": 0.}),
+            (.4, {"l_hip_y": 0., "l_knee_y": 0., "l_ankle_y": 0.}),
+            (1., {"abs_y": 7., "abs_x": float(sway), "r_shoulder_x": -3.*float(sway),
+                  "l_hip_y": -float(bend), "l_knee_y": 2.*float(bend), "l_ankle_y": -float(bank)}),
+        ]
+    
+        timepoints, trajectory = make_cosine_trajectory(waypoints, poppy.motor_names, fps=5.)
+
+        input("[Enter] to bank to %f" % bank)
+        res = poppy.track_trajectory(trajectory, overshoot=1.)
+
+        q = input("Enter [q] to abort")
+        if q == "q": break
+
+        # go back more slowly
+        input("[Enter] to sway back")
+        reverse = [(2*d, a) for (d,a) in trajectory[::-1]]
+        res = poppy.track_trajectory(reverse, overshoot=1.)
+
+        q = input("Enter [q] to abort")
+        if q == "q": break
+
+    # # with this version 14 already gets up on the toe, and 16 is already unstable to the right
+    # # (good news for taut strap)
+    # bend = 5.
+    # for sway in range(14, 20, 1):
+    #     waypoints = [
+    #         (0., {"abs_y": 7., "abs_x": 0., "r_shoulder_x": 0.,
+    #               "l_hip_y": 0., "l_knee_y": 0., "l_ankle_y": 0.}),
+    #         (.4, {"l_hip_y": 0., "l_knee_y": 0., "l_ankle_y": 0.}),
+    #         (1., {"abs_y": 7., "abs_x": float(sway), "r_shoulder_x": -3.*float(sway),
+    #               "l_hip_y": -bend, "l_knee_y": 2.*bend, "l_ankle_y": -bend}),
+    #     ]
+    
+    #     timepoints, trajectory = make_cosine_trajectory(waypoints, poppy.motor_names, fps=5.)
+
+    #     input("[Enter] to sway to %f" % sway)
+    #     res = poppy.track_trajectory(trajectory, overshoot=1.)
+
+    #     q = input("Enter [q] to abort")
+    #     if q == "q": break
+
+    #     # go back more slowly
+    #     input("[Enter] to sway back")
+    #     reverse = [(2*d, a) for (d,a) in trajectory[::-1]]
+    #     res = poppy.track_trajectory(reverse, overshoot=1.)
+
+    #     q = input("Enter [q] to abort")
+    #     if q == "q": break
+
+    # # didn't exactly keep balance on one leg, but ended up unintentionally lifting swing heel (toe still made contact)
+    # # when returning though, swing foot would end up further back; maybe too much pressure on toe
+    # bend = 5.
+    # for sway in range(14, 20, 1):
+    #     waypoints = [
+    #         (0., {"abs_y": 7., "abs_x": 0., "r_shoulder_x": 0.,
+    #               "l_hip_y": 0., "l_knee_y": 0., "l_ankle_y": 0.}),
+    #         (1., {"abs_y": 7., "abs_x": float(sway), "r_shoulder_x": -3.*float(sway),
+    #               "l_hip_y": 0., "l_knee_y": 0., "l_ankle_y": 0.}),
+    #         (2., {"abs_y": 7., "abs_x": float(sway), "r_shoulder_x": -3.*float(sway),
+    #               "l_hip_y": -bend, "l_knee_y": 2*bend, "l_ankle_y": -bend}),
+    #     ]
+    
+    #     timepoints, trajectory = make_cosine_trajectory(waypoints, poppy.motor_names, fps=5.)
+
+    #     input("[Enter] to sway to %f" % sway)
+    #     res = poppy.track_trajectory(trajectory, overshoot=1.)
+
+    #     q = input("Enter [q] to abort")
+    #     if q == "q": break
+
+    #     # go back more slowly
+    #     input("[Enter] to sway back")
+    #     reverse = [(2*d, a) for (d,a) in trajectory[::-1]]
+    #     res = poppy.track_trajectory(reverse, overshoot=1.)
+
+    #     q = input("Enter [q] to abort")
+    #     if q == "q": break
+
+    # # 17 is also unstable at pause point, a little noise makes it fall right
+    # for sway in range(14, 20, 1):
+    #     waypoints = [
+    #         (0., {"abs_y": 7., "abs_x": 0., "r_shoulder_x": 0.}),
+    #         (1., {"abs_y": 7., "abs_x": float(sway), "r_shoulder_x": -3.*float(sway)}),
+    #     ]
+    
+    #     timepoints, trajectory = make_cosine_trajectory(waypoints, poppy.motor_names, fps=5.)
+
+    #     input("[Enter] to sway to %f" % sway)
+    #     res = poppy.track_trajectory(trajectory, overshoot=1.)
+
+    #     q = input("Enter [q] to abort")
+    #     if q == "q": break
+
+    #     # go back more slowly
+    #     input("[Enter] to sway back")
+    #     reverse = [(2*d, a) for (d,a) in trajectory[::-1]]
+    #     res = poppy.track_trajectory(reverse, overshoot=1.)
+
+    #     q = input("Enter [q] to abort")
+    #     if q == "q": break
+
+    # # sway 21 falls at 1s motion but not 2s or 1.6s; velocity is a factor
+    # # even 18 fell right at 1s motion (maybe now with the shoulder tweak)
+    # for sway in range(3, 22, 3):
+    #     waypoints = [
+    #         (0., {"abs_y": 7., "abs_x": 0., "r_shoulder_x": 0.}),
+    #         (1., {"abs_y": 7., "abs_x": float(sway), "r_shoulder_x": -3.*float(sway)}),
+    #     ]
+    
+    #     timepoints, trajectory = make_cosine_trajectory(waypoints, poppy.motor_names, fps=5.)
+    #     trajectory = trajectory + trajectory[::-1] # sway and return
+
+    #     input("[Enter] to sway to %f" % sway)
+    #     res = poppy.track_trajectory(trajectory, overshoot=1.)
+
+    #     q = input("Enter [q] to abort")
+    #     if q == "q": break
 
     # # sway = 10 is not far enough to take much balance off left, but stands up to bend=5
     # # besides, if 18 sway wasn't enough to fall over, none of these should do what you want!
@@ -133,31 +263,30 @@ if __name__ == "__main__":
     #     q = input("Enter [q] to abort")
     #     if q == "q": break
 
-    # keeps balance up to sway = 18., but strap goes taut around then
-    # 12. is already pushing it, head + wires pressing into right strap
-    # (lean, sway) = (7, 21) finally fell right and slightly forward, but up to 20 still worked
-    # two more 21 tries all still fell right.
-    # for sway in range(3, 30, 3):
-    # for sway in range(18, 30, 3):
-    # for sway in range(18, 21):
-    for sway in [21,21,21]:
-        angs, spf = cos_traj(1., 0., float(sway))
-        traj = []
-        for ang in angs:
-            sway_angles = dict(init_angles)
-            sway_angles["abs_x"] = ang
-            sway_angles["r_shoulder_x"] = -ang # clear right arm during sway
-            sway_angles["l_shoulder_x"] = +ang # clear left arm during sway
-            traj.append((spf, sway_angles))
+    # # keeps balance up to sway = 18., but strap goes taut around then
+    # # 12. is already pushing it, head + wires pressing into right strap
+    # # (lean, sway) = (7, 21) finally fell right and slightly forward, but up to 20 still worked
+    # # two more 21 tries all still fell right.
+    # # for sway in range(3, 30, 3):
+    # # for sway in range(18, 30, 3):
+    # # for sway in range(18, 21):
+    # for sway in [21,21,21]:
+    #     angs, spf = cos_traj(1., 0., float(sway))
+    #     traj = []
+    #     for ang in angs:
+    #         sway_angles = dict(init_angles)
+    #         sway_angles["abs_x"] = ang
+    #         sway_angles["r_shoulder_x"] = -ang # clear right arm during sway
+    #         sway_angles["l_shoulder_x"] = +ang # clear left arm during sway
+    #         traj.append((spf, sway_angles))
 
-        # sway right and back
-        input("[Enter] to sway to %f" % sway)
-        res1 = poppy.track_trajectory(traj, overshoot=1.)
-        res2 = poppy.track_trajectory(traj[::-1], overshoot=1.)
+    #     # sway right and back
+    #     input("[Enter] to sway to %f" % sway)
+    #     res1 = poppy.track_trajectory(traj, overshoot=1.)
+    #     res2 = poppy.track_trajectory(traj[::-1], overshoot=1.)
 
-        q = input("Enter [q] to abort")
-        if q == "q": break
-
+    #     q = input("Enter [q] to abort")
+    #     if q == "q": break
 
     input("[Enter] to go to zero and then compliant (hold strap first)")
     _ = poppy.track_trajectory([(1., zero_angles)], overshoot=1.)

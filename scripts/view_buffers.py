@@ -18,6 +18,10 @@ with open(traj_name, "rb") as f:
 with open(bufs_name, "rb") as f:
     (buffers, elapsed, all_motor_names) = pk.load(f, encoding='latin1')
 
+# print(all_motor_names)
+# print(len(all_motor_names))
+# input()
+
 durations, waypoints = zip(*trajectory)
 schedule = np.array(durations).cumsum()
 motor_names = list(waypoints[0].keys())
