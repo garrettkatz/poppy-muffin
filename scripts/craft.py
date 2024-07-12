@@ -40,7 +40,6 @@ def cos_traj(dur, ang0, ang1):
 
 if __name__ == "__main__":
 
-
     # initialize hardware
     poppy = pw.PoppyWrapper(
         PoppyHumanoid(),
@@ -48,21 +47,25 @@ if __name__ == "__main__":
     )
     
     # PID tuning
-    K_p, K_i, K_d = 8.0, 0.0, 0.0
+    K_p, K_i, K_d = 16.0, 0.0, 0.0
     for m in poppy.motors:
         if hasattr(m, 'pid'): m.pid = (K_p, K_i, K_d)
     
     input("[Enter] to enable torques")
     poppy.enable_torques()
 
+    lean = 7.
+    l_hip_0 = -3.
+
     # lean 3 might not be enough
     input("[Enter] to goto init")
     zero_angles = {name: 0. for name in poppy.motor_names}
     init_angles = dict(zero_angles)
-    init_angles["abs_y"] = 7.
+    init_angles["abs_y"] = lean
+    init_angles["l_hip_y"] = l_hip_0
     _ = poppy.track_trajectory([(1., init_angles)], overshoot=1.)
 
-    # sway,bank: (bend=7)
+    # sway,bank: (bend=7, l_hip_y=0)
     # 15, 5 already fell right, and when returning, did the typical rotate on its feet to face left
     # 14, 7 looked a bit unstable but kept balance at sway.  However, started to fall right on return (swing leg straight too fast?)
     # 14, 6 worked surprisingly well! kept balance and returned with toe in nearly correct position 
@@ -70,30 +73,114 @@ if __name__ == "__main__":
     # 14, 5 surprisingly also fell right, then after returning left ankle motor soon crapped out and fall forward
     # surprising 6 worked but 5 didn't; maybe because of motor overheat and not angle setting
     # ***___ need to retry 14, 6.  and maybe 13 is also more stable?
-                
-    sway = 14
-    bend = 7
-    for bank in [7,6,8,5,9]:
+
+    # (14,6) not reproducible, fell right on sway, same for (14,5) again
+    # (13,6) worked once, (13,5) fell right
+    # wide distance between feet might help
+
+    # (13,6) worked again, (13,5) fell right again (feet might have been closer on 5)
+    # (12,6) worked, but at max sway, the left foot loosing pressure on the ground visible swung closer to the right before stabilizing.  return still worked but feet much closer together.
+    # (12,5) worked and left foot swung was less pronounced.
+
+    # (12,6) again had slight left swing-in
+    # (12,5) and 4 did too, but all 3 got back without falling
+    # (11,6) almost had a little wobble back left when it hit max sway, and left foot position more stable
+    # (11,5) similar, but (11,4) was a fall (which way? repeat)
+
+    # (11,7) worked, left foot ends slightly closer and back
+    # (11,6) same, wobble left before left foot catches
+    # (11,5) worked, left foot ends better, but almost looked like it was going to fall back-left direction
+    # (11,4) did fall back-left at max sway
+
+    # after this, inspect the initial zero angles vs what is actually aligned feet angles
+    # buffers somewhat match expectation:
+    # at beginning, l_hip_y,r_hip_y = -.29, .13, so left thigh is forward more than assigned and right thigh is backward more than assigned
+
+    # try switching to initial/final l_hip_y = -1 instead of 0?
+    # init_angles with l_hip_0 = -1. still has left leg slightly back
+    # (12,7) looks pretty good but still slight left foot in,back
+    # (12,6) too and pronounced
+    # (12,5) looked borderline fall left-back
+    # (11,7) similar wobbled left
+    # (11,6) too, it's falling onto its left outer side foot when should only be toe
+    # (11,5) fell backleft
+    
+    # l_hip_0 = -2
+    # init angles slightly closer, maybe just one more to 3
+    # (13,6) worked but weight is all along left outer side, lean more?
+    # (12,8) moreso and left ends more backin
+    # (12,7) like (13,6)
+    # (12,6) also same
+
+    # l_hip_0 = -3, abs_y = lean+1 at max sway
+    # (13,6) worked but left foot backin alot
+    # (12,8) too, so much so that it fell right after straightening
+    # (12,7) some left backin but worked
+    # (12,6) fell right
+    # (11,7) fell right
+    # (11,6) motors ignored and no motion, FFFFFFFFFF
+
+    # going back to just abs_y = lean always
+    # instead make l_hip_x = 1. at sway to compensate swing-in
+    # (13,6) worked pretty well
+    # (12,8), (12,7), (12,6) fell right
+    # (11,7) worked at max sway with left heel lifted, but fell right on straighten
+    # (11,6) worked with heel up and straighten, but end left foot was a bit back and in
+
+    # trying a few (11,6) with lean down to 5. since l_hip_y = -3 would be slight bend forward
+    # wobbly but worked but heel not up.  clears momentarily but falls back on it
+    # trying a bit slower and later lift to avoid backlash after sway
+    # (.4, 1.) -> (.6, 1.2)
+    # seems a bit closer but same problem, lean up to 6
+    # first had same problem, next two actually worked but because left toe accidentally landed further back
+    # need to move CoM slightly forward and/or right, but don't want to overload lower joints
+    # try swinging right arm forward a bit
+
+    # !! in fact, maybe lean less and move both arms forward instead? easier to control? and if nothing else, less strain on shoulders
+    
+    # sarm = -5. qualitatively the same, but seemed a bit stable
+    # sarm = -10. similar to -5.  first rep had toe in pretty good spot and slight heel clearance
+    # sarm = -20. one rep also looked pretty good, but bust motor crapped out
+    # bust motor might be same principle: why force it to flex in so many motors like shoulders etc
+    # maybe you can use higher motors to change CoM instead of abs
+
+    # going back to lean = 7 with higher Kp
+    # sarm = 0: qualitatively same
+
+    # trying bigger bend/bank, (sway,bank)
+    # (11,15) fell right(left?) but could keep balance after
+    # (11,12) fell left but kept balance after
+    # this suggests that foot clears too fast, too early; start it later
+    # changing to .8 instead of .6: still same problem and still too much weight on left
+
+    bufs = {}
+
+    sarm = 0
+    bend = 15
+    # sway = 14
+    # for bank in [7,6,8,5,9]:
+    # for (sway, bank) in [(13,6), (12,8), (12,7), (12,6), (11,7), (11,6)]:
+    for (sway, bank) in [(13,18),(13,15),(13,12),(13,9),(13,6)]:
         waypoints = [
-            (0., {"abs_y": 7., "abs_x": 0., "r_shoulder_x": 0.,
-                  "l_hip_y": 0., "l_knee_y": 0., "l_ankle_y": 0.}),
-            (.4, {"l_hip_y": 0., "l_knee_y": 0., "l_ankle_y": 0.}),
-            (1., {"abs_y": 7., "abs_x": float(sway), "r_shoulder_x": -3.*float(sway),
-                  "l_hip_y": -float(bend), "l_knee_y": 2.*float(bend), "l_ankle_y": -float(bank)}),
+            (0., {"abs_y": float(lean), "abs_x": 0., "r_shoulder_x": 0., "r_shoulder_y": 0.,
+                  "l_hip_y": l_hip_0, "l_knee_y": 0., "l_ankle_y": 0., "l_hip_x": 0.}),
+            (.8, {"l_hip_y": l_hip_0, "l_knee_y": 0., "l_ankle_y": 0., "l_hip_x": 0.}),
+            (1.2, {"abs_y": float(lean), "abs_x": float(sway), "r_shoulder_x": -3.*float(sway), "r_shoulder_y": float(sarm),
+                  "l_hip_y": -float(bend), "l_knee_y": 2.*float(bend), "l_ankle_y": -float(bank), "l_hip_x": 1.}),
         ]
     
         timepoints, trajectory = make_cosine_trajectory(waypoints, poppy.motor_names, fps=5.)
 
-        input("[Enter] to bank to %f" % bank)
-        res = poppy.track_trajectory(trajectory, overshoot=1.)
+        input("[Enter] to sway,bank to %f,%f" % (sway,bank))
+        bufs[sway,bank,0], _ = poppy.track_trajectory(trajectory, overshoot=1.)
 
         q = input("Enter [q] to abort")
         if q == "q": break
 
         # go back more slowly
-        input("[Enter] to sway back")
+        input("[Enter] to go back")
         reverse = [(2*d, a) for (d,a) in trajectory[::-1]]
-        res = poppy.track_trajectory(reverse, overshoot=1.)
+        bufs[sway,bank,1], _  = poppy.track_trajectory(reverse, overshoot=1.)
 
         q = input("Enter [q] to abort")
         if q == "q": break
