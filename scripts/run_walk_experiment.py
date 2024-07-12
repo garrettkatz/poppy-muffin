@@ -40,7 +40,10 @@ else:
     
 # load planned trajectory
 if sample < 0:
-    with open('pypot_traj1.pkl', "rb") as f: trajs = pk.load(f)
+    if sample == -2:
+        with open('pypot_traj1_bumped.pkl', "rb") as f: trajs = pk.load(f)
+    else:
+        with open('pypot_traj1.pkl', "rb") as f: trajs = pk.load(f)
 elif sample >= 100:
     with open('pypot_traj_star.pkl', "rb") as f: trajs = pk.load(f)
 else:
