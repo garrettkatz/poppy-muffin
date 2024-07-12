@@ -381,3 +381,8 @@ class PoppyWrapper:
         # return results
         return buffers, time_elapsed
 
+    # small helper to set specific angles
+    def goto_angles(self, angles):
+        self.track_trajectory([(1., angles)])
+
+
