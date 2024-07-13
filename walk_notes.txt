@@ -1,0 +1,51 @@
+these measurements with textbook under foot were used to assess real command<->com relationships and to initialize wobble:
+
+    start (l_hip_y is offset, -3 acts like 0)
+    
+    {'l_hip_y': -2, 'l_ankle_y':-1., 'r_hip_y': -1., 'r_ankle_y': 1.}
+    
+    + {'abs_y': 9, 'r_shoulder_y': -9, 'l_shoulder_y': -9}
+    puts center of mass right above right ankle spoke in forward-backward direction
+    
+    +
+    {'abs_x': 26, 'r_shoulder_x': -26, 'bust_x':-26, 'l_shoulder_x':26}
+    puts CoM in the support polygon of right foot and left toe
+    but very unstable; sometimes would tip right, sometimes would tip left
+    eventually settled into balance
+    
+    -> {'r_ankle_y': 0, 'abs_y': 8, 'r_shoulder_y': -8, 'l_shoulder_y': -8}
+    seemed worse to also set l_ankle_y = 0
+    
+    # swinging leg, but keep r_hip and torso unchanged
+    -> {'l_hip_y': -6, 'l_ankle_y': +1}
+    can't tell a difference between +/-1 for l ankle
+    
+    final leg destination should be?
+    {'l_hip_y': -4, 'l_ankle_y': 1., 'r_hip_y': 1., 'r_ankle_y': -1.}
+    at least, this is mirror of start.
+
+trajectory parameter search ideas:
+
+    start from params all 0 (stationary), gradually perturb to larger and larger distance between feet after each step
+
+    hypotheses:
+        stability, Pr(success) are roughly continuous: at least some neighbors of stable/success points should also be so
+        there is a connected path through parameter space from 0 boundary thigh angle to large boundary thigh angle where every point along path is successful
+            try to find the most stable among these paths
+    
+    researchy approach:
+        you want to quickly approximate a uniform distribution within the connected component of success
+        currently you are growing a graph outward from 0
+        another way is to do rejection sampling uniformly over the ranges, but more likely to fall or get disconnected components
+            are disconnected components that bad?
+        try some importance sampling approach:
+            want to quickly "estimate the integral" which means sampling from it only
+            IS theory says your sampling distribution should be as close as possible to the function being integrated
+                more likely to sample near origin?
+                adaptive likelihoods based on samples so far
+        heuristic idea, maybe relatable:
+            sample a point uniformly from the ranges
+            test every point along the ray from origin to that point until fall
+            or a random path instead of a ray, to avoid non-convexity
+    
+    
