@@ -1,5 +1,6 @@
 """
 Attempt to enumerate connected component of non-falls around zero gait
+Use RRT: https://en.wikipedia.org/wiki/Rapidly_exploring_random_tree
 """
 import pickle as pk
 import numpy as np
@@ -12,6 +13,15 @@ from humanoid import PoppyHumanoidEnv, convert_angles
 timestep = .25
 duration = 2.
 show = True
+
+def make_cycle_traj(step_traj, num_cycles):
+    traj = []
+    for cycle in range(num_cycles):
+        traj.extend(step_traj)
+        traj.extend([
+            (dur, env.mirror_position(pos))
+            for (dur, pos) in step_traj])
+    return traj
 
 ### init
 
@@ -37,6 +47,7 @@ while len(frontier) > 0:
     env.goto_position(stand, 1)
     init_base, init_quat = pb.getBasePositionAndOrientation(env.robot_id)
 
+    break
 
 env.close()
 
