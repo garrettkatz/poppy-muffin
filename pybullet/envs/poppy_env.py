@@ -52,8 +52,21 @@ class PoppyEnv(object):
     
     def close(self):
         pb.disconnect()
+
+    def step_simple(self, action):
+        pb.setJointMotorControlArray(
+            self.robot_id,
+            jointIndices = range(len(self.joint_index)),
+            controlMode = self.control_mode,
+            targetPositions = action,
+            targetVelocities = [0]*len(action),
+            positionGains = [.25]*len(action), # important for constant position accuracy
+        )
+        for _ in range(self.control_period):
+            pb.stepSimulation()
         
     def step(self, action=None, sleep=None):
+        # this original step version doesn't seem to handle control periods properly
         
         self.step_hook(self, action)
     
@@ -104,7 +117,7 @@ class PoppyEnv(object):
             name: angle_array[j] * 180/np.pi
             for j, name in enumerate(self.joint_index)}
 
-    # pypot-style command, goes to position in give duration
+    # pypot-style command, goes to position in given duration
     # target is a joint angle array
     # speed is desired joint speed
     # if hang==True, wait for user enter at each timestep of motion
@@ -125,6 +138,34 @@ class PoppyEnv(object):
             if hang: input('..')
 
         return positions
+
+    # poppy_wrapper-style trajectory tracker
+    def track_trajectory(self, trajectory, binsize=None, overshoot=None, ms_rpms = 0.165, hang=False):
+        # trajectory = [..., (duration (sec), waypoint) ...]
+        # waypoint[name] = angle (deg)
+        
+        # pybul doesn't have fast array-version maxvel and pos ctrl is unrealistically fast
+        # linearly interpolate waypoints to throttle speed
+
+        buffers = []        
+        for (duration, waypoint) in trajectory:
+            current = self.get_position()
+            target = self.angle_array(waypoint)
+
+            num_steps = int(duration / (self.timestep * self.control_period) + 1)
+            weights = np.linspace(0, 1, num_steps).reshape(-1,1)
+            interp = weights * target + (1 - weights) * current
+
+            positions = np.empty((num_steps, self.num_joints))
+            for a, action in enumerate(interp):
+                # self.step(action) # doesn't handle different control periods properly
+                self.step_simple(action)
+                positions[a] = self.get_position()
+                if hang: input('..')
+
+            buffers.append(positions)
+
+        return np.concatenate(buffers, axis=0)
     
     # Run IK, accounting for fixed joints
     def inverse_kinematics(self, link_indices, target_positions, num_iters=1000):

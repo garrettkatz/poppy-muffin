@@ -17,8 +17,8 @@ half_exts = (.1, .1, hei)
 coll = pb.createCollisionShape(pb.GEOM_BOX, halfExtents=half_exts)
 visu = pb.createVisualShape(pb.GEOM_BOX, halfExtents=half_exts, rgbaColor=(0,0,1,1))
 mass = 2
-quat = pb.getQuaternionFromEuler((0,0,0))
-textbook = pb.createMultiBody(mass, coll, visu, basePosition=(0,0,hei), baseOrientation=quat)
+quat = pb.getQuaternionFromEuler((0,0,-1))
+textbook = pb.createMultiBody(mass, coll, visu, basePosition=(-.09,-.1,hei), baseOrientation=quat)
 
 pos, ori = pb.getBasePositionAndOrientation(env.robot_id)
 pb.resetBasePositionAndOrientation(env.robot_id, pos[:2] + (pos[2]+2*hei,), ori)
@@ -62,7 +62,7 @@ com_tri = env.angle_array(com_tri_dict)
 # eventually settled into balance
 
 env.set_position(com_tri)
-env.goto_position(com_tri, 1)
+env.goto_position(com_tri, 3)
 
 input('.')
 
