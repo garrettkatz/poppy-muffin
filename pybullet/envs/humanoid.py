@@ -26,6 +26,17 @@ class PoppyHumanoidEnv(PoppyEnv):
             if name[:2] == "r_": mirror_name = "l_" + name[2:]
             mirrored[self.joint_index[mirror_name]] = position[i] * sign        
         return mirrored
+
+    # version of mirror_position for angle dict input and output
+    def mirror_dict(self, position_dict):
+        mirrored = {}
+        for (name, angle) in position_dict.items():
+            sign = 1 if name[-2:] == "_y" else -1 # don't negate y-axis rotations
+            mirror_name = name # swap right and left
+            if name[:2] == "l_": mirror_name = "r_" + name[2:]
+            if name[:2] == "r_": mirror_name = "l_" + name[2:]
+            mirrored[mirror_name] = angle * sign
+        return mirrored
     
     # override step and goto for humanoid walking
     def step(self, action, sleep=None):

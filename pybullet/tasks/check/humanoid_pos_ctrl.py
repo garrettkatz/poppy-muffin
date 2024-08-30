@@ -33,6 +33,15 @@ if __name__ == "__main__":
     positions = env.track_trajectory(trajectory)
     buffers.append(positions)
 
+    # also check ankle z coordinates when flat on ground
+    ankle_z = []
+    for lr in "lr":
+        state = pb.getLinkState(env.robot_id, env.joint_index[lr + "_ankle_y"])
+        ankle_z.append(state[0][2])
+    print('ankle_z')
+    print(ankle_z)
+    input('..')
+
     trajectory[0][1]["r_shoulder_y"] = 3.
     positions = env.track_trajectory(trajectory)
     buffers.append(positions)

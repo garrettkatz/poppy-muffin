@@ -114,7 +114,7 @@ class PoppyEnv(object):
     # convert back from dict to array
     def angle_dict(self, angle_array, convert=True):
         return {
-            name: angle_array[j] * 180/np.pi
+            name: angle_array[j] * (180/np.pi if convert else 1)
             for j, name in enumerate(self.joint_index)}
 
     # pypot-style command, goes to position in given duration
@@ -143,6 +143,7 @@ class PoppyEnv(object):
     def track_trajectory(self, trajectory, binsize=None, overshoot=None, ms_rpms = 0.165, hang=False):
         # trajectory = [..., (duration (sec), waypoint) ...]
         # waypoint[name] = angle (deg)
+        # returns buffers[t,a] = angle a at timestep t in radians
         
         # pybul doesn't have fast array-version maxvel and pos ctrl is unrealistically fast
         # linearly interpolate waypoints to throttle speed
