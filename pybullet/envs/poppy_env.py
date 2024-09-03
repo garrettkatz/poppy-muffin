@@ -48,6 +48,7 @@ class PoppyEnv(object):
         self.initial_state_id = pb.saveState(self.client_id)
     
     def reset(self):
+        # pb.resetSimulation()
         pb.restoreState(stateId = self.initial_state_id)
     
     def close(self):
