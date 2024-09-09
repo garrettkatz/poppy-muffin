@@ -22,8 +22,9 @@ num_cycles = 1
 
 relative_fall_tolerance = 0.05
 
-do_rrt = True
+do_rrt = False
 show_rrt = False
+pack_rrt = True # convert samples to trajectories and save
 show_bests = 50 # number of best results to show, 0 for none
 max_samples = 16000
 
@@ -256,6 +257,35 @@ if __name__ == "__main__":
     
         env.close()
 
+    if pack_rrt:
+
+        env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=show_rrt)
+
+        npz = np.load("rrt.npz")
+        all_samples = npz["samples"]
+        all_falls = npz["falls"]
+        all_objectives = npz["objectives"]
+
+        all_trajs = []
+        for s, sample in enumerate(all_samples):
+            print(f"{s} of {len(all_samples)}")
+            step_array = array_from_design(sample)
+            init_dict, cycle_traj = traj_from_array(step_array, num_cycles)
+            traj_array = np.empty((1 + len(cycle_traj), env.num_joints))
+            traj_array[0] = env.angle_array(init_dict)
+            for t, (_, angle_dict) in enumerate(cycle_traj):
+                traj_array[t+1] = env.angle_array(angle_dict)
+            all_trajs.append(traj_array)
+
+            pt.plot(traj_array.T)
+
+        all_trajs = np.stack(all_trajs)
+
+        joint_names = tuple(env.joint_name[i] for i in range(env.num_joints))
+        np.savez("rrt_trajs.npz", trajs=all_trajs, falls=all_falls, objectives=all_objectives, joint_names=joint_names)
+
+        env.close()
+
     npz = np.load("rrt.npz")
     all_samples = npz["samples"]
     all_falls = npz["falls"]
@@ -316,6 +346,9 @@ if __name__ == "__main__":
             -31.799997329711914,
             (-0.010284600779414177, -0.012256712652742863, 0.14000000059604645))
         pb.resetDebugVisualizerCamera(*cam)
+
+        print([env.joint_name[i] for i in range(len(env.joint_name))])
+        input('...')
 
         for n in range(show_bests):
             print(f"design {n}: {all_objectives[lex[n]].round(4)}")
