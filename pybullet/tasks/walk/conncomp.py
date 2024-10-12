@@ -13,20 +13,20 @@ from humanoid import PoppyHumanoidEnv, convert_angles
 np.set_printoptions(linewidth=1000)
 
 ### parameters
-timestep = .2
-duration = 2.
+timestep = .2 # the duration (in seconds) between individual time-steps of the trajectory
+duration = 2. # the duration (in seconds) of one complete footstep
 
-num_timesteps = int(np.ceil(duration / timestep))
-duration = num_timesteps * timestep
-num_cycles = 1
+num_timesteps = int(np.ceil(duration / timestep)) # total number of timesteps per footstep
+duration = num_timesteps * timestep # update duration (may change slightly after int rounding)
+num_cycles = 2 # total number of cycles per episode; each cycle consists of two footsteps (one for each foot)
 
-relative_fall_tolerance = 0.05
+relative_fall_tolerance = 0.05 # used to classify falls (see is_fall function)
 
-do_rrt = False
-show_rrt = False
-pack_rrt = True # convert samples to trajectories and save
+do_rrt = True # if True, run the data generation
+show_rrt = False # if True, show some representative data
+pack_rrt = True # if True, convert raw samples to properly formatted trajectories and save
 show_bests = 50 # number of best results to show, 0 for none
-max_samples = 16000
+max_samples = 1000 # number of trajectories to sample
 
 def make_cycle_traj(step_traj, num_cycles):
     traj = []
@@ -99,9 +99,11 @@ def run_traj(env, step_array, num_cycles):
     return positions, init_base, init_quat, post_base, post_quat, post_linv, post_angv
 
 def is_fall(init_base, post_base, relative_tolerance = .05):
+    # classified as a fall when relative change in base z coordinate is greater than provided tolerance
     return (np.fabs(init_base[2] - post_base[2]) / init_base[2]) > relative_tolerance
 
-# all objectives are minimizations
+### objectives
+#  all objectives are minimizations
 
 def compute_jerk(positions):
     # minimum path length in joint space (or numerical velocity/jerk)
