@@ -37,6 +37,27 @@ class PoppyHumanoidEnv(PoppyEnv):
             if name[:2] == "r_": mirror_name = "l_" + name[2:]
             mirrored[mirror_name] = angle * sign
         return mirrored
+
+    # position with feet delta_z above ground and then drop for duration
+    def place_on_ground(self, angle_array, delta_z=0.003, duration=2):
+
+        # set to angle array
+        self.set_position(angle_array)
+
+        # get current ankle height
+        state = pb.getLinkState(self.robot_id, self.joint_index["l_ankle_y"])
+        current_ankle_z = state[0][2]
+    
+        # new ankle height should be delta_z above 0
+        state = pb.getLinkState(self.robot_id, self.joint_index["l_ankle_y"])
+        delta_ankle_z = delta_z - current_ankle_z
+    
+        # shift to new height and settle
+        init_base, init_quat = pb.getBasePositionAndOrientation(self.robot_id)
+        init_base = init_base[:2] + (init_base[2] + delta_ankle_z,)
+        pb.resetBasePositionAndOrientation(self.robot_id, init_base, init_quat)
+        self.track_trajectory([(duration, self.angle_dict(angle_array))])
+
     
     # override step and goto for humanoid walking
     def step(self, action, sleep=None):
