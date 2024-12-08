@@ -15,23 +15,45 @@ if __name__ == "__main__":
     env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=True)
 
     env.place_on_ground(waypoints[1])
-    state = pb.getLinkState(env.robot_id, env.joint_index["l_ankle_y"])
+    state = pb.getLinkState(env.robot_id, env.joint_index["r_ankle_y"])
     current_ankle_z = state[0][2]
     print("current ankle z", current_ankle_z)
-
     input('.')
 
-    env.track_trajectory([(.15, env.angle_dict(waypoints[0]))])
+    for waypoint in waypoints[2:]:
+        print(env.angle_dict(waypoint))
+        env.track_trajectory([(.2, env.angle_dict(waypoint))])
+        state = pb.getLinkState(env.robot_id, env.joint_index["l_ankle_y"])
+        current_ankle_z = state[0][2]
+        print("current ankle z", current_ankle_z)
+        # input('.')
+
+    # settle at last waypoint
+    env.track_trajectory([(2., env.angle_dict(waypoints[-1]))])
     state = pb.getLinkState(env.robot_id, env.joint_index["l_ankle_y"])
     current_ankle_z = state[0][2]
-    print("current ankle z", current_ankle_z)
-
+    print("current ankle z", current_ankle_z)    
     input('.')
 
-    env.track_trajectory([(2, env.angle_dict(waypoints[0]))])
-    state = pb.getLinkState(env.robot_id, env.joint_index["l_ankle_y"])
-    current_ankle_z = state[0][2]
-    print("current ankle z", current_ankle_z)
+    # ## try straightening legs quickly to achieve slight liftoff ground
+    # env.place_on_ground(waypoints[1])
+    # state = pb.getLinkState(env.robot_id, env.joint_index["l_ankle_y"])
+    # current_ankle_z = state[0][2]
+    # print("current ankle z", current_ankle_z)
 
-    input('.')
+    # input('.')
+
+    # env.track_trajectory([(.15, env.angle_dict(waypoints[0]))])
+    # state = pb.getLinkState(env.robot_id, env.joint_index["l_ankle_y"])
+    # current_ankle_z = state[0][2]
+    # print("current ankle z", current_ankle_z)
+
+    # input('.')
+
+    # env.track_trajectory([(2, env.angle_dict(waypoints[0]))])
+    # state = pb.getLinkState(env.robot_id, env.joint_index["l_ankle_y"])
+    # current_ankle_z = state[0][2]
+    # print("current ankle z", current_ankle_z)
+
+    # input('.')
 
