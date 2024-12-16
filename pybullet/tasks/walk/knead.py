@@ -53,9 +53,10 @@ if __name__ == "__main__":
     with open("knead_grid.pkl", "rb") as f:
         (param_ranges, success, waypoints) = pk.load(f)
 
+    env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=show)
+
     if do_runs:
 
-        env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=show)
         base_info = {}
         start = perf_counter()
         for p, params in enumerate(success.keys()):
@@ -77,8 +78,9 @@ if __name__ == "__main__":
             # if p == 10: break    
             # input('.')
     
-        env.close()
         with open(f"knead_runs_settle{SETTLE}.pkl", "wb") as f: pk.dump(base_info, f)
+
+    env.close()
 
     with open(f"knead_runs_settle{SETTLE}.pkl", "rb") as f: base_info = pk.load(f)
 
@@ -147,6 +149,23 @@ if __name__ == "__main__":
     pt.xlabel("Robust")
     pt.ylabel("Forward")
     pt.show()
+
+    ## write the most robust trajectory to hardware format
+    params = param_grid[robustness.argmax()]
+
+    # populate trajectory
+    trajectory = [(0., env.angle_dict(waypoints[tuple(params)][1]))] # initial pose
+    for step in range(num_cycles*2):
+        for waypoint in waypoints[tuple(params)][2:]:
+            if step % 2 == 1: waypoint = env.mirror_position(waypoint)
+            trajectory.append( (timestep, env.angle_dict(waypoint)) )
+
+        # linger at last waypoint between steps
+        trajectory.append( (1., env.angle_dict(waypoint)) )
+    
+    with open(os.environ["HOME"] + '/poppy-muffin/scripts/knead_trajectory.pkl', 'wb') as f:
+        pk.dump(trajectory, f, protocol=2)
+
 
     # with open(os.environ["HOME"] + "/poindexter/knead.pkl", "rb") as f: waypoints = pk.load(f)
     # env = PoppyHumanoidEnv(pb.POSITION_CONTROL, show=True)
