@@ -54,6 +54,10 @@ class PoppyEnv(object):
     def close(self):
         pb.disconnect()
 
+    def get_base(self):
+        pos, quat = pb.getBasePositionAndOrientation(self.robot_id)
+        return (pos, quat)
+
     def step_simple(self, action):
         pb.setJointMotorControlArray(
             self.robot_id,
