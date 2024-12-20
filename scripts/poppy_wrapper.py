@@ -385,4 +385,36 @@ class PoppyWrapper:
     def goto_angles(self, angles):
         self.track_trajectory([(1., angles)])
 
+    def get_sway_angles(self, angle_dict, abs_x, abs_y):
+        # set upper body sway (from poindexter/hand.py without degree conversion)
+        angle_dict = dict(angle_dict)
+        angle_dict['abs_x'] = abs_x
+        angle_dict['abs_y'] = abs_y
+        angle_dict['bust_x'] = -abs_x
+        angle_dict['bust_y'] = -abs_y
+    
+        # slightly wide arms to reduce self-collision
+        angle_dict['r_shoulder_x'] = min(-5., -abs(abs_x))
+        angle_dict['l_shoulder_x'] = max(+5., +abs(abs_x))
+    
+        return angle_dict
+
+    # mirror joints laterally (from poindexter/hand.py)
+    def get_mirror_angles(self, angle_dict):
+        mirrored = dict(angle_dict)
+        for name, angle in angle_dict.items():
+    
+            # don't negate y-axis rotations
+            sign = 1 if name[-2:] == "_y" else -1
+    
+            # swap right and left
+            mirror_name = name
+            if name[:2] == "l_": mirror_name = "r_" + name[2:]
+            if name[:2] == "r_": mirror_name = "l_" + name[2:]
+    
+            # assign mirrored angle
+            mirrored[mirror_name] = angle * sign
+    
+        return mirrored
+
 
