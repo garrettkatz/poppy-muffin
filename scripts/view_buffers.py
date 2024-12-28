@@ -34,7 +34,8 @@ actuals = buffers['position']
 targets = buffers['target']
 # motor_idx = [all_motor_names.index(name) for name in motor_names]
 # motor_idx = np.flatnonzero(np.fabs(planned).max(axis=0) > .5)
-motor_idx = [all_motor_names.index(name) for name in ("l_hip_y", "l_knee_y", "l_ankle_y", "l_hip_x")]
+# motor_idx = [all_motor_names.index(name) for name in ("l_hip_y", "l_knee_y", "l_ankle_y", "l_hip_x", "r_hip_x")]
+motor_idx = [all_motor_names.index(name) for name in ("r_hip_y", "r_knee_y", "r_ankle_y", "l_hip_x", "r_hip_x")] # mirrored
 print(motor_idx)
 
 # pt.subplot(2,1,1)
