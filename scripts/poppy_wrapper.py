@@ -45,6 +45,8 @@ class PoppyWrapper:
             self.low_level += ((ctrl.io, ctrl_ids, ctrl_idx),)
 
         # including motor remapping (unless mock object)
+        self.motor_directions = np.ones(self.num_joints)
+        self.motor_offsets = np.zeros(self.num_joints)
         if not hasattr(robot, "mock"):
 
             config_base = os.path.dirname(__import__('poppy_humanoid').__file__)
@@ -52,8 +54,6 @@ class PoppyWrapper:
             with open(config_file) as f:
                 config = json.load(f)
 
-            self.motor_directions = np.ones(self.num_joints)
-            self.motor_offsets = np.zeros(self.num_joints)
             for motor_name, properties in config['motors'].items():
                 motor_index = self.motor_index[motor_name]
                 if properties['orientation'] == 'indirect':
