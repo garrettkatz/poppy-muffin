@@ -15,7 +15,7 @@ except:
 if hasattr(__builtins__, 'raw_input'):
     input=raw_input
 
-def build_angle_dicts(poppy, l_hip_y_0, lean, forward, bend1, bend2, bend3, lift, tilt, stretch, sway):
+def build_angle_dicts(poppy, l_hip_y_0, lean, forward, bend1, bend2, bend3, lift, tilt, stretch, sway, tweak):
     """
     poppy: PoppyWrapper instance
     l_hip_y_0: empirically found l_hip_y needs a correction offset
@@ -28,6 +28,7 @@ def build_angle_dicts(poppy, l_hip_y_0, lean, forward, bend1, bend2, bend3, lift
     tilt: r_hip_y rotation during bend2 to keep stance foot flat
     stretch: l_hip_y outward stretch during bend3 (but actually negative is better after adding tilt)
     sway: abs_x sway at end to reduce recoil when planting
+    tweak: l_ankle_y slight toe raise at plant to avoid spin (will be negated)
 
     successful left swing: 12 10 4 15 0 10 -7 (12/28 3:08)
     successful right swing: 12 10 4 15 0 8 -7 (12/28 4:01)
@@ -45,6 +46,23 @@ def build_angle_dicts(poppy, l_hip_y_0, lean, forward, bend1, bend2, bend3, lift
     can do >=12 steps with pausestep = 1.25 (1/6 6:08), but spins slightly left on left steps
     performance degraded a bit later into the evening.
     the larger left angles produce slightly more aggressive motions, maybe this is a problem.
+
+    with tweak:
+    Enter num_steps: 12
+    Enter pausestep: 1.25
+    left: 12 2 10 4 12 -7 10 -7 3 0
+    right: 12 2 10 4 12 -3 8 -5 3 0
+    final zeros are pre-tweak version, did not yet try left tweak slightly positive.
+    successful and interesting result (1/8 3:32pm):
+    12 steps with pausestep 1.25 works surpisingly well, but 1.5 does *not* work
+    did not have to use any tweak, and it actually walked in a straight line (no spin).
+    the crab-walk only happened with 1.5, maybe because of the frequency of slight sways in center of mass.
+        waiting until 1.5 might let the COM sway back over the foot that is supposed to swing
+        at this moment, straightening that swing leg makes the nominal stance leg lift off the ground
+        then tilt/stretch makes the nominal stance leg, which is in fact lifted, land further to the side.
+    this result was early in the session, just one 1.5 failed and then 1.25 worked.
+    doesn't rule out performance degradation (spin, etc.) later in the session.
+    next several attempted runs all aborted mid-way thru track traj due to OSError, must be loose wiring
 
     """
 
@@ -84,13 +102,14 @@ def build_angle_dicts(poppy, l_hip_y_0, lean, forward, bend1, bend2, bend3, lift
     # forward angles are inverted
     bent4_angles = poppy.get_sway_angles(zero_angles, abs_x = sway, abs_y = lean)
     bent4_angles.update({
-        "r_ankle_y": -(bend1 + forward), "l_ankle_y": -(bend1 - forward),
+        "r_ankle_y": -(bend1 + forward), "l_ankle_y": -(bend1 - forward) - tweak,
         "r_knee_y": 2*bend1, "l_knee_y": 2*bend1,
         "r_hip_y": -(bend1 - forward), "l_hip_y": -(bend1 + forward) + l_hip_y_0,
     })
 
-    # back to inverted plant fully, no sway
+    # back to inverted plant fully, no sway or tweak
     bent5_angles = poppy.get_sway_angles(bent4_angles, abs_x = 0., abs_y = lean)
+    bent5_angles["l_ankle_y"] += tweak
 
     return bent1_angles, bent2_angles, bent3_angles, bent4_angles, bent5_angles
 
@@ -127,15 +146,15 @@ if __name__ == "__main__":
         for foot in ("left", "right"):
             if not do_foot[foot]: continue
             while True:
-                angs = input("Enter %s <lean> <forward> <bend1 both> <bend2 push> <bend3 lift> <lift hip> <tilt right> <stretch left> <sway abs>: " % foot)
+                angs = input("Enter %s <lean> <forward> <bend1 both> <bend2 push> <bend3 lift> <lift hip> <tilt right> <stretch left> <sway abs> <tweak ankle>: " % foot)
                 try:
-                    lean, forward, bend1, bend2, bend3, lift, tilt, stretch, sway = tuple(map(float, angs.split()))
+                    lean, forward, bend1, bend2, bend3, lift, tilt, stretch, sway, tweak = tuple(map(float, angs.split()))
                     break
                 except:
                     print("invalid format")
                     continue
 
-            foot_angles[foot] = build_angle_dicts(poppy, l_hip_y_0, lean, forward, bend1, bend2, bend3, lift, tilt, stretch, sway)
+            foot_angles[foot] = build_angle_dicts(poppy, l_hip_y_0, lean, forward, bend1, bend2, bend3, lift, tilt, stretch, sway, tweak)
 
         input("[Enter] to enable torques")
         poppy.enable_torques()

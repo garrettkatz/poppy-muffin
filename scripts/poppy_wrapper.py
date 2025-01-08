@@ -366,7 +366,9 @@ class PoppyWrapper:
                     if time_elapsed[-1] > timepoints[n]: break
 
         # Don't crash on loose wiring errors
-        except OSError: pass
+        except OSError as err:
+            print("Aborting Trajectory due to OSError!")
+            print(err) # prints blank?
 
         finally:
 
