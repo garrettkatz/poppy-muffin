@@ -256,7 +256,7 @@ class PoppyWrapper:
 
         return success, buffers, time_elapsed
 
-    def track_trajectory(self, trajectory, binsize=None, overshoot=None, ms_rpms = 0.165):
+    def track_trajectory(self, trajectory, binsize=None, overshoot=None, ms_rpms = 0.165, fps=16):
         # !! works well with durations around 1/5 sec, but poorly with durations around 1/24 sec
         # trajectory = [..., (duration (sec), waypoint) ...]
         # waypoint[name] = angle (deg)
@@ -264,6 +264,7 @@ class PoppyWrapper:
         # overshoot: how many degrees to overshoot goal position (if None, does not overshoot)
         #    smooths trajectory with non-zero velocity at intermediate waypoints
         # rpm_unit: 1 moving speed unit = ms_rpms rotations per minute (docs say .114, but too fast)
+        # fps: frames per second for images
 
         # temporary custom handling of Ctrl-C for user-stopped motion
         default_interrupt_handler = signal.signal(signal.SIGINT, custom_interrupt_handler)
@@ -273,6 +274,7 @@ class PoppyWrapper:
         buffers = {key: [] for key in bufkeys + ("target",)}
         if binsize is not None: buffers['images'] = []
         time_elapsed = []
+        waypoint_timepoints = []
 
         # preprocess trajectory
         durations, waypoints = zip(*trajectory)
@@ -284,11 +286,15 @@ class PoppyWrapper:
         # fail gracefully on OSErrors due to loose wiring
         try:
 
+            num_frames = 0
             start_time = time.time()
             for n in range(len(trajectory)):
 
-                # skip intermediate waypoints that are behind schedule
+                # mark time passed for current waypoint
                 time_passed = time.time() - start_time
+                waypoint_timepoints.append(time_passed)
+
+                # skip intermediate waypoints that are behind schedule
                 if n + 1 != len(trajectory) and time_passed >= timepoints[n]: continue
 
                 # otherwise, set goal positions for current waypoint
@@ -339,9 +345,10 @@ class PoppyWrapper:
 
                 # busy buffer loop until current timepoint is reached
                 while True:
+                    busy_time = time.time() - start_time
 
                     # # avoid overloading syncloop if polling high-level
-                    # if time.time() - start_time < timepoints[n]: continue
+                    # if busy_time < timepoints[n]: continue
 
                     # update buffers
                     for key in bufkeys:
@@ -356,11 +363,16 @@ class PoppyWrapper:
     
                     # and images if requested
                     if binsize is not None:
-                        frame = self.camera.frame[::binsize, ::binsize].copy()
-                        buffers['images'].append(frame)
+                        current_fps = num_frames / busy_time
+                        if current_fps < fps:
+                            frame = self.camera.frame[::binsize, ::binsize].copy()
+                            buffers['images'].append(frame)
+                            num_frames += 1
+                        else:
+                            buffers['images'].append(None)
     
                     # and finally timing
-                    time_elapsed.append(time.time() - start_time)
+                    time_elapsed.append(busy_time)
     
                     # stop when current timepoint is reached
                     if time_elapsed[-1] > timepoints[n]: break
@@ -378,10 +390,10 @@ class PoppyWrapper:
             # save results
             buffers = {key: np.array(buf) for (key, buf) in buffers.items()}
             with open("traj_buf.pkl","wb") as f:
-                pk.dump((buffers, time_elapsed, self.motor_names), f)
+                pk.dump((buffers, time_elapsed, waypoint_timepoints, self.motor_names), f)
 
         # return results
-        return buffers, time_elapsed
+        return buffers, time_elapsed, waypoint_timepoints
 
     # small helper to set specific angles
     def goto_angles(self, angles):

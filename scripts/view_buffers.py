@@ -16,7 +16,7 @@ with open(traj_name, "rb") as f:
 
 ## load the data
 with open(bufs_name, "rb") as f:
-    (buffers, elapsed, all_motor_names) = pk.load(f, encoding='latin1')
+    (buffers, elapsed, waytime_points, all_motor_names) = pk.load(f, encoding='latin1')
 
 # print(all_motor_names)
 # print(len(all_motor_names))
@@ -63,44 +63,46 @@ pt.xlabel("Time Elapsed (sec)")
 pt.tight_layout()
 pt.show()
 
-## frames[i][t]: camera image at timestep t of ith waypoint
+frames = buffers["images"]
+## frames[i]: camera image at ith waypoint
 #     camera image has dimensions (rows, columns, channels)
 #     channels are in reverse order (b,g,r), pixel values have type uint8
+
+# skip None frames (was throttled to fps)
+print(f"{len(frames)} frames before")
+frames = [frame for frame in frames if frame is not None]
+print(f"{len(frames)} frames after")
+
+# total number of frames and dimensions of frames
+rows, cols = frames[0].shape[:2]
+print("%d frames with dimensions (%d, %d)" % (len(frames), rows, cols))
 
 pt.ion()
 pt.show()
 for i in range(len(frames)):
-    if i == 10: break
+    # if i == 10: break
     start = time.perf_counter()
-    elapsed = bufs[i][2]
-    for t in range(len(frames[i])):
-        print(i,t)
-        # convert image to matplotlib format
-        img = frames[i][t][:,:,[2,1,0]].astype(float)/255.
 
-        # initialize image the very first time
-        if i == t == 0:
-            im = pt.imshow(img)
-        # thereafter just overwrite the image data for fast code
-        else:
-            im.set_data(img)
-            pt.gcf().canvas.draw()
+    # convert image to matplotlib format
+    img = frames[i][:,:,[2,1,0]].astype(float)/255.
 
-        pt.pause(0.01)
+    # initialize image the very first time
+    if i == 0:
+        im = pt.imshow(img)
+    # thereafter just overwrite the image data for fast code
+    else:
+        im.set_data(img)
+        pt.gcf().canvas.draw()
 
-        # # render animation at same speed as original motions
-        # animation_time = time.perf_counter() - start
-        # if animation_time < elapsed[t]:
-        #     pt.pause(elapsed[t] - animation_time)
+    # render animation at fixed rate
+    pt.pause(0.1)
 
+    # # render animation at same speed as original motions
+    # animation_time = time.perf_counter() - start
+    # if animation_time < elapsed[i]:
+    #     pt.pause(elapsed[i] - animation_time)
+
+input('.')
 pt.close()
-
-# total number of frames and dimensions of frames
-total = 0
-for i in range(len(frames)):
-    total += len(frames[i])
-rows, cols = frames[i][0].shape[:2]
-
-print("%d frames with dimensions (%d, %d)" % (total, rows, cols))
 
 

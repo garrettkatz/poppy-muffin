@@ -17,7 +17,7 @@ if hasattr(__builtins__, 'raw_input'):
 
 poppy = pw.PoppyWrapper(
     PoppyHumanoid(),
-    # OpenCVCamera("poppy-cam", 0, 10),
+    OpenCVCamera("poppy-cam", 0, 24),
 )
 
 print("Created poppy with 10 fps camera.  Don't forget to poppy.close() before quit() when you are finished to clean up the motor state.")
