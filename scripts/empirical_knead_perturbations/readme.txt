@@ -29,3 +29,6 @@ buffers["images"][k] is either an image with the format above, or None.  Many en
 
 The camera connection is somewhat unreliable, especially when the robot experiences significant jerk (for example, during a fall).  When this happens, the buffers contain copies of the last frame that was successfully received before connectivity was lost.  So the frames in the buffers after a fall should generally be ignored.
 
+The script view_buffers.py has more examples of how to load and interact with the data.  The script should be run like:
+
+python view_buffers.py <trajectory file> <buffer file>

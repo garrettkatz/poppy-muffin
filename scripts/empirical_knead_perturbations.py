@@ -25,7 +25,7 @@ if __name__ == "__main__":
     left_params = (12, 2, 10, 4, 12, -7, 10, -7, 3, 0)
     right_params = (12, 2, 10, 4, 12, -3, 8, -5, 3, 0)
     l_hip_y_0 = -3
-    noise_stdev = 0.5 # deg
+    noise_stdev = 0.25 # deg
     datapath = "empirical_knead_perturbations/"
 
     # get current number of samples for counter
@@ -104,8 +104,9 @@ if __name__ == "__main__":
         with open(datapath + "bufs_%02d_%s.pkl" % (counter, num_success), "wb") as f:
             pk.dump((buffers, elapsed, waypoint_timepoints, poppy.motor_names), f)
         counter += 1
+        print("%d episodes recorded." % counter)
 
-        cmd = input("[n]ext cycle, [c]ompliant rest, [] will abort")
+        cmd = input("[n]ext cycle, [c]ompliant rest, [] will abort: ")
         if cmd == "c":
 
             input("[Enter] to go compliant (hold strap first)")
