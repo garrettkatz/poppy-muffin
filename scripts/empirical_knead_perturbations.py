@@ -25,7 +25,7 @@ if __name__ == "__main__":
     left_params = (12, 2, 10, 4, 12, -7, 10, -7, 3, 0)
     right_params = (12, 2, 10, 4, 12, -3, 8, -5, 3, 0)
     l_hip_y_0 = -3
-    noise_stdev = 0.25 # deg
+    noise_stdev = 0.125 # deg
     datapath = "empirical_knead_perturbations/"
 
     # get current number of samples for counter
