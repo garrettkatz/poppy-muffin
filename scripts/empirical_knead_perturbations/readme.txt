@@ -32,3 +32,4 @@ The camera connection is somewhat unreliable, especially when the robot experien
 The script view_buffers.py has more examples of how to load and interact with the data.  The script should be run like:
 
 python view_buffers.py <trajectory file> <buffer file>
+
