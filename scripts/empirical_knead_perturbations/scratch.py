@@ -88,6 +88,6 @@ for stdev in stdevs:
         axs[k].plot(data, alpha=.5)
         axs[k].plot(data.mean(axis=1), 'k-')
         axs[k].set_ylabel(key)
-        axs[k].set_title(f"max motor {all_motor_names[data.mean(axis=0).argmax()]}")
+        axs[k].set_title(f"stdev {stdev} max motor {all_motor_names[data.mean(axis=0).argmax()]}")
     axs[-1].set_xlabel("Session timestep")
     pt.show()
