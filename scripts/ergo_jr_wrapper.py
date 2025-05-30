@@ -36,6 +36,7 @@ class ErgoJrWrapper:
 
     def get_joint_info(self):
         """
+        TBD
         Return joint_info, a tuple of joint information
         joint_info[i] = (joint_name, parent_index, translation, orientation, axis) for ith joint
         joint_name: string identifier for joint
@@ -45,6 +46,13 @@ class ErgoJrWrapper:
         axis: (3,) rotation axis vector in ith joint's own local frame (None for fixed joints)
         """
         return tuple(zip(self.joint_name, self.parent_index, self.translation, self.orientation, self.axis))
+
+    # PID tuning
+    def get_pid_gains(self):
+        return self.dxl_io.get_pid_gain(self.ids)
+
+    def set_pid_gains(self, K_p, K_i, K_d):
+        self.dxl_io.set_pid_gain({i: (K_p, K_i, K_d) for i in self.ids})
 
     def _get_position(self):
         return np.array(self.dxl_io.get_present_position(self.ids))
