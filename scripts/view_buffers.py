@@ -18,6 +18,10 @@ with open(traj_name, "rb") as f:
 with open(bufs_name, "rb") as f:
     (buffers, elapsed, waytime_points, all_motor_names) = pk.load(f, encoding='latin1')
 
+print("Average time elapsed between buffer measurements:")
+elapsed = np.array(elapsed)
+print((elapsed[1:] - elapsed[:-1]).mean())
+
 # print(all_motor_names)
 # print(len(all_motor_names))
 # input()
@@ -37,6 +41,7 @@ targets = buffers['target']
 # motor_idx = [all_motor_names.index(name) for name in ("l_hip_y", "l_knee_y", "l_ankle_y", "l_hip_x", "r_hip_x")]
 motor_idx = [all_motor_names.index(name) for name in ("r_hip_y", "r_knee_y", "r_ankle_y", "l_hip_x", "r_hip_x")] # mirrored
 print(motor_idx)
+
 
 # pt.subplot(2,1,1)
 # pt.plot(elapsed, targets[:, motor_idx], linestyle='--', color='r', marker='+', label='Target')
