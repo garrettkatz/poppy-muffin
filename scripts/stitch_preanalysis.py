@@ -4,14 +4,15 @@ import itertools as it
 import numpy as np
 import matplotlib.pyplot as pt
 
+do_arrays = False
 do_chunk = False
 view_chunk = False
-do_nearest = True
+do_nearest = False
+do_centered = True
 
-if do_chunk:
-
+def get_run_filepaths():
     # collect all run filenames
-    run_filepaths = [] # each element is (traj_name, buf_name, stdev)
+    run_filepaths = [] # each element is (traj_name, buf_name, stdev, num_successes)
     
     path = os.path.join(os.path.expanduser("~"), "Downloads", "poppy_walk_data", "*stdev*")
     
@@ -21,9 +22,63 @@ if do_chunk:
         stdev = folder[folder.index("stdev")+5:]
         traj_files = glob.glob(os.path.join(path, folder, "traj*.pkl"))
         for traj_file in traj_files:
+            # filename format is traj_<n>_<num_success>.pkl for the nth episode
+            num_successes = int(traj_file[traj_file.rfind("_")+1:-4])
             buf_file = traj_file.replace("traj", "bufs")
-            run_filepaths.append( (traj_file, buf_file, stdev) )
+            run_filepaths.append( (traj_file, buf_file, stdev, num_successes) )
+
+    return run_filepaths
+
+if do_arrays:
+
+    run_filepaths = get_run_filepaths()    
+    print(f"{len(run_filepaths)} runs total")
     
+    # use observation windows of previous footstep as policy input, and planned trajectory of next footstep as action
+    # chunk the data around each (prev, next) footstep boundary, up until a fall or end of run (zero-based indexing)
+    bufs_t = [] # obs_t[r] timepoints of buffer observations for run r
+    bufs_p = [] # obs_p[r] joint positions of buffer observations for run r
+    traj_t = [] # traj_t[r] timepoints of trajectory for run r
+    traj_p = [] # traj_p[r] joint positions of trajectory for run r
+    nfstep = [] # num successful steps for run r
+    stdevs = [] # noise stdev for run r
+
+    for r, (traj_file, buf_file, stdev, num_successes) in enumerate(run_filepaths):
+        print(f"arrays for {r} of {len(run_filepaths)}")
+       
+        # load planned trajectory
+        with open(traj_file, "rb") as f:
+            trajectory = pk.load(f, encoding='latin1')
+        
+        # load the data
+        with open(buf_file, "rb") as f:
+            (buffers, elapsed, waytime_points, all_motor_names) = pk.load(f, encoding='latin1')
+            elapsed = np.array(elapsed)
+            waytime_points = np.array(waytime_points)
+      
+        assert len(trajectory) == len(waytime_points) == 30 # 6 footsteps, 5 waypoints each
+
+        # package trajectory into array
+        durs, angs = zip(*trajectory)
+        angs = np.array([[ang.get(name, 0.) for name in all_motor_names] for ang in angs])
+
+        bufs_t.append(elapsed)
+        bufs_p.append(buffers["position"])
+        traj_t.append(waytime_points)
+        traj_p.append(angs)
+        nfstep.append(num_successes)
+        stdevs.append(stdev)
+    
+    # save array data
+    nfstep = np.array(nfstep)
+    stdevs = np.array(stdevs)
+    with open("stitch_arrays.pkl","wb") as f:
+        pk.dump((bufs_t, bufs_p, traj_t, traj_p, nfstep, stdevs), f)
+
+
+if do_chunk:
+
+    run_filepaths = get_run_filepaths()    
     print(f"{len(run_filepaths)} runs total")
     
     # use observation windows of previous footstep as policy input, and planned trajectory of next footstep as action
@@ -178,4 +233,48 @@ if do_nearest:
     fig.supylabel("Count")
     pt.tight_layout()
     pt.savefig("nn_dists.eps")
+    pt.show()
+
+if do_centered:
+
+    with open("stitch_arrays.pkl","rb") as f:
+        (bufs_t, bufs_p, traj_t, traj_p, nfstep, stdevs) = pk.load(f)
+
+    # get union of all buffer timepoints
+    timepoints = set()
+    durations = []
+    for t in bufs_t:
+        timepoints.update(t)
+        durations.append(t.max())
+    print(f"{len(timepoints)} timepoints total")
+
+    # pt.hist(durations)
+    # pt.show()
+
+    # linearly interpolate at evenly spaced timepoints
+    num_timepoints = 13*100 # roughly 13 seconds, 100Hz
+    timepoints = np.linspace(0, max(durations), num_timepoints)
+    histories = np.empty((len(bufs_t), num_timepoints, 25)) # 25 joints
+    for r, (t, p) in enumerate(zip(bufs_t, bufs_p)):
+        print(f"interpolating {r} of {len(durations)}...")
+        for j in range(25):
+            histories[r,:,j] = np.interp(timepoints, t, p[:,j])
+
+    noiseless = (stdevs == "0.0")
+    successes = (nfstep == 6)
+
+    mean_traj = histories[noiseless & successes].mean(axis=0)
+    traj_dist = np.fabs(histories - mean_traj[None]).mean(axis=2)
+
+    pt.plot(timepoints, traj_dist[noiseless & successes].T, '--', color=(.8,.8,1.))
+    pt.plot(timepoints, traj_dist[noiseless & ~successes].T, '--', color=(1.,.8,.8))
+    pt.plot(timepoints, traj_dist[~noiseless & successes].T, ':', color=(.8,.8,1.))
+    pt.plot(timepoints, traj_dist[~noiseless & ~successes].T, ':', color=(1.,.8,.8))
+    pt.plot(timepoints, traj_dist[noiseless & successes].mean(axis=0), '--', color='b', label="noiseless success")
+    pt.plot(timepoints, traj_dist[noiseless & ~successes].mean(axis=0), '--', color='r', label="noiseless failure")
+    pt.plot(timepoints, traj_dist[~noiseless & successes].mean(axis=0), ':', color='b', label="noisy success")
+    pt.plot(timepoints, traj_dist[~noiseless & ~successes].mean(axis=0), ':', color='r', label="noisy failure")
+    pt.xlabel("time")
+    pt.ylabel("MAD from noiseless success mean")
+    pt.legend()
     pt.show()
