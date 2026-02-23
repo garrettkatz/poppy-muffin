@@ -39,11 +39,15 @@ def interpolate_arrays():
         obs_ip = np.empty((len(obs_t), num_timepoints, 25)) # 25 joints
         obs_iv = np.empty((len(obs_t), num_timepoints, 2)) # 2 vision features
         for r, (t, p, v) in enumerate(zip(obs_t, obs_p, obs_v)):
-            print(f"interpolating {r} of {len(obs_t)}...")
+            # print(f"interpolating {r} of {len(obs_t)}...")
             for j in range(25):
                 obs_ip[r,:,j] = np.interp(timepoints, t, p[:,j])
             for j in range(2):
                 obs_iv[r,:,j] = np.interp(timepoints, t, v[:,j])
+
+        # wrap trajectories in arrays
+        traj_t = np.array(traj_t[0]) # same durations for all trajectories
+        traj_p = np.array(traj_p) # (runs, 30, 25)
 
         return timepoints, obs_ip, obs_iv, traj_t, traj_p, nfstep, stdevs
 
@@ -55,12 +59,16 @@ if __name__ == "__main__":
     view_chunk = False
     do_nearest = False
     do_centered = False
-    do_nearest_full = True
+    do_nearest_full = False
     do_stability = False
+    do_clone = False
+    do_returns = True
+    do_lindyn = False
     
     if do_arrays:
     
-        run_filepaths = get_run_filepaths()    
+        run_filepaths = get_run_filepaths()
+        # run_filepaths = run_filepaths[:10] # for quick tests
         print(f"{len(run_filepaths)} runs total")
         
         # use observation windows of previous footstep as policy input, and planned trajectory of next footstep as action
@@ -101,8 +109,9 @@ if __name__ == "__main__":
                 dys.append(dy)
             viz = []
             dx = dy = 0.
-            for frame in buffers["images"]:
-                if frame is not None and len(dxs)>0:
+            for f, frame in enumerate(buffers["images"]):
+                # exclude very first frame since you wouldn't be able to calculate motion yet at that point
+                if f>0 and frame is not None:# and len(dxs)>0:
                     dx = dxs.pop(0)
                     dy = dys.pop(0)
                 viz.append((dx,dy))
@@ -364,7 +373,7 @@ if __name__ == "__main__":
 
             # check all waypoints up to fall
             fall_n = 5*nfstep[f_idx]
-            for w, wp_time in enumerate(traj_t[f_idx][1:fall_n]):
+            for w, wp_time in enumerate(traj_t[1:fall_n]):
 
                 # timesteps up to current waypoint
                 t_mask = (timepoints <= wp_time)
@@ -416,10 +425,10 @@ if __name__ == "__main__":
         #     print(f"noiseless fail {idx}")
 
             # check all waypoints
-            # for n in range(1, len(traj_t[idx])):
+            # for n in range(1, len(traj_t)):
             for n in range(1, 5*nfstep[idx]):
-                prev_mask = (timepoints <= traj_t[idx][n-1])
-                next_mask = (timepoints <= traj_t[idx][n])
+                prev_mask = (timepoints <= traj_t[n-1])
+                next_mask = (timepoints <= traj_t[n])
 
                 # prev_dist = np.fabs(obs_ip[idx, prev_mask] - obs_cp[prev_mask]).mean()
                 # next_dist = np.fabs(obs_ip[idx, next_mask] - obs_cp[next_mask]).mean()
@@ -435,4 +444,175 @@ if __name__ == "__main__":
 
         # pt.plot(timepoints, obs_cp)
         # pt.show()
+
+    if do_clone:
+        # clone successful behavior, check conditioning and policy output on failed observations
+
+        timepoints, obs_ip, obs_iv, traj_t, traj_p, nfstep, stdevs = interpolate_arrays()
+        num_runs = len(nfstep)
+    
+        noiseless = (stdevs == "0.0")
+        successes = (nfstep == 6)
+        print(f"{successes.sum()} successes")
+
+        # noiseless trajectory
+        traj_0 = traj_p[np.flatnonzero(noiseless)[0]]
+        # traj_0 = traj_p[0] # just when testing 10 runs
+
+        s_res = []
+        f_res = []
+        a_res = []
+        W_norm = []
+        for n, wp_time in enumerate(traj_t):
+
+            # timesteps up to current waypoint
+            t_mask = (timepoints <= wp_time)
+            # if n == 0:
+            #     print(wp_time)
+            #     print(timepoints[:10])
+            #     print(t_mask[:10])
+            #     print(obs_iv[0,0])
+            #     input('.')
+
+            # collect policy inputs up to current waypoint
+            X_p = obs_ip[:, t_mask].reshape(num_runs, -1) # positions
+            X_v = obs_iv[:, t_mask].reshape(num_runs, -1) # vision
+            X_c = traj_p[:, :n].reshape(num_runs, -1) # commands so far
+            X_b = np.ones((num_runs, 1)) # for bias
+            X = np.concatenate([X_p, X_v, X_c, X_b], axis=1) # (num_runs, -1)
+
+            # collect next waypoint commands
+            A = traj_p[:, n] # (num_runs, 25)
+
+            # best linear fit to success data
+            W = np.linalg.lstsq(X[successes], A[successes], rcond=None)[0]
+            W_norm.append((W**2).sum()**.5)
+
+            # measure residual on successes
+            s_res.append( np.fabs(X[successes] @ W - A[successes]).mean() )
+
+            # measure residual on failures that haven't ended yet
+            f_mask = ~successes & (n < 5*nfstep)
+            f_res.append( np.fabs(X[f_mask] @ W - A[f_mask]).mean() )
+
+            # measure largest distance from noiseless trajectory over all runs, timesteps, joints
+            # print((X @ W).shape, traj_0[n].shape, (X @ W - traj_0[n]).shape)
+            # input('.')
+            a_res.append( np.fabs(X @ W - traj_0[n]).max() )
+
+            print(f"waypoint {n}: {X[successes].shape}*{W.shape} = {A[successes].shape}, {W_norm[-1]=}, {s_res[-1]=}, {f_res[-1]=}, {a_res[-1]=}")
+
+        pt.figure(figsize=(8,5))
+        pt.plot(np.arange(30), s_res, 'bo-', label="success residual")
+        pt.plot(np.arange(30), f_res, 'rx-', label="failure residual")
+        pt.plot(np.arange(30), a_res, 'g^-', label="nominal residual")
+        pt.plot(np.arange(30), W_norm, 'k-', label="W Fro norm")
+        pt.yscale("log")
+        pt.xlabel("waypoint")
+        pt.legend()
+        pt.tight_layout()
+        pt.savefig("linclone.eps")
+        pt.show()
+        
+    if do_returns:
+
+        timepoints, obs_ip, obs_iv, traj_t, traj_p, nfstep, stdevs = interpolate_arrays()
+        num_runs = len(nfstep)
+    
+        noiseless = (stdevs == "0.0")
+        successes = (nfstep == 6)
+        print(f"{successes.sum()} successes")
+
+        # noiseless trajectory
+        traj_0 = traj_p[np.flatnonzero(noiseless)[0]]
+
+        # average starting joints
+        central_0 = obs_ip[:,0].mean(axis=0)
+        print(f"Variation in starting joints ~ {np.fabs(obs_ip[:,0] - central_0).mean()} <= {np.fabs(obs_ip[:,0] - central_0).max()}")
+
+        # target initial joints (same at very end of trajectory, not perturbed)
+        init_angs = traj_p[0,-1]
+        print(f"Average starting from target initial joints ~ {np.fabs(obs_ip[:,0] - init_angs).mean()} <= {np.fabs(obs_ip[:,0] - init_angs).max()}")
+
+        # plot each trajectory's distance to its starting point after each cycle
+        cycle_times = traj_t[[10, 20]]
+        cycle_timesteps = [0] + [max(np.flatnonzero(timepoints < t)) for t in cycle_times] + [len(timepoints)-1]
+        print("cycle timesteps", cycle_timesteps)
+
+        pt.figure(figsize=(10,5))
+
+        pt.subplot(1,2,1)
+        for r in range(num_runs):
+            hi = (nfstep[r] // 2) + 1
+            dists = np.fabs(obs_ip[r, cycle_timesteps[:hi]] - obs_ip[r, 0]).mean(axis=-1)
+            c = 'r' if nfstep[r] < 6 else ('g' if noiseless[r] else 'b')
+            pt.plot(timepoints[cycle_timesteps[:hi]], dists, c+'o-', alpha=.25)
+        pt.ylabel("Mean joint delta from initial observation (deg)")
+
+        pt.subplot(1,2,2)
+        for r in range(num_runs):
+            hi = (nfstep[r] // 2) + 1
+            dists = np.fabs(obs_ip[r, cycle_timesteps[:hi]] - init_angs).mean(axis=-1)
+            c = 'r' if nfstep[r] < 6 else ('g' if noiseless[r] else 'b')
+            pt.plot(timepoints[cycle_timesteps[:hi]], dists, c+'o-', alpha=.25)
+        pt.ylabel("Mean joint delta from initial command (deg)")
+
+        pt.gcf().suptitle("Footstep cycle return distance")
+        pt.gcf().supxlabel("Time (sec)")
+        pt.tight_layout()
+        pt.savefig("return.pdf")
+        pt.show()
+            
+
+        # for
+        # obs_ip[noiseless & success, ::10
+
+        # # distances to nominal at very beginning
+        # nom_0 = obs_ip[noiseless & successes,0].mean(axis=0)
+        # print(nom_0)
+
+        # print(f"noiseless succ <= {np.fabs(obs_ip[noiseless & successes, 0] - nom_0).max(axis=1).mean()}")
+        # print(f"noisy succ <= {np.fabs(obs_ip[~noiseless & successes, 0] - nom_0).max(axis=1).mean()}")
+        # print(f"noiseless fall <= {np.fabs(obs_ip[noiseless & ~successes, 0] - nom_0).max(axis=1).mean()}")
+        # print(f"noisy fall <= {np.fabs(obs_ip[~noiseless & ~successes, 0] - nom_0).max(axis=1).mean()}")
+
+    if do_lindyn:
+        # see if per-time linear models can fit the cycle transition dynamics
+
+        timepoints, obs_ip, obs_iv, traj_t, traj_p, nfstep, stdevs = interpolate_arrays()
+        num_runs = len(nfstep)
+    
+        noiseless = (stdevs == "0.0")
+        successes = (nfstep == 6)
+        print(f"{successes.sum()} successes")
+
+        # noiseless trajectory
+        traj_0 = traj_p[np.flatnonzero(noiseless)[0]]
+
+        # time steps at cycle boundaries
+        cycle_times = traj_t[[10, 20]]
+        cycle_timesteps = [0] + [max(np.flatnonzero(timepoints < t)) for t in cycle_times] + [len(timepoints)-1]
+        print("cycle timesteps", cycle_timesteps)
+
+        # collect transition data from all successful cycles
+        X0, A, X1 = [], [], []
+        for r in range(num_runs):
+            # last successful cycle in this run
+            hi = (nfstep[r] // 2) + 1
+            for c in range(hi-1):
+                X0.append(obs_ip[r, cycle_timesteps[c]].flatten())
+                A.append(traj_p[r,10*c:10*(c+1)].flatten())
+                X1.append(obs_ip[r, cycle_timesteps[c+1]].flatten())
+
+        # try fitting the linear model
+        X0 = np.stack(X0)
+        A = np.stack(A)
+        X1 = np.stack(X1)
+        X0A = np.concatenate([X0, A, np.ones((len(X0),1))], axis=1)
+
+        W = np.linalg.lstsq(X0A, X1, rcond=None)[0]
+        print(f"{X0A.shape}*{W.shape} ~ {X1.shape}")
+
+        print(f"W Fro = {(W**2).sum()**.5}")
+        print(f"res ~ {np.fabs(X0A @ W - X1).max(axis=1).mean()} <= {np.fabs(X0A @ W - X1).max()}")
 
