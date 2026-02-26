@@ -395,6 +395,174 @@ class PoppyWrapper:
         # return results
         return buffers, time_elapsed, waypoint_timepoints
 
+    def track_trajectory_lqr(self, trajectory, T, K, X0, clip=1.0, binsize=None, overshoot=None, ms_rpms = 0.165, fps=16):
+        # closed-loop trajectory tracking based on logic and outputs from fitted_lqr.py
+        # !! works well with durations around 1/5 sec, but poorly with durations around 1/24 sec
+        # trajectory = [..., (duration (sec), waypoint) ...]
+        # waypoint[name] = angle (deg)
+        # T: number of observation interpolation timepoints per waypoint for controller
+        # K[n]: Control matrix for issuing nth trajectory waypoint
+        # X0[n]: Nominal target observations before issuing nth waypoint
+        # clip: Control outputs always clipped to this magnitude (degrees)
+        # binsize: image binning (if None, does not save images)
+        # overshoot: how many degrees to overshoot goal position (if None, does not overshoot)
+        #    smooths trajectory with non-zero velocity at intermediate waypoints
+        # rpm_unit: 1 moving speed unit = ms_rpms rotations per minute (docs say .114, but too fast)
+        # fps: frames per second for images
+
+        # temporary custom handling of Ctrl-C for user-stopped motion
+        default_interrupt_handler = signal.signal(signal.SIGINT, custom_interrupt_handler)
+
+        # initialize buffers
+        bufkeys = ("position", "speed", "load", "voltage", "temperature")
+        buffers = {key: [] for key in bufkeys + ("target",)}
+        if binsize is not None: buffers['images'] = []
+        time_elapsed = []
+        waypoint_timepoints = []
+
+        # preprocess trajectory
+        durations, waypoints = zip(*trajectory)
+        timepoints = np.array(durations).cumsum()
+
+        # extract motor names involved in trajectory
+        motor_names = list(waypoints[0].keys())
+
+        # initialize interpolated observations with current position
+        positions = self.remap_low_to_high(self.get_present_positions()) # low-level
+        observation = positions[:,None]*np.ones(T) # will get overwritten in-place
+
+        # fail gracefully on OSErrors due to loose wiring
+        try:
+
+            num_frames = 0
+            start_time = time.time()
+            for n in range(len(trajectory)):
+
+                # mark time passed for current waypoint
+                time_passed = time.time() - start_time
+                waypoint_timepoints.append(time_passed)
+
+                # skip intermediate waypoints that are behind schedule
+                if n + 1 != len(trajectory) and time_passed >= timepoints[n]: continue
+
+                # otherwise, prepare new waypoint using controller and current observations
+                dx = observation.flatten() - X0[n]
+                du = np.clip(K[n] @ dx, -clip, +clip)
+
+                # set goal positions for current waypoint
+                positions = self.remap_low_to_high(self.get_present_positions()) # low-level
+                # positions = [m.present_position for m in self.motors] # high-level
+                # apply control adjustment to waypoint targets
+                targets = positions.copy()
+                for name in enumerate(motor_names):    
+                    motor = getattr(self.robot, name)
+                    index = self.motor_index[name]
+                    targets[index] = waypoints[n][name]
+                targets = targets + du
+                # apply overshoots
+                duration = timepoints[n] - time_passed
+                goal_positions, moving_speeds = {}, {}
+                for name in motor_names:
+                    motor = getattr(self.robot, name)
+                    index = self.motor_index[name]
+                    position = positions[index]
+                    goal_positions[name] = targets[index]
+
+                    # only do overshoot if requested and before last waypoint
+                    if overshoot is None or n + 1 == len(timepoints):
+                        do_overshoot = False
+                
+                    # don't overshoot when direction changes
+                    else:
+                        current_direction = np.sign(waypoints[n][name] - position)
+                        next_direction = np.sign(waypoints[n+1][name] - waypoints[n][name])
+                        do_overshoot = (current_direction == next_direction)
+
+                    # limit speed based on target duration
+                    distance = np.fabs(goal_positions[name] - position)
+                    max_speed = distance / duration # units = degs / sec
+                    # max_speed = int(max_speed * 60. / 360. / .114) # units = .114 rotations / min
+                    max_speed = int(max_speed * 60. / 360. / ms_rpms) # units = ms_rpms rotations / min
+                    max_speed = min(max_speed, 500) # don't go too fast
+                    max_speed = max(max_speed, 1) # 0 means as fast as possible, so avoid this too
+                    moving_speeds[name] = max_speed
+
+                    # apply overshoot
+                    if do_overshoot: goal_positions[name] += overshoot * current_direction
+                    targets[index] = goal_positions[name]
+
+                    # # high-level
+                    # motor.moving_speed = moving_speeds[name]
+                    # motor.goal_position = goal_positions[name]
+
+                # low-level
+                self.set_moving_speeds(moving_speeds)
+                self.set_goal_positions(self.remap_high_to_low(goal_positions))
+
+                # busy buffer loop until current timepoint is reached
+                while True:
+                    busy_time = time.time() - start_time
+
+                    # # avoid overloading syncloop if polling high-level
+                    # if busy_time < timepoints[n]: continue
+
+                    # update buffers
+                    for key in bufkeys:
+                        if key == 'position':
+                            buffers[key].append(self.remap_low_to_high(self.get_present_positions())) # low-level, more accurate
+                            # buffers[key].append([m.present_position for m in self.motors]) # high-level
+                        else:
+                            buffers[key].append([getattr(motor, "present_" + key) for motor in self.motors])
+    
+                    # including current goal position (includes overshoot)
+                    buffers["target"].append(targets)
+    
+                    # and images if requested
+                    if binsize is not None:
+                        current_fps = num_frames / busy_time
+                        if current_fps < fps:
+                            frame = self.camera.frame[::binsize, ::binsize].copy()
+                            buffers['images'].append(frame)
+                            num_frames += 1
+                        else:
+                            buffers['images'].append(None)
+    
+                    # and finally timing
+                    time_elapsed.append(busy_time)
+    
+                    # stop when current timepoint is reached
+                    if time_elapsed[-1] > timepoints[n]: break
+
+                # next timepoint reached, update observation for next controller command
+                elapsed = np.array(time_elapsed)
+                if n == 0:
+                    t_int = np.linspace(0, timepoints[n], T)
+                    mask = elapsed <= timepoints[n]
+                else:
+                    t_int = np.linspace(timepoints[n-1], timepoints[n], T)
+                    mask = (timepoints[n-1] <= elapsed) & (elapsed <= timepoints[n])
+                for j in range(25):
+                    obs_j = [buffers["position"][m,j] for m in np.flatnonzero(mask)]
+                    observation[j] = np.interp(t_int, elapsed[mask], obs_j)
+
+        # Don't crash on loose wiring errors
+        except OSError as err:
+            print("Aborting Trajectory due to OSError!")
+            print(err) # prints blank?
+
+        finally:
+
+            # restore default interrupt handler
+            signal.signal(signal.SIGINT, default_interrupt_handler)
+
+            # save results
+            buffers = {key: np.array(buf) for (key, buf) in buffers.items()}
+            with open("traj_buf.pkl","wb") as f:
+                pk.dump((buffers, time_elapsed, waypoint_timepoints, self.motor_names), f)
+
+        # return results
+        return buffers, time_elapsed, waypoint_timepoints
+
     # small helper to set specific angles
     def goto_angles(self, angles):
         self.track_trajectory([(1., angles)])
