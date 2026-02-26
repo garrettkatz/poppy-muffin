@@ -6,16 +6,19 @@ from stitch_preanalysis import get_run_filepaths
 
 if __name__ == "__main__":
 
-    num_interp = 10 # number of interpolated timepoints
+    num_interp = 2 # number of interpolated timepoints
 
     do_chunk = False
     view_chunk = False
-    do_dyn_fit = True
+    do_dyn_fit = False
+    do_dyn_fit_pool = False
     view_dyn_fit = False
     do_cost_fit = False
     do_cost_var = False
     view_cost_var = False
-    do_lqr = True
+    do_lqr = False
+    view_lqr = False
+    view_control_deviation = True
 
     if do_chunk:
         # each observation is an interpolation of joint measurements within a waypoint window
@@ -133,13 +136,104 @@ if __name__ == "__main__":
         
         with open(f"dynfit_ni{num_interp}.pkl","wb") as f: pk.dump((linmods, residuals, norms), f)
 
+    if do_dyn_fit_pool:
+        # pool transition data across cycles
+
+        run_filepaths = get_run_filepaths()
+        with open(f"lqr_chunks_ni{num_interp}.pkl","rb") as f: (obs, cmd) = pk.load(f)
+        
+        # extract number of successful footsteps
+        _, _, stdevs, nfsteps = zip(*run_filepaths)
+        stdevs = np.array(stdevs)
+        nfsteps = np.array(nfsteps)
+        print(f"{((stdevs=="0.0") & (nfsteps == 6)).sum()} noiseless success episodes")
+
+        # flatten data for linear fits
+        X = obs.reshape(len(run_filepaths), 31, -1)
+        A = cmd.reshape(len(run_filepaths), 30, -1)
+
+        # pool across footstep cycle
+        X_pool = np.concatenate([
+            X[:,0:11],
+            X[:,10:21],
+            X[:,20:31],
+        ], axis=0)
+        A_pool = np.concatenate([
+            A[:,0:10],
+            A[:,10:20],
+            A[:,20:30],
+        ], axis=0)
+        stdevs_pool = np.concatenate([stdevs]*3)
+        success_pool = np.concatenate([
+            (nfsteps >= 2),
+            (nfsteps >= 4),
+            (nfsteps == 6),
+        ])
+
+        # get target trajectory for one cycle (average within noiseless success)
+        X0 = X_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
+        A0 = A_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
+
+        # one linear model per waypoint timestep within one cycle
+        linmods, residuals, norms = [], [], []
+        for n in range(10):
+
+            # # this strategy may use transitions farther from the nominal trajectory:
+            # # collect all chunks that definitely do not fall while executing waypoint n
+            # # example: if nfstep == 1, then fall could have happened as early as while executing 5th waypoint
+            # # so fit transitions up to 3rd->4th (executing 4th waypoint), but not 4th->5th
+            # # 4//5 < 1, but 5//5 !< 1
+            # mask = (n//5 < nfsteps)
+
+            # this strategy may limit linearization data closer to the nominal trajectory:
+            # just fit transitions within the success episodes
+            mask = success_pool
+
+            # # this strategy doesn't work since dA=0 so B_n=0:
+            # # just fit noiseless success
+            # mask = (stdevs_pool=="0.0") & success_pool
+
+            N = mask.sum() # number of datapoints for linear fit
+
+            # prepare regression data
+            X_prev = X_pool[mask, n] # observed *before* issuing waypoint n
+            A_curr = A_pool[mask, n] # now waypoint n command is issued
+            X_next = X_pool[mask, n+1] # next observations while moving to waypoint n
+            
+            # get deltas from nominal
+            dX_prev = X_prev - X0[n]
+            dA_curr = A_curr - A0[n]
+            dX_next = X_next - X0[n+1]
+
+            # do regression
+            dXA = np.concatenate([dX_prev, dA_curr], axis=1)
+            # if n == 9: # here dA_curr is zero since we never perturbed the initial joints of the cycle
+            #     pt.imshow(dXA)
+            #     pt.show()
+            linmod = np.linalg.lstsq(dXA, dX_next, rcond=None)[0]
+
+            # residual mad and norm
+            residual = np.fabs(dXA @ linmod - dX_next).mean()
+            norm = np.linalg.norm(linmod, ord=2)
+            print(f"Model {n} ({N} datapoints, {dXA.shape[1]} dimensional) {residual=:.3e}, {norm=:.3f}")
+
+            linmods.append(linmod)
+            residuals.append(residual)
+            norms.append(norm)
+        
+        with open(f"dynfit_pool_ni{num_interp}.pkl","wb") as f: pk.dump((linmods, residuals, norms), f)
+
     if view_dyn_fit:
 
         num_interps = [2,3,5,10]
         fig = pt.figure(figsize=(8,4))
         for ni in num_interps:
-            with open(f"dynfit_ni{ni}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
+            #with open(f"dynfit_ni{ni}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
+            with open(f"dynfit_pool_ni{ni}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
             
+            dim_X = ni * 25
+            print(f"{ni=}: max|B_n| = {max([np.fabs(M[dim_X:]).max() for M in linmods])}")
+
             pt.subplot(1,2,1)
             pt.plot(residuals, 'o-', label=f"K={ni}")
             
@@ -159,9 +253,32 @@ if __name__ == "__main__":
         pt.legend()
         
         pt.tight_layout()
-        pt.savefig("lqr_dyn_fit.pdf")
+        #pt.savefig("lqr_dyn_fit.pdf")
+        pt.savefig("lqr_dyn_fit_pool.pdf")
         pt.show()
-            
+        
+        # visualize transition matrices for ni
+        ni=5
+        with open(f"lqr_chunks_ni{ni}.pkl","rb") as f: (obs, cmd) = pk.load(f)
+        with open(f"dynfit_pool_ni{ni}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
+
+        # flatten data for shape
+        X = obs.reshape(len(obs), 31, -1)
+        A = cmd.reshape(len(cmd), 30, -1)
+        dim_X = X.shape[-1]
+
+        n = 3
+        print(dim_X)
+        print(linmods[n].shape)
+        A_n = linmods[n % len(linmods)][:dim_X].T
+        B_n = linmods[n % len(linmods)][dim_X:].T
+        print(f"max|B_n| = {np.fabs(B_n).max()}")
+        pt.subplot(1,2,1)
+        pt.imshow(A_n)
+        pt.subplot(1,2,2)
+        pt.imshow(B_n)
+        pt.show()
+
     if do_cost_fit:
 
         # try fitting quadratic cost on observations to fall labels
@@ -331,7 +448,8 @@ if __name__ == "__main__":
         # load data
         run_filepaths = get_run_filepaths()
         with open(f"lqr_chunks_ni{num_interp}.pkl","rb") as f: (obs, cmd) = pk.load(f)
-        with open(f"dynfit_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
+        #with open(f"dynfit_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
+        with open(f"dynfit_pool_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
         with open(f"costvar_ni{num_interp}.pkl","rb") as f: (costmods, consistencies) = pk.load(f)
 
         # flatten data at each run and timestep
@@ -349,11 +467,11 @@ if __name__ == "__main__":
         for n in reversed(range(30)):
 
             # dynamics coefficients
-            A_n = linmods[n][:dim_X].T
-            B_n = linmods[n][dim_X:].T
+            A_n = linmods[n % len(linmods)][:dim_X].T
+            B_n = linmods[n % len(linmods)][dim_X:].T
 
             # cost coefficients
-            quad, mu = costmods[n]
+            # quad, mu = costmods[n]
             # Q_n = quad[:dim_X, :dim_X]
             # R_n = quad[dim_X:, dim_X:]
             # S_n = quad[:dim_X, dim_X:]
@@ -371,5 +489,95 @@ if __name__ == "__main__":
             # check stability
             max_eigs[n] = np.abs(np.linalg.eigvals(A_n + B_n @ K[n])).max()
             print(f"Solved {n}: max eig = {max_eigs[n]}")
-            
+
+        with open(f"lqr_ni{num_interp}.pkl","wb") as f: pk.dump((K, max_eigs), f)
     
+    if view_lqr:
+
+        num_interps = [2,3,5,10]
+        fig = pt.figure(figsize=(8,4))
+        for ni in num_interps:
+            with open(f"lqr_ni{ni}.pkl","rb") as f: (K, max_eigs) = pk.load(f)
+            max_eigs = np.array([max_eigs[n] for n in sorted(max_eigs.keys())])
+            pt.plot(max_eigs, 'o-', label=f"interp={ni}")
+        
+        pt.yscale("log")
+        pt.xlabel("Waypoint timestep")
+        pt.ylabel("Max eig magnitude")
+        pt.legend()
+        
+        pt.tight_layout()
+        pt.savefig("lqr_stability.pdf")
+        pt.show()
+    
+    if view_control_deviation:
+        # visualize how far the controller's generated commands are from the ones in the success data
+
+        # load data
+        run_filepaths = get_run_filepaths()
+        with open(f"lqr_chunks_ni{num_interp}.pkl","rb") as f: (obs, cmd) = pk.load(f)
+        #with open(f"dynfit_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
+        with open(f"dynfit_pool_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
+        with open(f"costvar_ni{num_interp}.pkl","rb") as f: (costmods, consistencies) = pk.load(f)
+        with open(f"lqr_ni{num_interp}.pkl","rb") as f: (K, max_eigs) = pk.load(f)
+
+        # extract noise and success labels
+        _, _, stdevs, nfsteps = zip(*run_filepaths)
+        stdevs = np.array(stdevs)
+        nfsteps = np.array(nfsteps)
+
+        # flatten data at each run and timestep
+        X = obs.reshape(len(run_filepaths), 31, -1)
+        A = cmd.reshape(len(run_filepaths), 30, -1)
+
+        # pool across footstep cycles for nominal trajectory
+        X_pool = np.concatenate([
+            X[:,0:11],
+            X[:,10:21],
+            X[:,20:31],
+        ], axis=0)
+        A_pool = np.concatenate([
+            A[:,0:10],
+            A[:,10:20],
+            A[:,20:30],
+        ], axis=0)
+        stdevs_pool = np.concatenate([stdevs]*3)
+        success_pool = np.concatenate([
+            (nfsteps >= 2),
+            (nfsteps >= 4),
+            (nfsteps == 6),
+        ])
+
+        # get target trajectory for one cycle (average within noiseless success)
+        X0 = X_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
+        A0 = A_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
+
+        # print(K[9])
+        # input('..')
+
+        pt.figure(figsize=(8,4))
+
+        # calculate controller outputs at each datapoint
+        #mask = (stdevs_pool!="0.0") & success_pool
+        mask = np.ones(len(stdevs_pool),dtype=bool)
+        for n in range(10):
+            dA_n = (X_pool[mask,n] - X0[n]) @ K[n].T
+
+            # plot actual vs controller
+            # actual = np.linalg.norm(A_pool[mask,n] - A0[n], axis=1) 
+            # cntrol = np.linalg.norm(dA_n, axis=1)
+            actual = np.fabs(A_pool[mask,n] - A0[n]).mean(axis=1) 
+            cntrol = np.fabs(dA_n).mean(axis=1)
+            if n == 0:
+                pt.plot(n + .5*np.random.rand(len(actual)), actual, 'b.', label="dataset")
+                pt.plot(n + .5*np.random.rand(len(cntrol)), cntrol, 'r.', label="controller")
+            else:
+                pt.plot(n + .5*np.random.rand(len(actual)), actual, 'b.')
+                pt.plot(n + .5*np.random.rand(len(cntrol)), cntrol, 'r.')
+
+        pt.xlabel("Waypoint timestep")
+        pt.ylabel("Command delta MAD from noiseless (deg)")
+        pt.legend()
+        pt.tight_layout()
+        pt.savefig("lqr_ctrl.pdf")
+        pt.show()
