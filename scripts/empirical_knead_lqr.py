@@ -129,7 +129,7 @@ if __name__ == "__main__":
         _ = poppy.track_trajectory([(1., init_angs)], overshoot=1.)
         
         input("[Enter] to walk (get ready with strap)")        
-        buffers, elapsed, waypoint_timepoints = poppy.track_trajectory_lqr(
+        buffers, elapsed, waypoint_timepoints, control_adjustments = poppy.track_trajectory_lqr(
             full_traj, num_interp, Kontrollers, X0, overshoot=1., binsize=5)
 
         num_success = input("Enter number of steps without falling: ")
@@ -139,6 +139,8 @@ if __name__ == "__main__":
             pk.dump(full_traj, f)
         with open(datapath + "bufs_%02d_%s.pkl" % (counter, num_success), "wb") as f:
             pk.dump((buffers, elapsed, waypoint_timepoints, poppy.motor_names), f)
+        with open(datapath + "ctrl_%02d_%s.pkl" % (counter, num_success), "wb") as f:
+            pk.dump(control_adjustments, f)
         counter += 1
         print("%d episodes recorded." % counter)
 

@@ -419,6 +419,7 @@ class PoppyWrapper:
         if binsize is not None: buffers['images'] = []
         time_elapsed = []
         waypoint_timepoints = []
+        control_adjustments = []
 
         # preprocess trajectory
         durations, waypoints = zip(*trajectory)
@@ -447,7 +448,9 @@ class PoppyWrapper:
 
                 # otherwise, prepare new waypoint using controller and current observations
                 dx = observation.flatten() - X0[n]
-                du = np.clip(K[n] @ dx, -clip, +clip)
+                du = K[n] @ dx # raw linear control output
+                control_adjustments.append(du) # save it
+                du = np.clip(du, -clip, +clip) # clip for safety
 
                 # set goal positions for current waypoint
                 positions = self.remap_low_to_high(self.get_present_positions()) # low-level
@@ -561,7 +564,7 @@ class PoppyWrapper:
                 pk.dump((buffers, time_elapsed, waypoint_timepoints, self.motor_names), f)
 
         # return results
-        return buffers, time_elapsed, waypoint_timepoints
+        return buffers, time_elapsed, waypoint_timepoints, control_adjustments
 
     # small helper to set specific angles
     def goto_angles(self, angles):
