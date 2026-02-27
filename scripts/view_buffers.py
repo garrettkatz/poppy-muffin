@@ -4,7 +4,7 @@ import pickle as pk
 import numpy as np
 import matplotlib.pyplot as pt
 
-pt.rcParams["text.usetex"] = True
+#pt.rcParams["text.usetex"] = True
 pt.rcParams['font.family'] = 'serif'
 
 traj_name = sys.argv[1]
@@ -17,6 +17,12 @@ with open(traj_name, "rb") as f:
 ## load the data
 with open(bufs_name, "rb") as f:
     (buffers, elapsed, waytime_points, all_motor_names) = pk.load(f, encoding='latin1')
+
+if len(sys.argv) > 3:
+    ctrl_name = sys.argv[3]
+    with open(ctrl_name, "rb") as f:
+        control_adjustments = pk.load(f, encoding="latin1")
+    control_adjustments = np.array(control_adjustments)
 
 print("Average time elapsed between buffer measurements:")
 elapsed = np.array(elapsed)
@@ -42,8 +48,8 @@ targets = buffers['target']
 motor_idx = [all_motor_names.index(name) for name in ("r_hip_y", "r_knee_y", "r_ankle_y", "l_hip_x", "r_hip_x")] # mirrored
 print(motor_idx)
 
-
-# pt.subplot(2,1,1)
+if len(sys.argv) > 3:
+    pt.subplot(2,1,1)
 # pt.plot(elapsed, targets[:, motor_idx], linestyle='--', color='r', marker='+', label='Target')
 # pt.plot(schedule, planned, linestyle='-', color='b', marker='o', label='Planned')
 # pt.plot(elapsed, actuals[:, motor_idx], linestyle='-', marker='+', color='k', label='Actual')
@@ -57,11 +63,14 @@ for m in motor_idx:
 pt.ylabel('Joint Angles (deg)')
 pt.legend()
 
-# pt.subplot(2,1,2)
-# pt.plot(elapsed, actuals - targets, 'k-')
-# for m, name in enumerate(motor_names):
-#     pt.text(elapsed[0], (actuals-targets)[0, motor_idx[m]], name, color='b')
-# pt.ylabel('Actual - Target Angles (deg)')
+if len(sys.argv) > 3:
+    pt.subplot(2,1,2)
+    for m in motor_idx:
+        name = all_motor_names[m]
+        #pt.plot(schedule, planned[:,m], linestyle='-', marker='.', label=f'{name} [planned]')
+        #pt.plot(schedule, planned[:,m] + control_adjustments[:,m], linestyle='-', marker='.', label=f'{name} [control]')
+        pt.plot(schedule, control_adjustments[:,m], linestyle='-', marker='.', label=f'{name} [control adjustment]')
+        pt.ylabel('Control Adjustments (deg)')
 
 pt.xlabel("Time Elapsed (sec)")
 

@@ -3,7 +3,6 @@ import pickle as pk
 import numpy as np
 import poppy_wrapper as pw
 from empirical_knead_forward import build_angle_dicts
-from stitch_preanalysis import get_run_filepaths
 try:
     from pypot.creatures import PoppyHumanoid as PH
     from pypot.sensor import OpenCVCamera
@@ -31,21 +30,20 @@ if __name__ == "__main__":
     num_interp = 2 # for LQR controller observation
 
     # load fitted_lqr.py results
-    with open(f"lqr_ni{num_interp}.pkl","rb") as f: (Kontrollers, _) = pk.load(f)
-
-    # retrieve nominal trajectory, same as when fitting A, B in LQR
-    run_filepaths = get_run_filepaths()
-    with open(f"lqr_chunks_ni{num_interp}.pkl","rb") as f: (obs, cmd) = pk.load(f)
-
-    # extract number of successful footsteps
-    _, _, stdevs, nfsteps = zip(*run_filepaths)
+    with open("lqr_ni%d.pkl2" % num_interp,"rb") as f: (Kontrollers, _) = pk.load(f)
+    with open("lqr_metadata.pkl2","rb") as f: (stdevs, nfsteps) = pk.load(f)
+    with open("lqr_chunks_ni%d.pkl2" % num_interp,"rb") as f: (obs, cmd) = pk.load(f)
+    Kontrollers = [np.array(Kontrollers[n]) for n in sorted(Kontrollers.keys())]
     stdevs = np.array(stdevs)
     nfsteps = np.array(nfsteps)
-    #print(f"{((stdevs=="0.0") & (nfsteps == 6)).sum()} noiseless success episodes")
+    obs = np.array(obs)
+    cmd = np.array(cmd)
+
+    # retrieve nominal trajectory, same as when fitting A, B in LQR
 
     # flatten data for linear fits
-    X = obs.reshape(len(run_filepaths), 31, -1)
-    A = cmd.reshape(len(run_filepaths), 30, -1)
+    X = obs.reshape(len(stdevs), 31, -1)
+    A = cmd.reshape(len(stdevs), 30, -1)
 
     # pool across footstep cycle
     X_pool = np.concatenate([
@@ -69,8 +67,11 @@ if __name__ == "__main__":
     X0 = X_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
 
     # duplicate for multiple cycles
-    Kontrollers = [Kontrollers[n] for n in sorted(Kontrollers.keys())]
-    Kontrollers = num_cycles * Kontrollers
+    X0 = np.concatenate([X0[:-1]]*num_cycles, axis=0) # omit last timestep duplicated
+    #Kontrollers = num_cycles * Kontrollers # already done?
+
+    print("%d controllers" % len(Kontrollers))
+    print("X0.shape = " + str(X0.shape))
 
     # get current number of samples for counter
     counter = len(glob.glob(datapath + "traj_*.pkl"))
@@ -124,6 +125,7 @@ if __name__ == "__main__":
 
         # build up full trajectory with number of steps requested
         full_traj = cycle_traj * num_cycles
+        print("%d-length trajectory" % len(full_traj))
 
         input("[Enter] to goto init (suspend with strap)")
         _ = poppy.track_trajectory([(1., init_angs)], overshoot=1.)

@@ -8,6 +8,7 @@ if __name__ == "__main__":
 
     num_interp = 2 # number of interpolated timepoints
 
+    do_metadata = True
     do_chunk = False
     view_chunk = False
     do_dyn_fit = False
@@ -18,7 +19,15 @@ if __name__ == "__main__":
     view_cost_var = False
     do_lqr = False
     view_lqr = False
-    view_control_deviation = True
+    view_control_deviation = False
+    do_repickle = True
+
+    if do_metadata:
+        run_filepaths = get_run_filepaths()
+        _, _, stdevs, nfsteps = zip(*run_filepaths)
+        stdevs = np.array(stdevs)
+        nfsteps = np.array(nfsteps)
+        with open("lqr_metadata.pkl","wb") as f: pk.dump((stdevs, nfsteps), f)
 
     if do_chunk:
         # each observation is an interpolation of joint measurements within a waypoint window
@@ -581,3 +590,22 @@ if __name__ == "__main__":
         pt.tight_layout()
         pt.savefig("lqr_ctrl.pdf")
         pt.show()
+    
+    if do_repickle:
+        # pickle with protocol 2 and lists for poppy hardware
+
+        with open("lqr_ni%d.pkl" % num_interp,"rb") as f: (Kontrollers, max_eigs) = pk.load(f)
+        Kontrollers = {n: K.tolist() for n,K in Kontrollers.items()}
+        max_eigs = {n:M.tolist() for n,M in max_eigs.items()}
+        with open("lqr_ni%d.pkl2" % num_interp,"wb") as f: pk.dump((Kontrollers, max_eigs), f, protocol=2)
+
+        with open("lqr_metadata.pkl","rb") as f: (stdevs, nfsteps) = pk.load(f)
+        stdevs = stdevs.tolist()
+        nfsteps = nfsteps.tolist()
+        print(nfsteps[0], type(nfsteps[0]))
+        with open("lqr_metadata.pkl2","wb") as f: pk.dump((stdevs, nfsteps), f, protocol=2)
+
+        with open("lqr_chunks_ni%d.pkl" % num_interp,"rb") as f: (obs, cmd) = pk.load(f)
+        obs = obs.tolist()
+        cmd = cmd.tolist()
+        with open("lqr_chunks_ni%d.pkl2" % num_interp,"wb") as f: pk.dump((obs, cmd), f, protocol=2)

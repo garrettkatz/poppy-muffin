@@ -448,7 +448,7 @@ class PoppyWrapper:
 
                 # otherwise, prepare new waypoint using controller and current observations
                 dx = observation.flatten() - X0[n]
-                du = K[n] @ dx # raw linear control output
+                du = (K[n] * dx).sum(axis=1) # raw linear control output
                 control_adjustments.append(du) # save it
                 du = np.clip(du, -clip, +clip) # clip for safety
 
@@ -457,7 +457,7 @@ class PoppyWrapper:
                 # positions = [m.present_position for m in self.motors] # high-level
                 # apply control adjustment to waypoint targets
                 targets = positions.copy()
-                for name in enumerate(motor_names):    
+                for name in motor_names:
                     motor = getattr(self.robot, name)
                     index = self.motor_index[name]
                     targets[index] = waypoints[n][name]
@@ -545,7 +545,7 @@ class PoppyWrapper:
                     t_int = np.linspace(timepoints[n-1], timepoints[n], T)
                     mask = (timepoints[n-1] <= elapsed) & (elapsed <= timepoints[n])
                 for j in range(25):
-                    obs_j = [buffers["position"][m,j] for m in np.flatnonzero(mask)]
+                    obs_j = [buffers["position"][m][j] for m in np.flatnonzero(mask)]
                     observation[j] = np.interp(t_int, elapsed[mask], obs_j)
 
         # Don't crash on loose wiring errors
