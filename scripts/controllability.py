@@ -11,7 +11,8 @@ for i, suffix in enumerate(["0.0", "*"]):
 
     # histogram number of successful steps in the stdev 0 walk data
     num_success_data = []
-    path = os.path.join(os.path.expanduser("~"), "Downloads", "poppy_walk_data", "*stdev" + suffix)
+    path = os.path.join(os.path.expanduser("~"), "Downloads", "poppy_walk_data", "*stdev" + suffix) # all envs
+    #path = os.path.join(os.path.expanduser("~"), "Downloads", "poppy_walk_data", "2025_03*stdev" + suffix) # office only
     folders = glob.glob(path)
     buf_files = []
     for folder in folders:
@@ -20,6 +21,7 @@ for i, suffix in enumerate(["0.0", "*"]):
             # filename format is traj_<n>_<num_success>.pkl for the nth episode
             num_successes = int(traj_file[traj_file.rfind("_")+1:-4])
             num_success_data.append(num_successes)
+            if suffix == "0.0": print(num_successes)
     
             # save buf file paths for loading later
             buf_file = traj_file.replace("traj", "bufs")
