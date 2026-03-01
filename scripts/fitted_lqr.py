@@ -8,19 +8,38 @@ if __name__ == "__main__":
 
     num_interp = 2 # number of interpolated timepoints
 
-    do_metadata = True
+    do_cvx_psd = True # whether to enforce PSD in cvx cost
+    do_cvx_sym = False # whether to enforce symmetric in cvx cost
+    cvx_margin = -3. # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
+    solver = cp.CLARABEL # solver to use
+    do_lqr_lc = True # whether to use learned costs for lqr
+    only_x = False # whether to include A in cvx cost
+    avg_n = True # whether to average cost over time for cvx constraint
+
+    # # these still achieves strict p.d. and stability
+    # do_cvx_psd = True # whether to enforce PSD in cvx cost
+    # do_cvx_sym = False # whether to enforce symmetric in cvx cost
+    # cvx_margin = -.5 # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
+    # solver = cp.CLARABEL # solver to use
+    # do_lqr_lc = True # whether to use learned costs for lqr
+    # only_x = True # whether to include A in cvx cost
+    # avg_n = True # whether to average cost over time for cvx constraint
+
+    do_metadata = False
     do_chunk = False
     view_chunk = False
     do_dyn_fit = False
     do_dyn_fit_pool = False
     view_dyn_fit = False
+    do_cost_cvx = True
     do_cost_fit = False
     do_cost_var = False
     view_cost_var = False
-    do_lqr = False
-    view_lqr = False
-    view_control_deviation = False
-    do_repickle = True
+    view_cost_cvx = True
+    do_lqr = True
+    view_lqr = True
+    view_control_deviation = True
+    do_repickle = False
 
     if do_metadata:
         run_filepaths = get_run_filepaths()
@@ -155,7 +174,7 @@ if __name__ == "__main__":
         _, _, stdevs, nfsteps = zip(*run_filepaths)
         stdevs = np.array(stdevs)
         nfsteps = np.array(nfsteps)
-        print(f"{((stdevs=="0.0") & (nfsteps == 6)).sum()} noiseless success episodes")
+        print(f"{((stdevs=='0.0') & (nfsteps == 6)).sum()} noiseless success episodes")
 
         # flatten data for linear fits
         X = obs.reshape(len(run_filepaths), 31, -1)
@@ -287,6 +306,230 @@ if __name__ == "__main__":
         pt.subplot(1,2,2)
         pt.imshow(B_n)
         pt.show()
+
+    if do_cost_cvx:
+        # objective: min dist to identity
+        # constraints: higher cost on falls than success, PSD
+
+        # load in data
+        run_filepaths = get_run_filepaths()
+        with open(f"lqr_chunks_ni{num_interp}.pkl","rb") as f: (obs, cmd) = pk.load(f)
+
+        _, _, stdevs, nfsteps = zip(*run_filepaths)
+        stdevs = np.array(stdevs)
+        nfsteps = np.array(nfsteps)
+
+        # flatten data
+        X = obs.reshape(len(run_filepaths), 31, -1)
+        A = cmd.reshape(len(run_filepaths), 30, -1)
+        dim_X = X.shape[-1]
+        dim_A = A.shape[-1]
+        dim_XA = dim_X + dim_A
+
+        # pool across footstep cycle
+        X_pool = np.concatenate([
+            X[:,0:10],
+            X[:,10:20],
+            X[:,20:30],
+        ], axis=0)
+        A_pool = np.concatenate([
+            A[:,0:10],
+            A[:,10:20],
+            A[:,20:30],
+        ], axis=0)
+        stdevs_pool = np.concatenate([stdevs]*3)
+        success_pool = np.concatenate([
+            (nfsteps >= 2),
+            (nfsteps >= 4),
+            (nfsteps == 6),
+        ])
+
+        # get nominal trajectory from pooled cycles (average within noiseless success)
+        X0 = X_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
+        A0 = A_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
+
+        # duplicate back to full data length for residuals
+        X0 = np.concatenate([X0]*3 + [X0[:1]], axis=0)
+        A0 = np.concatenate([A0]*3, axis=0)
+        dX = X - X0
+        dA = A - A0
+
+        if only_x:
+
+            ## only X
+    
+            # setup optimization variables
+            C = [cp.Variable((dim_X,)*2, PSD=do_cvx_psd, symmetric=do_cvx_sym) for _ in range(10)] # cost matrices
+            d = cp.Variable() # success/fall threshold
+    
+            # setup objective
+            objective = cp.sum_squares(cp.hstack([C[n] - np.eye(dim_X) for n in range(10)]))
+    
+            # setup constraints
+            constraints = []
+            for r, dx in enumerate(dX):
+                n_F = 5 * nfsteps[r]
+    
+                cost = cp.quad_form(dx[n_F], C[n_F % 10], assume_PSD=do_cvx_psd)
+                for n in range(n_F):
+                    cost = cost + cp.quad_form(dx[n], C[n % 10], assume_PSD=do_cvx_psd)
+    
+                # average over timesteps?
+                if avg_n: cost = cost / (n_F+1)
+    
+                if nfsteps[r] < 6:
+                    constraints.append(cost >= d + cvx_margin)
+                else:
+                    constraints.append(cost <= d - cvx_margin)
+
+        else:
+
+            ## full XA
+    
+            # setup optimization variables
+            C = [cp.Variable((dim_XA,)*2, PSD=do_cvx_psd, symmetric=do_cvx_sym) for _ in range(10)] # cost matrices
+            d = cp.Variable() # success/fall threshold
+    
+            # setup objective
+            objective = cp.sum_squares(cp.hstack([C[n] - np.eye(dim_XA) for n in range(10)]))
+    
+            # setup constraints
+            constraints = []
+            for r, (dx, da) in enumerate(zip(dX, dA)):
+                n_F = 5 * nfsteps[r]
+                dxa = np.concatenate([dx[:n_F], da[:n_F]], axis=-1)
+    
+                cost = cp.quad_form(dx[n_F], C[n_F % 10][:dim_X, :dim_X], assume_PSD=do_cvx_psd)
+                for n in range(n_F):
+                    cost = cost + cp.quad_form(dxa[n], C[n % 10], assume_PSD=do_cvx_psd)
+
+                # average over timesteps?
+                if avg_n: cost = cost / (n_F+1)
+    
+                if nfsteps[r] < 6:
+                    constraints.append(cost >= d + cvx_margin)
+                else:
+                    constraints.append(cost <= d - cvx_margin)
+
+        # solve problem
+        prob = cp.Problem(cp.Minimize(objective), constraints)
+        # prob = cp.Problem(cp.Minimize(objective), constraints=[]) # sanity check
+        prob.solve(verbose=True, solver=solver)
+
+        # save results
+        C = [C[n].value for n in range(10)]
+        with open(f"costcvx_ni{num_interp}.pkl","wb") as f: pk.dump(C, f)
+
+    if view_cost_cvx:
+
+        with open(f"costcvx_ni{num_interp}.pkl","rb") as f: C = pk.load(f)
+
+        # check results
+        max_sym_dev = -np.inf
+        min_min_eig = np.inf
+        for n in range(10):
+            print(f"{n=}:")
+            print(f"sym violation = {np.fabs(C[n] - C[n].T).max()}")
+
+            eigs = np.linalg.eigvals(C[n])
+            print(f"psd min eig = {eigs.min()} >= 0?")
+
+            max_sym_dev = max(max_sym_dev, np.fabs(C[n] - C[n].T).max())
+            min_min_eig = min(min_min_eig, eigs.min())
+
+            # pt.subplot(1,2,1)
+            # pt.imshow(C[n])
+            # pt.subplot(1,2,2)
+            # pt.plot(sorted(eigs))
+            # pt.show()
+            print("smallest eigs:")
+            print(sorted(eigs)[:3])
+
+        print(f"smallest eig over n = {min_min_eig}, max sym dev over n = {max_sym_dev}")
+
+        # calculate costs on the runs
+
+        # load in data
+        run_filepaths = get_run_filepaths()
+        with open(f"lqr_chunks_ni{num_interp}.pkl","rb") as f: (obs, cmd) = pk.load(f)
+
+        _, _, stdevs, nfsteps = zip(*run_filepaths)
+        stdevs = np.array(stdevs)
+        nfsteps = np.array(nfsteps)
+
+        # flatten data
+        X = obs.reshape(len(run_filepaths), 31, -1)
+        A = cmd.reshape(len(run_filepaths), 30, -1)
+        dim_X = X.shape[-1]
+        dim_A = A.shape[-1]
+        dim_XA = dim_X + dim_A
+
+        # pool across footstep cycle
+        X_pool = np.concatenate([
+            X[:,0:10],
+            X[:,10:20],
+            X[:,20:30],
+        ], axis=0)
+        A_pool = np.concatenate([
+            A[:,0:10],
+            A[:,10:20],
+            A[:,20:30],
+        ], axis=0)
+        stdevs_pool = np.concatenate([stdevs]*3)
+        success_pool = np.concatenate([
+            (nfsteps >= 2),
+            (nfsteps >= 4),
+            (nfsteps == 6),
+        ])
+
+        # get nominal trajectory from pooled cycles (average within noiseless success)
+        X0 = X_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
+        A0 = A_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
+
+        # duplicate back to full data length for residuals
+        X0 = np.concatenate([X0]*3 + [X0[:1]], axis=0)
+        A0 = np.concatenate([A0]*3, axis=0)
+        dX = X - X0
+        dA = A - A0
+
+        # get total costs on each run
+        costs = np.empty(len(dX))
+        if only_x:
+            for r, dx in enumerate(dX):
+                n_F = 5 * nfsteps[r]
+    
+                costs[r] = dx[n_F] @ C[n_F % 10] @ dx[n_F]
+                for n in range(n_F):
+                    costs[r] += dx[n].T @ C[n % 10] @ dx[n]
+
+                if avg_n: costs[r] /= (n_F + 1)
+
+        else:
+            for r, (dx, da) in enumerate(zip(dX, dA)):
+                n_F = 5 * nfsteps[r]
+
+                dxa = np.concatenate([dx[:n_F], da[:n_F]], axis=-1)
+    
+                costs[r] = dx[n_F] @ C[n_F % 10][:dim_X, :dim_X] @ dx[n_F]
+                for n in range(n_F):
+                    costs[r] += dxa[n].T @ C[n % 10] @ dxa[n]
+
+                if avg_n: costs[r] /= (n_F + 1)
+
+        print(f"success cost <= {costs[nfsteps==6].max():.3f}, {costs[nfsteps<6].min():.3f} <= fall cost")
+
+        pt.subplot(1,2,1)
+        pt.hist(costs[nfsteps == 6], ec='k', fc='b')
+        pt.title("Success")
+        pt.subplot(1,2,2)
+        pt.hist(costs[nfsteps < 6], ec='k', fc='r')
+        pt.title("Fall")
+        pt.show()
+
+        # costmod = Q.value
+        # residual = (objective.value / len(costs))**.5
+        # print(f"Problem status = {prob.status}, rmse={residual}")
+
 
     if do_cost_fit:
 
@@ -459,7 +702,9 @@ if __name__ == "__main__":
         with open(f"lqr_chunks_ni{num_interp}.pkl","rb") as f: (obs, cmd) = pk.load(f)
         #with open(f"dynfit_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
         with open(f"dynfit_pool_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
-        with open(f"costvar_ni{num_interp}.pkl","rb") as f: (costmods, consistencies) = pk.load(f)
+        if do_lqr_lc:
+            # with open(f"costvar_ni{num_interp}.pkl","rb") as f: (costmods, consistencies) = pk.load(f)
+            with open(f"costcvx_ni{num_interp}.pkl","rb") as f: C = pk.load(f)
 
         # flatten data at each run and timestep
         X = obs.reshape(len(run_filepaths), 31, -1)
@@ -468,11 +713,18 @@ if __name__ == "__main__":
         dim_A = A.shape[2]
 
         # final time-step cost
-        P = {30: np.eye(X.shape[2])}
+        if do_lqr_lc:
+            if only_x:
+                P = {30: C[0]}
+            else:
+                P = {30: C[0][:dim_X,:dim_X]}
+        else:
+            P = {30: np.eye(X.shape[2])}
         K = {}
 
         # backwards solve
         max_eigs = {}
+        max_eigs_open = {}
         for n in reversed(range(30)):
 
             # dynamics coefficients
@@ -486,9 +738,19 @@ if __name__ == "__main__":
             # S_n = quad[:dim_X, dim_X:]
 
             # sanity check, still can give eigs > 1
-            Q_n = np.eye(dim_X)
-            R_n = np.eye(dim_A)
-            S_n = np.zeros((dim_X, dim_A))
+            if do_lqr_lc:
+                if only_x:
+                    Q_n = C[n % 10]
+                    R_n = np.eye(dim_A)
+                    S_n = np.zeros((dim_X, dim_A))
+                else:
+                    Q_n = C[n % 10][:dim_X, :dim_X]
+                    R_n = C[n % 10][dim_X:, dim_X:]
+                    S_n = C[n % 10][:dim_X, dim_X:]
+            else:
+                Q_n = np.eye(dim_X)
+                R_n = np.eye(dim_A)
+                S_n = np.zeros((dim_X, dim_A))
 
             # X = inv(A) * B <-> AX = B
             K[n] = - np.linalg.lstsq(R_n + B_n.T @ P[n+1] @ B_n, B_n.T @ P[n+1] @ A_n + S_n.T, rcond=None)[0]
@@ -497,17 +759,20 @@ if __name__ == "__main__":
 
             # check stability
             max_eigs[n] = np.abs(np.linalg.eigvals(A_n + B_n @ K[n])).max()
-            print(f"Solved {n}: max eig = {max_eigs[n]}")
+            max_eigs_open[n] = np.abs(np.linalg.eigvals(A_n)).max()
+            print(f"Solved {n}: max eig = {max_eigs[n]} (vs {max_eigs_open[n]} open loop)")
 
-        with open(f"lqr_ni{num_interp}.pkl","wb") as f: pk.dump((K, max_eigs), f)
+        with open(f"lqr_ni{num_interp}.pkl","wb") as f: pk.dump((K, max_eigs, max_eigs_open), f)
     
     if view_lqr:
 
-        num_interps = [2,3,5,10]
+        num_interps = [2]#[2,3,5,10]
         fig = pt.figure(figsize=(8,4))
         for ni in num_interps:
-            with open(f"lqr_ni{ni}.pkl","rb") as f: (K, max_eigs) = pk.load(f)
+            with open(f"lqr_ni{ni}.pkl","rb") as f: (K, max_eigs, max_eigs_open) = pk.load(f)
             max_eigs = np.array([max_eigs[n] for n in sorted(max_eigs.keys())])
+            max_eigs_open = np.array([max_eigs_open[n] for n in sorted(max_eigs_open.keys())])
+            for n in range(len(max_eigs)): print(f"{ni=}, {n=}: eig prod = {np.prod(max_eigs[:n+1])} (vs {np.prod(max_eigs_open[:n+1])} open)")
             pt.plot(max_eigs, 'o-', label=f"interp={ni}")
         
         pt.yscale("log")
@@ -527,8 +792,8 @@ if __name__ == "__main__":
         with open(f"lqr_chunks_ni{num_interp}.pkl","rb") as f: (obs, cmd) = pk.load(f)
         #with open(f"dynfit_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
         with open(f"dynfit_pool_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
-        with open(f"costvar_ni{num_interp}.pkl","rb") as f: (costmods, consistencies) = pk.load(f)
-        with open(f"lqr_ni{num_interp}.pkl","rb") as f: (K, max_eigs) = pk.load(f)
+        # with open(f"costvar_ni{num_interp}.pkl","rb") as f: (costmods, consistencies) = pk.load(f)
+        with open(f"lqr_ni{num_interp}.pkl","rb") as f: (K, max_eigs, _) = pk.load(f)
 
         # extract noise and success labels
         _, _, stdevs, nfsteps = zip(*run_filepaths)
@@ -594,7 +859,7 @@ if __name__ == "__main__":
     if do_repickle:
         # pickle with protocol 2 and lists for poppy hardware
 
-        with open("lqr_ni%d.pkl" % num_interp,"rb") as f: (Kontrollers, max_eigs) = pk.load(f)
+        with open("lqr_ni%d.pkl" % num_interp,"rb") as f: (Kontrollers, max_eigs, _) = pk.load(f)
         Kontrollers = {n: K.tolist() for n,K in Kontrollers.items()}
         max_eigs = {n:M.tolist() for n,M in max_eigs.items()}
         with open("lqr_ni%d.pkl2" % num_interp,"wb") as f: pk.dump((Kontrollers, max_eigs), f, protocol=2)
