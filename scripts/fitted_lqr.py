@@ -10,13 +10,22 @@ if __name__ == "__main__":
 
     do_cvx_psd = True # whether to enforce PSD in cvx cost
     do_cvx_sym = False # whether to enforce symmetric in cvx cost
-    cvx_margin = -3. # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
+    cvx_margin = -2. # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
     solver = cp.CLARABEL # solver to use
     do_lqr_lc = True # whether to use learned costs for lqr
     only_x = False # whether to include A in cvx cost
     avg_n = True # whether to average cost over time for cvx constraint
 
-    # # these still achieves strict p.d. and stability
+    # # these still achieve strict p.d. and stability
+    # do_cvx_psd = True # whether to enforce PSD in cvx cost
+    # do_cvx_sym = False # whether to enforce symmetric in cvx cost
+    # cvx_margin = -1. # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
+    # solver = cp.CLARABEL # solver to use
+    # do_lqr_lc = True # whether to use learned costs for lqr
+    # only_x = False # whether to include A in cvx cost
+    # avg_n = True # whether to average cost over time for cvx constraint
+
+    # # these still achieve strict p.d. and stability
     # do_cvx_psd = True # whether to enforce PSD in cvx cost
     # do_cvx_sym = False # whether to enforce symmetric in cvx cost
     # cvx_margin = -.5 # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
