@@ -13,7 +13,7 @@ if __name__ == "__main__":
     cvx_margin = -2. # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
     solver = cp.CLARABEL # solver to use
     do_lqr_lc = True # whether to use learned costs for lqr
-    only_x = False # whether to include A in cvx cost
+    only_x = False # whether to exclude A from cvx cost
     avg_n = True # whether to average cost over time for cvx constraint
 
     # # these still achieve strict p.d. and stability
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     do_chunk = False
     view_chunk = False
     do_dyn_fit = False
-    do_dyn_fit_pool = False
+    do_dyn_fit_pool = True
     view_dyn_fit = False
     do_cost_cvx = True
     do_cost_fit = False
@@ -48,7 +48,7 @@ if __name__ == "__main__":
     do_lqr = True
     view_lqr = True
     view_control_deviation = True
-    do_repickle = False
+    do_repickle = True
 
     if do_metadata:
         run_filepaths = get_run_filepaths()

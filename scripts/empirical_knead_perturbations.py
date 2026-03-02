@@ -26,6 +26,7 @@ if __name__ == "__main__":
     right_params = (12, 2, 10, 4, 12, -3, 8, -5, 3, 0)
     l_hip_y_0 = -3
     noise_stdev = 0.0 # 0.125 # deg
+    do_viz = False # whether to use camera
     datapath = "empirical_knead_perturbations/"
 
     # get current number of samples for counter
@@ -33,7 +34,7 @@ if __name__ == "__main__":
     print("starting counter from %d" % counter)
 
     # init robot
-    poppy = pw.PoppyWrapper(PH(), OpenCVCamera("poppy-cam", 0, 24))
+    poppy = pw.PoppyWrapper(PH(), (OpenCVCamera("poppy-cam", 0, 24) if do_viz else None))
     
     # PID tuning
     K_p, K_i, K_d = 8.0, 0.0, 0.0
@@ -94,7 +95,7 @@ if __name__ == "__main__":
         _ = poppy.track_trajectory([(1., init_angs)], overshoot=1.)
         
         input("[Enter] to walk (get ready with strap)")        
-        buffers, elapsed, waypoint_timepoints = poppy.track_trajectory(perturbed_traj, overshoot=1., binsize=5)
+        buffers, elapsed, waypoint_timepoints = poppy.track_trajectory(perturbed_traj, overshoot=1., binsize=(5 if do_viz else None))
 
         num_success = input("Enter number of steps without falling: ")
 
