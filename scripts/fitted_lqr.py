@@ -4,6 +4,8 @@ import matplotlib.pyplot as pt
 import cvxpy as cp
 from stitch_preanalysis import get_run_filepaths
 
+pt.rcParams["font.family"] = "serif"
+
 if __name__ == "__main__":
 
     num_interp = 2 # number of interpolated timepoints
@@ -38,17 +40,17 @@ if __name__ == "__main__":
     do_chunk = False
     view_chunk = False
     do_dyn_fit = False
-    do_dyn_fit_pool = True
+    do_dyn_fit_pool = False
     view_dyn_fit = False
-    do_cost_cvx = True
+    do_cost_cvx = False
     do_cost_fit = False
     do_cost_var = False
     view_cost_var = False
     view_cost_cvx = True
-    do_lqr = True
-    view_lqr = True
-    view_control_deviation = True
-    do_repickle = True
+    do_lqr = False
+    view_lqr = False
+    view_control_deviation = False
+    do_repickle = False
 
     if do_metadata:
         run_filepaths = get_run_filepaths()
@@ -212,7 +214,7 @@ if __name__ == "__main__":
         A0 = A_pool[(stdevs_pool=="0.0") & success_pool].mean(axis=0)
 
         # one linear model per waypoint timestep within one cycle
-        linmods, residuals, norms = [], [], []
+        linmods, residuals, conds = [], [], []
         for n in range(10):
 
             # # this strategy may use transitions farther from the nominal trajectory:
@@ -251,41 +253,46 @@ if __name__ == "__main__":
 
             # residual mad and norm
             residual = np.fabs(dXA @ linmod - dX_next).mean()
-            norm = np.linalg.norm(linmod, ord=2)
-            print(f"Model {n} ({N} datapoints, {dXA.shape[1]} dimensional) {residual=:.3e}, {norm=:.3f}")
+            # norm = np.linalg.norm(linmod, ord=2)
+            # print(f"Model {n} ({N} datapoints, {dXA.shape[1]} dimensional) {residual=:.3e}, {norm=:.3f}")
+            cond = np.linalg.cond(linmod)
+            print(f"Model {n} ({N} datapoints, {dXA.shape[1]} dimensional) {residual=:.3e}, {cond=:.3f}")
 
             linmods.append(linmod)
             residuals.append(residual)
-            norms.append(norm)
+            conds.append(cond)
         
-        with open(f"dynfit_pool_ni{num_interp}.pkl","wb") as f: pk.dump((linmods, residuals, norms), f)
+        with open(f"dynfit_pool_ni{num_interp}.pkl","wb") as f: pk.dump((linmods, residuals, conds), f)
 
     if view_dyn_fit:
 
-        num_interps = [2,3,5,10]
-        fig = pt.figure(figsize=(8,4))
+        num_interps = [2,3,5]
+        fig = pt.figure(figsize=(10,4))
+        markers = {2: 'o', 3: '^', 5: 'x'}
         for ni in num_interps:
             #with open(f"dynfit_ni{ni}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
-            with open(f"dynfit_pool_ni{ni}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
+            with open(f"dynfit_pool_ni{ni}.pkl","rb") as f: (linmods, residuals, conds) = pk.load(f)
             
             dim_X = ni * 25
             print(f"{ni=}: max|B_n| = {max([np.fabs(M[dim_X:]).max() for M in linmods])}")
 
             pt.subplot(1,2,1)
-            pt.plot(residuals, 'o-', label=f"K={ni}")
+            pt.plot(residuals, markers[ni]+'-', label=r"$\bar{M}$" + f"={ni}")
             
             pt.subplot(1,2,2)
-            pt.plot(norms, 'o-', label=f"K={ni}")
+            # pt.plot(norms, markers[ni]+'-', label=r"$\bar{M}$" + f"={ni}")
+            pt.plot(conds, markers[ni]+'-', label=r"$\bar{M}$" + f"={ni}")
         
-        fig.supxlabel("waypoint timestep")
+        fig.supxlabel("Waypoint Timestep (One Cycle)")
         
         pt.subplot(1,2,1)
-        pt.title("MAD residual")
+        pt.title("Mean Absolute Deviation (deg)")
         pt.yscale("log")
-        pt.legend()
+        #pt.legend()
         
         pt.subplot(1,2,2)
-        pt.title("Matrix 2-norm")
+        #pt.title("Matrix 2-norm")
+        pt.title("Condition Number")
         pt.yscale("log")
         pt.legend()
         
