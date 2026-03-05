@@ -18,10 +18,10 @@ if __name__ == "__main__":
     only_x = False # whether to exclude A from cvx cost
     avg_n = True # whether to average cost over time for cvx constraint
 
-    # # these still achieve strict p.d. and stability
+    # # these still achieve strict p.d. and stability, used for hardware experiments
     # do_cvx_psd = True # whether to enforce PSD in cvx cost
     # do_cvx_sym = False # whether to enforce symmetric in cvx cost
-    # cvx_margin = -1. # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
+    # cvx_margin = -2. # margin for fall/success boundary (negative allows some slack, important for strictly pos-def)
     # solver = cp.CLARABEL # solver to use
     # do_lqr_lc = True # whether to use learned costs for lqr
     # only_x = False # whether to include A in cvx cost
@@ -46,8 +46,8 @@ if __name__ == "__main__":
     do_cost_fit = False
     do_cost_var = False
     view_cost_var = False
-    view_cost_cvx = True
-    do_lqr = False
+    view_cost_cvx = False
+    do_lqr = True
     view_lqr = False
     view_control_deviation = False
     do_repickle = False
@@ -434,11 +434,11 @@ if __name__ == "__main__":
 
         # save results
         C = [C[n].value for n in range(10)]
-        with open(f"costcvx_ni{num_interp}.pkl","wb") as f: pk.dump(C, f)
+        with open(f"costcvx_ni{num_interp}_eps{cvx_margin}.pkl","wb") as f: pk.dump(C, f)
 
     if view_cost_cvx:
 
-        with open(f"costcvx_ni{num_interp}.pkl","rb") as f: C = pk.load(f)
+        with open(f"costcvx_ni{num_interp}_eps{cvx_margin}.pkl","rb") as f: C = pk.load(f)
 
         # check results
         max_sym_dev = -np.inf
@@ -720,7 +720,7 @@ if __name__ == "__main__":
         with open(f"dynfit_pool_ni{num_interp}.pkl","rb") as f: (linmods, residuals, norms) = pk.load(f)
         if do_lqr_lc:
             # with open(f"costvar_ni{num_interp}.pkl","rb") as f: (costmods, consistencies) = pk.load(f)
-            with open(f"costcvx_ni{num_interp}.pkl","rb") as f: C = pk.load(f)
+            with open(f"costcvx_ni{num_interp}_eps{cvx_margin}.pkl","rb") as f: C = pk.load(f)
 
         # flatten data at each run and timestep
         X = obs.reshape(len(run_filepaths), 31, -1)
@@ -779,13 +779,14 @@ if __name__ == "__main__":
             print(f"Solved {n}: max eig = {max_eigs[n]} (vs {max_eigs_open[n]} open loop)")
 
         with open(f"lqr_ni{num_interp}.pkl","wb") as f: pk.dump((K, max_eigs, max_eigs_open), f)
+        with open(f"lqr_ni{num_interp}_eps{cvx_margin}.pkl","wb") as f: pk.dump((K, max_eigs, max_eigs_open), f)
     
     if view_lqr:
 
         num_interps = [2]#[2,3,5,10]
         fig = pt.figure(figsize=(8,4))
         for ni in num_interps:
-            with open(f"lqr_ni{ni}.pkl","rb") as f: (K, max_eigs, max_eigs_open) = pk.load(f)
+            with open(f"lqr_ni{ni}_eps{cvx_margin}.pkl","rb") as f: (K, max_eigs, max_eigs_open) = pk.load(f)
             max_eigs = np.array([max_eigs[n] for n in sorted(max_eigs.keys())])
             max_eigs_open = np.array([max_eigs_open[n] for n in sorted(max_eigs_open.keys())])
             for n in range(len(max_eigs)): print(f"{ni=}, {n=}: eig prod = {np.prod(max_eigs[:n+1])} (vs {np.prod(max_eigs_open[:n+1])} open)")

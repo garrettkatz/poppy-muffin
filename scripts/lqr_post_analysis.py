@@ -22,12 +22,12 @@ for suffix in ("ol","lqr"):
 U1, p_val = mannwhitneyu(num_successes["ol"], num_successes["lqr"], method="asymptotic", alternative="less")
 print(f"Mann-Whitney U test (asymptotic): {U1=}, {p_val=}")
 
-U1, p_val = mannwhitneyu(num_successes["ol"], num_successes["lqr"], method="exact", alternative="less")
-print(f"Mann-Whitney U test (exact, does not correct for ties): {U1=}, {p_val=}")
+# U1, p_val = mannwhitneyu(num_successes["ol"]==6, num_successes["lqr"]==6, method="exact", alternative="less")
+# print(f"Mann-Whitney U test (exact, does not correct for ties): {U1=}, {p_val=}")
 
 
-data = [num_successes["ol"], num_successes["lqr"]]
-def statistic(x, y, axis):
-    return np.mean(x, axis=axis) - np.mean(y, axis=axis)
-res = permutation_test(data, statistic, permutation_type='independent', alternative='less')
-print(f"permutation test pval={res.pvalue}")
+# data = [num_successes["ol"], num_successes["lqr"]]
+# def statistic(x, y, axis):
+#     return np.mean(x, axis=axis) - np.mean(y, axis=axis)
+# res = permutation_test(data, statistic, permutation_type='independent', alternative='less')
+# print(f"permutation test pval={res.pvalue}")
