@@ -11,5 +11,6 @@ scp \
     empirical_knead_forward.py \
     empirical_knead_perturbations.py \
     empirical_knead_search.py \
+    ilxr_rollout.py \
     poppy@poppy.local:scripts/
 

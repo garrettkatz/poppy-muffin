@@ -26,7 +26,7 @@ if __name__ == "__main__":
     right_params = (12, 2, 10, 4, 12, -3, 8, -5, 3, 0)
     l_hip_y_0 = -3
     noise_stdev = 0.0 # 0.125 # deg
-    do_viz = False # whether to use camera
+    do_viz = True # whether to use camera
     do_nominal = True # whether to use nominal vs closed-loop controllers
     clip_halfwidth = .1 # +/- clip amount around controller bias terms
     datapath = "ilxr_rollouts/"
@@ -95,19 +95,18 @@ if __name__ == "__main__":
             (durations, controllers, clip) = pk.load(f)
         print("loaded %d controllers" % len(controllers))
 
+    # build up full trajectory with number of steps requested
+    controllers = controllers * num_cycles
+    durations = durations * num_cycles
+    clip = clip * num_cycles
+    print("%d-length trajectory" % len(controllers))
+
+
     # collect data
     input("[Enter] to enable torques")
     poppy.enable_torques()
 
     while True:
-
-        # build up full trajectory with number of steps requested
-        # full_traj = cycle_traj * num_cycles
-        # print("%d-length trajectory" % len(full_traj))
-        controllers = controllers * num_cycles
-        durations = durations * num_cycles
-        clip = clip * num_cycles
-        print("%d-length trajectory" % len(controllers))
 
         input("[Enter] to goto init (suspend with strap)")
         _ = poppy.track_trajectory([(1., init_angs)], overshoot=1.)
@@ -119,7 +118,12 @@ if __name__ == "__main__":
         while True:
             try:
                 low_quality = input("Enter comma-separated zero-based indices of low-quality footsteps before fall: ")
-                low_quality = list(map(int, low_quality.split(",")))
+                if low_quality == "":
+                    low_quality = []
+                elif "," not in low_quality:
+                    low_quality = [int(low_quality)]
+                else:
+                    low_quality = list(map(int, low_quality.split(",")))
                 break
             except:
                 print("wrong format, try again")

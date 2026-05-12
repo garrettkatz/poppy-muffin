@@ -617,7 +617,10 @@ class PoppyWrapper:
         positions = self.remap_low_to_high(self.get_present_positions()) # low-level
         observation = positions[:,None]*np.ones(num_interp) # will get overwritten in-place
 
-        # todo: if requested, append vision features to observations here
+        # if requested, append vision features to observations
+        if binsize is not None:
+            visuals = np.zeros((2,num_interp)) # todo: use motion features
+            observation = np.concatenate([observation, visuals], axis=0)
 
         # fail gracefully on OSErrors due to loose wiring
         try:
@@ -635,7 +638,7 @@ class PoppyWrapper:
 
                 # otherwise, prepare new waypoint using controller and current observations
                 x = observation.flatten()
-                u = (controllers[n][:,:-1] * x).sum(axis=1) + controllers[:,-1] # raw linear control output
+                u = (controllers[n][:,:-1] * x).sum(axis=1) + controllers[n][:,-1] # raw linear control output
                 control_outputs.append(u) # save it before clipping
                 targets = np.clip(u, clip[n][0], clip[n][1]) # clip for safety
 
@@ -655,7 +658,7 @@ class PoppyWrapper:
             
                     # don't overshoot when nominal direction changes
                     next_nominal_targets = controllers[n+1][:,-1]
-                    current_direction = np.sign(targets - position)
+                    current_direction = np.sign(targets - positions)
                     next_direction = np.sign(next_nominal_targets - targets)
                     do_overshoot = (current_direction == next_direction)
 
@@ -664,7 +667,7 @@ class PoppyWrapper:
 
                 # send commands (low-level)
                 self.set_moving_speeds(moving_speeds)
-                self.set_goal_positions(self.remap_high_to_low(targets))
+                self.set_goal_positions(self.remap_high_to_low(self.dict_from(targets)))
 
                 # busy buffer loop until current timepoint is reached
                 while True:
@@ -709,7 +712,10 @@ class PoppyWrapper:
                     obs_j = [buffers["position"][m][j] for m in np.flatnonzero(mask)]
                     observation[j] = np.interp(t_int, elapsed[mask], obs_j)
 
-                # todo: interpolate motion features here if requested
+                # interpolate motion features if requested
+                if binsize is not None:
+                    visuals = np.zeros((2,num_interp)) # todo: use motion features
+                    observation[25:,:] = visuals
 
         # Don't crash on loose wiring errors
         except OSError as err:
