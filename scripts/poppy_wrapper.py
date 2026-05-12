@@ -566,6 +566,169 @@ class PoppyWrapper:
         # return results
         return buffers, time_elapsed, waypoint_timepoints, control_adjustments
 
+    def open2lc(self, obs_dim, trajectory):
+        """
+        Converts open-loop pypot trajectory to linear controller format
+        Only the bias part of the linear controller is non-zero (still effectively open-loop)
+
+        Inputs:
+        obs_dim: dimension of (ignored) observation vector
+        trajectory: [..., (duration (sec), waypoint) ...]
+        where waypoint[motor name] = angle (deg)
+
+        Outputs:
+        controllers[n]: linear control matrix for nth trajectory waypoint
+        durations[n]: durations for nth waypoint
+        """
+        durations, waypoints = zip(*trajectory)
+        controllers = []
+        for waypoint in waypoints:
+            controller = np.zeros((len(self.motor_names), obs_dim+1))
+            for name, angle in waypoint.items():
+                controller[self.motor_index[name], -1] = angle
+            controllers.append(controller)
+        return durations, controllers
+
+    def do_linear_control(self, num_interp, durations, controllers, clip, binsize=None, overshoot=None, ms_rpms = 0.165, fps=16):
+        # closed-loop trajectory tracking based on logic and outputs from fitted_lqr.py
+        # !! works well with durations around 1/5 sec, but poorly with durations around 1/24 sec
+        # num_interp: number of observation interpolation timepoints per waypoint for controller
+        # durations[n]: target time from (n-1)th to nth waypoint
+        # controllers[n]: Control matrix for issuing nth trajectory waypoint
+        # clip[n]: Control outputs clipped to this range for safety
+        #     u[n] = np.clip(controllers[n] @ [x[n]; 1], clip[n][0], clip[n][1])
+        # binsize, overshoot, rpm_unit, fps as in track_trajectory
+
+        # temporary custom handling of Ctrl-C for user-stopped motion
+        default_interrupt_handler = signal.signal(signal.SIGINT, custom_interrupt_handler)
+
+        # initialize buffers
+        bufkeys = ("position", "speed", "load", "voltage", "temperature")
+        buffers = {key: [] for key in bufkeys + ("target",)}
+        if binsize is not None: buffers['images'] = []
+        time_elapsed = []
+        waypoint_timepoints = []
+        control_outputs = []
+
+        # preprocess durations
+        timepoints = np.array(durations).cumsum()
+
+        # initialize interpolated observations with current position
+        positions = self.remap_low_to_high(self.get_present_positions()) # low-level
+        observation = positions[:,None]*np.ones(num_interp) # will get overwritten in-place
+
+        # todo: if requested, append vision features to observations here
+
+        # fail gracefully on OSErrors due to loose wiring
+        try:
+
+            num_frames = 0
+            start_time = time.time()
+            for n in range(len(durations)):
+
+                # mark time passed for current waypoint
+                time_passed = time.time() - start_time
+                waypoint_timepoints.append(time_passed)
+
+                # skip intermediate waypoints that are behind schedule
+                if n + 1 != len(durations) and time_passed >= timepoints[n]: continue
+
+                # otherwise, prepare new waypoint using controller and current observations
+                x = observation.flatten()
+                u = (controllers[n][:,:-1] * x).sum(axis=1) + controllers[:,-1] # raw linear control output
+                control_outputs.append(u) # save it before clipping
+                targets = np.clip(u, clip[n][0], clip[n][1]) # clip for safety
+
+                # limit speed based on target duration
+                positions = self.remap_low_to_high(self.get_present_positions()) # low-level
+                duration = timepoints[n] - time_passed
+                distances = np.fabs(targets - positions)
+                max_speeds = distances / duration # units = degs / sec
+                max_speeds = (max_speeds * 60. / 360. / ms_rpms).astype(int) # units = ms_rpms rotations / min
+                max_speeds = np.clip(max_speeds, 1, 500) # don't go too fast, and 0 means as fast as possible
+                moving_speeds = {
+                    name: max_speeds[self.motor_index[name]]
+                    for name in self.motor_names}
+
+                # only do overshoot if requested and before last waypoint
+                if overshoot is not None and n + 1 < len(timepoints):
+            
+                    # don't overshoot when nominal direction changes
+                    next_nominal_targets = controllers[n+1][:,-1]
+                    current_direction = np.sign(targets - position)
+                    next_direction = np.sign(next_nominal_targets - targets)
+                    do_overshoot = (current_direction == next_direction)
+
+                    # apply overshoot
+                    targets += np.where(do_overshoot, overshoot * current_direction, 0)
+
+                # send commands (low-level)
+                self.set_moving_speeds(moving_speeds)
+                self.set_goal_positions(self.remap_high_to_low(targets))
+
+                # busy buffer loop until current timepoint is reached
+                while True:
+                    busy_time = time.time() - start_time
+
+                    # update buffers
+                    for key in bufkeys:
+                        if key == 'position':
+                            buffers[key].append(self.remap_low_to_high(self.get_present_positions())) # low-level, more accurate
+                        else:
+                            buffers[key].append([getattr(motor, "present_" + key) for motor in self.motors])
+    
+                    # including current goal position (includes overshoot)
+                    buffers["target"].append(targets)
+    
+                    # and images if requested
+                    if binsize is not None:
+                        current_fps = num_frames / busy_time
+                        if current_fps < fps:
+                            frame = self.camera.frame[::binsize, ::binsize].copy()
+                            buffers['images'].append(frame)
+                            num_frames += 1
+                        else:
+                            buffers['images'].append(None)
+    
+                    # and finally timing
+                    time_elapsed.append(busy_time)
+    
+                    # stop busy loop when current timepoint is reached
+                    if time_elapsed[-1] > timepoints[n]: break
+
+                # next timepoint reached, update observation for next controller command
+                elapsed = np.array(time_elapsed)
+                if n == 0:
+                    t_int = np.linspace(0, timepoints[n], num_interp)
+                    mask = elapsed <= timepoints[n]
+                else:
+                    t_int = np.linspace(timepoints[n-1], timepoints[n], num_interp)
+                    mask = (timepoints[n-1] <= elapsed) & (elapsed <= timepoints[n])
+                # interpolate joint angles
+                for j in range(25):
+                    obs_j = [buffers["position"][m][j] for m in np.flatnonzero(mask)]
+                    observation[j] = np.interp(t_int, elapsed[mask], obs_j)
+
+                # todo: interpolate motion features here if requested
+
+        # Don't crash on loose wiring errors
+        except OSError as err:
+            print("Aborting Trajectory due to OSError!")
+            print(err) # prints blank?
+
+        finally:
+
+            # restore default interrupt handler
+            signal.signal(signal.SIGINT, default_interrupt_handler)
+
+            # save results
+            buffers = {key: np.array(buf) for (key, buf) in buffers.items()}
+            with open("traj_buf.pkl","wb") as f:
+                pk.dump((buffers, time_elapsed, waypoint_timepoints, self.motor_names), f)
+
+        # return results
+        return buffers, time_elapsed, waypoint_timepoints, control_outputs
+
     # small helper to set specific angles
     def goto_angles(self, angles):
         self.track_trajectory([(1., angles)])
